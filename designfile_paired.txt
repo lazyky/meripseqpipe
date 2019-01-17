@@ -1,0 +1,9 @@
+Sample_name,control_or_treated,ip_or_input,tag_id
+WT1input_2,control,input,2
+WT1ip_2,control,ip,2
+Mut1input_2,treated,input,2
+Mut1ip_2,treated,ip,2
+WT1input_1,control,input,1
+WT1ip_1,control,ip,1
+Mut1input_1,treated,input,1
+Mut1ip_1,treated,ip,1

@@ -193,7 +193,6 @@ if(!params.bed12){
     }
 }
 
-
 /*
  * PREPROCESSING - Build TOPHAT2 index
  * NEED genome.fa
@@ -323,15 +322,17 @@ if( params.star_index ){
    exit 1, print_red("There is no STAR Index")
 }
 
-
 process fastqc{
     tag "$pair_id"
-    
+    publishDir "${params.outdir}/fastqc", mode: 'link', overwrite: true
+
     input:
     set pair_id, file(reads) from raw_reads_fastqc
+    file designfile
 
     output:
-    set pair_id, file(reads) into  tophat2_reads , hisat2_reads , bwa_reads , star_reads
+    set pair_id, file("*.fastq") into  tophat2_reads , hisat2_reads , bwa_reads , star_reads
+    file "fastqc/*" into fastq_results
 
     when:
     !params.skip_fastqc
@@ -340,8 +341,10 @@ process fastqc{
     str = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(\.fq)?(\.fastq)?(\.gz)?$/
     pair_id = str
     if (params.singleEnd) {
+        whether_unzip = (params.inputformat == "fastq.gz") ? "gzip -fd $reads" : ''
         """
-        
+        $whether_unzip
+        bash $baseDir/bin/rename_and_fastqc.sh $designfile $str
         """
     } else {
         println (reads[0])

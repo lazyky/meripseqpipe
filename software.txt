@@ -1,5 +1,7 @@
 conda install -c bioconda ucsc-gtftogenepred
-conda install -c bioconda hisat2=v2.1.0
-conda install -c bioconda bowtie2=v2.3.4.3
+conda install -c bioconda fastqc=0.11.8-1
+conda install -c bioconda hisat2=2.1.1-py27_2
+conda install -c bioconda bowtie2=2.2.5-py27h2d50403_3
 conda install -c bioconda star 
 conda install -c bioconda bwa
+conda install -c bioconda tophat
