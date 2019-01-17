@@ -338,19 +338,21 @@ process fastqc{
     !params.skip_fastqc
 
     script:
-    str = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(\.fq)?(\.fastq)?(\.gz)?$/
-    pair_id = str
     if (params.singleEnd) {
+        str = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        pair_id = str
         whether_unzip = (params.inputformat == "fastq.gz") ? "gzip -fd $reads" : ''
         """
         $whether_unzip
         bash $baseDir/bin/rename_and_fastqc.sh $designfile $str
         """
     } else {
-        println (reads[0])
-        println (reads[1])
+        str = reads[0].toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        pair_id = str
+        whether_unzip = (params.inputformat == "fastq.gz") ? "gzip -fd ${reads[0]} ${reads[1]}" : ''
         """
-        
+        $whether_unzip
+        bash $baseDir/bin/rename_and_fastqc.sh $designfile $str        
         """
     }
 }
