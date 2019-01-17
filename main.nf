@@ -387,8 +387,8 @@ process tophat2Align {
         """
         tophat2 -p ${task.cpus} \\
                 -o $pair_id \\
-                $params.tophat2_index \\
-               ${reads[0]} ${reads[1]}
+                $index_base \\
+                ${reads[0]} ${reads[1]}
         mv $pair_id/accepted_hits.bam ${reads.baseName}_tophat2.bam
         """
     }
@@ -425,7 +425,7 @@ process hisat2Align {
         println (reads[1])
         """
         hisat2  -p ${task.cpus} \\
-                -x $params.hisat2_index \\
+                -x $index_base \\
                 -1 ${reads[0]} -2 ${reads[1]} \\
                 -S ${reads.baseName}_hisat2.sam 
         """
@@ -466,14 +466,14 @@ process bwaAlign{
         """
         bwa aln -t ${task.cpus} \\
                 -f ${reads0_sai}.sai \\
-                $params.bwa_index \\
+                $index_base \\
                 ${reads[0]}
         bwa aln -t ${task.cpus} \\
                 -f ${reads1_sai}.sai \\
-                $params.bwa_index \\
+                $index_base \\
                 ${reads[1]}
         bwa sampe -f {$pair_id}.sam \\
-                $params.bwa_index \\
+                $index_base \\
                 ${reads0_sai}.sai ${reads1_sai}.sai \\
                 ${reads[0]} ${reads[1]}
         
@@ -509,7 +509,7 @@ process starAlign {
         println (reads[0])
         println (reads[1])
         """
-       STAR --genomeDir $params.star_index \\
+       STAR --genomeDir $index \\
             --readFilesCommand gunzip \\
             --readFilesIn ${reads[0]} ${reads[1]}  \\
             --runThreadN ${task.cpus} \\
