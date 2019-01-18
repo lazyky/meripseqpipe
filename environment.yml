@@ -1,0 +1,30 @@
+name: nf-core-m6APipe-1.0dev
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - fastqc=0.11.8
+  - bedtools=2.27.1
+  - ucsc-gtftogenepred=357 
+  - hisat2=2.1.0
+  - bowtie2=2.2.5
+  - bwa=0.7.17
+  - star=2.6.1b
+  - tophat=2.1.1
+  - samtools=1.9
+  - bioconductor-edger=3.22.5
+  - bioconductor-deseq2=1.20.0
+  - htseq=0.11.2
+  - cufflinks=2.2.1
+  - bioconductor-exomepeak=2.14.0
+  - macs2=2.1.2
+  - r-dplyr=0.7.6
+  - r-readr=1.1.1
+  - perl=5.26.2
+  - python=2.7.13
+  - QNB
+  - MetPeak
+  - MetDIff
+  - mspc
+  - MATK
