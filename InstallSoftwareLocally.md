@@ -1,4 +1,4 @@
-# Dependencies for run lncPipe Locally
+# Dependencies for run m6APipe Locally
 
 Prerequisites install command (required when docker image is not favored, you should execute them via root)
 
@@ -12,12 +12,6 @@ Prerequisites install command (required when docker image is not favored, you sh
 		rm -rf doc example *debug MANUAL* NEWS TUTORIAL && \
 		ln -s /opt/hisat2-2.1.0/hisat2* /usr/local/bin/ && \
 		ln -sf /opt/hisat2-2.1.0/*.py /usr/local/bin/
-
-* [fastp](https://github.com/OpenGene/fastp)
-
-        RUN aria2c http://opengene.org/fastp/fastp -q -o /usr/local/bin/fastp && \
-            chmod a+x /usr/local/bin/fastp
-
 
 * [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc)
 

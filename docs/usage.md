@@ -12,7 +12,7 @@
         * [`awsbatch`](#awsbatch)
         * [`standard`](#standard)
         * [`none`](#none)
-    * [`--reads`](#--reads)
+    * [`--readsPath`](#--readsPath)
     * [`--singleEnd`](#--singleend)
 * [Reference Genomes](#reference-genomes)
     * [`--genome`](#--genome)
@@ -35,7 +35,7 @@
     * [`--max_cpus`](#--max_cpus)
     * [`--plaintext_emails`](#--plaintext_emails)
     * [`--sampleLevel`](#--sampleLevel)
-    * [`--multiqc_config`](#--multiqc_config)
+
 
 
 ## General Nextflow info
