@@ -177,7 +177,7 @@ if(params.readPaths){
  */
 if(!params.bed12){
     process makeBED12 {
-        tag "$gtf2bed12"
+        tag "gtf2bed12"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/reference_genome" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
 
@@ -204,13 +204,16 @@ if( params.tophat2_index ){
 }else if( params.fasta ){
     process makeTophat2Index {
         tag "tophat2_index"
-        publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
+        publishDir path: { params.saveReference ? "${params.outdir}/Genome/Tophat2/" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
         input:
         file fasta
 
         output:
-        file "Tophat2Index" into tophat2_index
+        file "Tophat2Index/*" into tophat2_index
+
+        when:
+        !params.skip_tophat2
 
         script:
         tophat2_index = "Tophat2Index/genome"
@@ -234,21 +237,24 @@ if( params.hisat2_index ){
 }else if( params.fasta ){
     process makeHisat2Index {
         tag "hisat2_index"
-        publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
+        publishDir path: { params.saveReference ? "${params.outdir}/Genome/Hisat2Index" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'        
         input:
         file fasta
         file gtf
 
         output:
-        file "Hisat2Index" into hisat2_index
+        file "Hisat2Index/*" into hisat2_index
 
+        when:
+        !params.skip_hisat2
+        
         script:
         """
         mkdir Hisat2Index
         hisat2_extract_exons.py $gtf > Hisat2Index/genome.exon
         hisat2_extract_splice_sites.py $gtf > Hisat2Index/genome.ss
-        hisat2-build -f $fasta --exon genome.exon --ss genome.ss Hisat2Index
+        hisat2-build -f $fasta --exon Hisat2Index/genome.exon --ss Hisat2Index/genome.ss Hisat2Index
         """
     }
 }else {
@@ -263,22 +269,27 @@ if( params.bwa_index ){
     bwa_index = Channel
         .fromPath(params.bwa_index)
         .ifEmpty { exit 1, "bwa index not found: ${params.bwa_index}" }
-}else if(params.fasta){
+}else if(params.fasta ){
     process makebwaindex {
         tag "bwa_index"
-        publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
+        publishDir path: { params.saveReference ? "${params.outdir}/Genome/BWAIndex/" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
 
         input:
         file fasta
 
         output:
-        file "BWAIndex" into bwa_index
+        file "BWAIndex/*" into bwa_index
 
+        when:
+        !params.skip_bwa
+     
         script:
         """
         mkdir BWAIndex
-        bwa index -p genome -abwtsw $fasta
+        cd BWAIndex/
+        bwa index -p genome -abwtsw ../$fasta
+        cd ../
         """
     }
 }else {
@@ -304,6 +315,9 @@ if( params.star_index ){
 
         output:
         file "StarIndex" into star_index
+
+        when:
+        !params.skip_star 
 
         script:
         NumberOfThreads = 1
@@ -356,7 +370,11 @@ process fastqc{
         """
     }
 }
-
+/*
+========================================================================================
+                                    Aligners
+========================================================================================
+*/ 
 process tophat2Align {
     tag "$pair_id"
     publishDir "${params.outdir}/aligners/tophat2", mode: 'link', overwrite: true
@@ -366,34 +384,31 @@ process tophat2Align {
     file index from tophat2_index.collect()
 
     output:
-    file "${reads.baseName}_tophat2.bam" into tophat2_bam
+    file "*_tophat2.bam" into tophat2_bam
     
     when:
     !params.skip_tophat2
 
     script:
-    index_base = index[0].toString() - ~/(\.rev)?.\d.bt2/
+    index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.bt2)?$/
     if (params.singleEnd) {
         """
-        tophat2 -p ${task.cpus} \\
+        tophat -p ${task.cpus} \\
                 -o $pair_id \\
                 $index_base \\
                 $reads 
         mv $pair_id/accepted_hits.bam ${reads.baseName}_tophat2.bam
         """
     } else {
-        println (reads[0])
-        println (reads[1])
         """
-        tophat2 -p ${task.cpus} \\
+        tophat -p ${task.cpus} \\
                 -o $pair_id \\
                 $index_base \\
                 ${reads[0]} ${reads[1]}
-        mv $pair_id/accepted_hits.bam ${reads.baseName}_tophat2.bam
+        mv $pair_id/accepted_hits.bam ${reads[0].baseName}_tophat2.bam
         """
     }
 }
-
 
 process hisat2Align {
     tag "$pair_id"
@@ -404,7 +419,7 @@ process hisat2Align {
     file index from hisat2_index.collect()
 
     output:
-    file "${reads.baseName}_hisat2.bam" into hisat2_bam
+    file "*_hisat2.bam" into hisat2_bam
 
     when:
     !params.skip_hisat2
@@ -427,7 +442,8 @@ process hisat2Align {
         hisat2  -p ${task.cpus} \\
                 -x $index_base \\
                 -1 ${reads[0]} -2 ${reads[1]} \\
-                -S ${reads.baseName}_hisat2.sam 
+                -S ${reads[0].baseName}_hisat2.sam
+        samtools view -bS ${reads[0].baseName}_hisat2.sam > ${reads[0].baseName}_hisat2.bam
         """
         }
 }
@@ -441,13 +457,13 @@ process bwaAlign{
     file index from bwa_index.collect()
 
     output:
-    file "${reads.baseName}_bwa.bam" into bwa_bam
+    file "*_bwa.bam" into bwa_bam
 
     when:
     !params.skip_bwa
 
     script:
-    index_base = index[0].toString() - ~/.fa(.pac)?(.bwt)?(.ann)?(.amb)?(.sa)?/ + ".fa"
+    index_base = index[0].toString() - ~/(\.pac)?(\.bwt)?(\.ann)?(\.amb)?(\.sa)?(\.fa)?$/
     if (params.singleEnd) {
         """
         bwa aln -t ${task.cpus} \\
@@ -461,26 +477,23 @@ process bwaAlign{
         samtools view -h -bS ${reads.baseName}_bwa.sam > ${reads.baseName}_bwa.bam
         """
     } else {
-        reads0_sai = pair_id + "_0"
-        reads1_sai = pair_id + "_1"
         """
         bwa aln -t ${task.cpus} \\
-                -f ${reads0_sai}.sai \\
+                -f ${reads[0].baseName}.sai \\
                 $index_base \\
                 ${reads[0]}
         bwa aln -t ${task.cpus} \\
-                -f ${reads1_sai}.sai \\
+                -f ${reads[1].baseName}.sai \\
                 $index_base \\
                 ${reads[1]}
-        bwa sampe -f {$pair_id}.sam \\
+        bwa sampe -f ${reads[0].baseName}_bwa.sam \\
                 $index_base \\
-                ${reads0_sai}.sai ${reads1_sai}.sai \\
+                ${reads[0].baseName}.sai ${reads[0].baseName}.sai \\
                 ${reads[0]} ${reads[1]}
-        
+        samtools view -h -bS ${reads[0].baseName}_bwa.sam > ${reads[0].baseName}_bwa.bam
         """
     }
 }
-
 
 process starAlign {
     tag "$pair_id"
@@ -491,7 +504,7 @@ process starAlign {
     file index from star_index.collect()
 
     output:
-    file "${reads.baseName}_star.bam" into star_bam
+    file "*_star.bam" into star_bam
 
     when:
     !params.skip_star
@@ -509,21 +522,19 @@ process starAlign {
         println (reads[0])
         println (reads[1])
         """
-       STAR --genomeDir $index \\
-            --readFilesCommand gunzip \\
+        STAR --genomeDir $index \\
             --readFilesIn ${reads[0]} ${reads[1]}  \\
             --runThreadN ${task.cpus} \\
-            --outFileNamePrefix $pair_id 
+            --outFileNamePrefix ${reads[0].baseName}
+        samtools view -h -bS ${reads[0].baseName}Aligned.out.sam > ${reads[0].baseName}_star.bam
         """
     }
 }
-
 
 Channel
     .from()
     .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam)
     .into {merge_bam_file; test_channel2}
-
 
 process mid_process {
     publishDir "${params.outdir}/rename/", mode: 'link', overwrite: true
@@ -554,7 +565,7 @@ process mid_process {
  * STEP 4 - RSeQC analysis
 */
 process rseqc {
-    publishDir "${params.outdir}/rseqc" , mode: 'copy', overwrite: true,
+    publishDir "${params.outdir}/RSeQC" , mode: 'copy', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf("bam_stat.txt") > 0)                      "bam_stat/$filename"
             else if (filename.indexOf("infer_experiment.txt") > 0)              "infer_experiment/$filename"
