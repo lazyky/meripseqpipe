@@ -22,12 +22,12 @@ Choose between workflows by using `--skip_ToolsName` or not(default) .
 | Step                                    | Pipeline                      |
 |-----------------------------------------|-------------------------------|
 | Raw Data QC                             | FastQC                        |
-| Reads Alignment                         | star, bwa, tophat, hisat2     |
-| Post-alignment QC                       | RSeQC                         |
+| Reads Mapping                           | star, bwa, tophat, hisat2     |
+| Sort BAM file AND Post-alignment QC     | samtools, RSeQC               |
 | Reads counting                          | htseq-count                   |
-| Differential expression analysis        | deseq2, edgeR, cufflinks      |
 | Peak Calling                            | MeTPeak, exomePeak, macs2     |
 | Differential methylation analysis       | MeTDiff, exomePeak, QNB       |
+| Differential expression analysis        | deseq2, edgeR, cufflinks      |
 | Combines Peaks information              | MSPC                          |
 
 ### Dependencies
@@ -38,6 +38,7 @@ Choose between workflows by using `--skip_ToolsName` or not(default) .
     * [TopHat](https://ccb.jhu.edu/software/tophat/)
     * [HISAT2](https://ccb.jhu.edu/software/hisat2/)
     * [Bowtie2](https://github.com/BenLangmead/bowtie2)
+    * [samtools](http://www.htslib.org/)
     * [htseq](https://github.com/simon-anders/htseq)
     * [deseq2](http://bioconductor.org/packages/DESeq2/)
     * [edgeR](http://bioconductor.org/packages/edgeR/)
