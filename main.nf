@@ -102,15 +102,16 @@ params.gff = false
 params.bed12 = false
 params.designfile = false
 params.call = false
-/*params.bowtie_index = "$baseDir/Genome/NCBI/build5.3/Sequence/BowtieIndex/genome*"
-params.tophat2_index = "$baseDir/Genome/NCBI/build5.3/Sequence/tophat2Index/genome*"
-params.hisat2_index = "$baseDir/Genome/NCBI/build5.3/Sequence/Hisat2Index/genome*"
-params.bwa_index = "$baseDir/Genome/NCBI/build5.3/Sequence/BWAIndex/genome*"
-params.star_index = "$baseDir/Genome/NCBI/build5.3/Sequence/StarIndex/"*/
+params.bowtie_index = false
+params.tophat2_index = "/home/zky/m6apipe/results/Genome/Tophat2Index/*"
+params.hisat2_index = false
+params.bwa_index = "/home/zky/m6apipe/results/Genome/BWAIndex/*"
+params.star_index = false
 params.email = false
 params.plaintext_email = false
 params.seqCenter = false
 
+unstrand = params.unstrand ? true : false
 
 // Preset trimming options
 params.pico = false
@@ -150,21 +151,12 @@ if( params.designfile ) {
  * Create a channel for input read files
  */
 if(params.readPaths){
-    if(params.singleEnd){
-        Channel
-            .fromFilePairs("$params.readPaths/*", size: 1) 
-            //.map { row -> [ row[0], [file(row[1][0])]] }
-            .ifEmpty { exit 1, print_red("params.readPaths was empty - no input files supplied") }
-            //.subscribe { println it }
-            .into { raw_reads_fastqc ; test_channel }
-    } else {
-        Channel
-            .fromFilePairs("$params.readPaths/*_{1,2}*", size: 2) 
-            //.map { row -> [ row[0] - 5 , [file(row[1][0]), file(row[1][1])]] }
-            .ifEmpty { exit 1, print_red("READPATH was empty - no input files supplied") }
-            //.subscribe { println it }
-            .into { raw_reads_fastqc; test_channel }
-    }
+    Channel
+        .fromFilePairs( "$params.readPaths/*", size: params.singleEnd ? 1 : 2 ) 
+        //.map { row -> [ row[0], [file(row[1][0])]] }
+        .ifEmpty { exit 1, print_red( "params.readPaths was empty - no input files supplied" )}
+        //.subscribe { println it }
+        .set { raw_reads_fastqc }
 }
 /*
 ========================================================================================
@@ -175,7 +167,7 @@ if(params.readPaths){
  * PREPROCESSING - Build BED12 file
  * NEED gtf.file
  */
-if(!params.bed12){
+if(params.gtf && !params.bed12){
     process makeBED12 {
         tag "gtf2bed12"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/reference_genome" : params.outdir },
@@ -183,13 +175,14 @@ if(!params.bed12){
 
         input:
         file gtf
-
+        
         output:
         file "${gtf.baseName}.bed" into bed_rseqc, bed_genebody_coverage
 
+        script:      
         """
-        bash $baseDir/bin/gtf2bed12.sh $gtf
-        """
+        bash ${baseDir}/bin/gtf2bed12.sh $gtf
+        """        
     }
 }
 
@@ -202,9 +195,9 @@ if( params.tophat2_index ){
         .fromPath(params.tophat2_index)
         .ifEmpty { exit 1, "STAR index not found: ${params.tophat2_index}" }
 }else if( params.fasta ){
-    process makeTophat2Index {
+    process MakeTophat2Index {
         tag "tophat2_index"
-        publishDir path: { params.saveReference ? "${params.outdir}/Genome/Tophat2/" : params.outdir },
+        publishDir path: { params.saveReference ? "${params.outdir}/Genome/ ": params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
         input:
         file fasta
@@ -216,10 +209,10 @@ if( params.tophat2_index ){
         !params.skip_tophat2
 
         script:
-        tophat2_index = "Tophat2Index/genome"
+        tophat2_index = "Tophat2Index/" + fasta.baseName.toString()
         """
         mkdir Tophat2Index
-        bowtie2-build -f $params.fasta $tophat2_index
+        bowtie2-build -p ${task.cpus} -f $params.fasta $tophat2_index
         """
     }
 }else {
@@ -235,9 +228,9 @@ if( params.hisat2_index ){
         .fromPath(params.hisat2_index)
         .ifEmpty { exit 1, "hisat2 index not found: ${params.hisat2_index}" }
 }else if( params.fasta ){
-    process makeHisat2Index {
+    process MakeHisat2Index {
         tag "hisat2_index"
-        publishDir path: { params.saveReference ? "${params.outdir}/Genome/Hisat2Index" : params.outdir },
+        publishDir path: { params.saveReference ? "${params.outdir}/Genome/ " : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'        
         input:
         file fasta
@@ -252,9 +245,9 @@ if( params.hisat2_index ){
         script:
         """
         mkdir Hisat2Index
-        hisat2_extract_exons.py $gtf > Hisat2Index/genome.exon
-        hisat2_extract_splice_sites.py $gtf > Hisat2Index/genome.ss
-        hisat2-build -f $fasta --exon Hisat2Index/genome.exon --ss Hisat2Index/genome.ss Hisat2Index
+        hisat2_extract_exons.py $gtf > Hisat2Index/${gtf.baseName}.exon
+        hisat2_extract_splice_sites.py $gtf > Hisat2Index/${gtf.baseName}.ss
+        hisat2-build -p ${task.cpus} -f $fasta --exon Hisat2Index/${gtf.baseName}.exon --ss Hisat2Index/${gtf.baseName}.ss Hisat2Index/${fasta.baseName}
         """
     }
 }else {
@@ -270,9 +263,9 @@ if( params.bwa_index ){
         .fromPath(params.bwa_index)
         .ifEmpty { exit 1, "bwa index not found: ${params.bwa_index}" }
 }else if(params.fasta ){
-    process makebwaindex {
+    process MakeBWAIndex {
         tag "bwa_index"
-        publishDir path: { params.saveReference ? "${params.outdir}/Genome/BWAIndex/" : params.outdir },
+        publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
 
         input:
@@ -288,7 +281,7 @@ if( params.bwa_index ){
         """
         mkdir BWAIndex
         cd BWAIndex/
-        bwa index -p genome -abwtsw ../$fasta
+        bwa index -t ${task.cpus} -p ${fasta.baseName} -abwtsw ../$fasta
         cd ../
         """
     }
@@ -305,7 +298,7 @@ if( params.star_index ){
         .fromPath(params.star_index)
         .ifEmpty { exit 1, "STAR index not found: ${params.star_index}" }
 }else if( params.fasta ){
-    process makeStarIndex {
+    process MakeStarIndex {
         tag "star_index"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
@@ -320,32 +313,36 @@ if( params.star_index ){
         !params.skip_star 
 
         script:
-        NumberOfThreads = 1
-        ReadLength = 49
+        readLength = 50
+        overhang = readLength - 1
         """
-        STAR --runThreadN $NumberOfThreads \\
+        STAR --runThreadN ${task.cpus} \\
         --runMode genomeGenerate \\
         --genomeDir StarIndex \\
         --genomeFastaFiles $fasta \\
         --sjdbGTFfile $gtf \\
-        --sjdbOverhang $ReadLength-1 \\
+        --sjdbOverhang $Overhang \\
         """
     }
 
 }else {
    exit 1, print_red("There is no STAR Index")
 }
-
-process fastqc{
-    tag "$pair_id"
+/*
+========================================================================================
+                                Step 1. QC------FastQC
+========================================================================================
+*/ 
+process Fastqc{
+    tag "$sample_name"
     publishDir "${params.outdir}/fastqc", mode: 'link', overwrite: true
 
     input:
-    set pair_id, file(reads) from raw_reads_fastqc
+    set sample_name, file(reads) from raw_reads_fastqc
     file designfile
 
     output:
-    set pair_id, file("*.fastq") into  tophat2_reads , hisat2_reads , bwa_reads , star_reads
+    set sample_name, file("*.fastq") into  tophat2_reads , hisat2_reads , bwa_reads , star_reads
     file "fastqc/*" into fastq_results
 
     when:
@@ -353,35 +350,36 @@ process fastqc{
 
     script:
     if (params.singleEnd) {
-        str = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
-        pair_id = str
-        whether_unzip = (params.inputformat == "fastq.gz") ? "gzip -fd $reads" : ''
+        filename = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        sample_name = filename
+        whether_unzip = (params.inputformat == "fastq") ? "" : "gzip -fd $reads"
         """
         $whether_unzip
-        bash $baseDir/bin/rename_and_fastqc.sh $designfile $str
+        bash $baseDir/bin/rename_and_fastqc.sh $designfile $filename
         """
     } else {
-        str = reads[0].toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
-        pair_id = str
-        whether_unzip = (params.inputformat == "fastq.gz") ? "gzip -fd ${reads[0]} ${reads[1]}" : ''
+        filename = reads[0].toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        sample_name = filename
+        whether_unzip = (params.inputformat == "fastq") ? "" : "gzip -fd ${reads[0]} ${reads[1]}" 
         """
         $whether_unzip
-        bash $baseDir/bin/rename_and_fastqc.sh $designfile $str        
+        bash $baseDir/bin/rename_and_fastqc.sh $designfile $filename        
         """
     }
 }
 /*
 ========================================================================================
-                                    Aligners
+                            Step 2. Reads Mapping
 ========================================================================================
 */ 
-process tophat2Align {
-    tag "$pair_id"
+process Tophat2Align {
+    tag "$sample_name"
     publishDir "${params.outdir}/aligners/tophat2", mode: 'link', overwrite: true
 
     input:
-    set pair_id, file(reads) from tophat2_reads
+    set sample_name, file(reads) from tophat2_reads
     file index from tophat2_index.collect()
+    file gtf
 
     output:
     file "*_tophat2.bam" into tophat2_bam
@@ -391,31 +389,36 @@ process tophat2Align {
 
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.bt2)?$/
+    strand_str = unstrand ? "fr-unstranded" : "fr-firststrand"
     if (params.singleEnd) {
         """
-        tophat -p ${task.cpus} \\
-                -o $pair_id \\
+        tophat  -p ${task.cpus} \\
+                -G $gtf \\
+                -o $sample_name \\
+                --library-type $strand_str \\
                 $index_base \\
                 $reads 
-        mv $pair_id/accepted_hits.bam ${reads.baseName}_tophat2.bam
+        mv $sample_name/accepted_hits.bam ${reads.baseName}_tophat2.bam
         """
     } else {
         """
         tophat -p ${task.cpus} \\
-                -o $pair_id \\
+                -G $gtf \\
+                -o $sample_name \\
+                --library-type $strand_str \\
                 $index_base \\
                 ${reads[0]} ${reads[1]}
-        mv $pair_id/accepted_hits.bam ${reads[0].baseName}_tophat2.bam
+        mv $sample_name/accepted_hits.bam ${reads[0].baseName}_tophat2.bam
         """
     }
 }
 
-process hisat2Align {
-    tag "$pair_id"
+process Hisat2Align {
+    tag "$sample_name"
     publishDir "${params.outdir}/aligners/hisat2", mode: 'link', overwrite: true
 
     input:
-    set pair_id, file(reads) from hisat2_reads
+    set sample_name, file(reads) from hisat2_reads
     file index from hisat2_index.collect()
 
     output:
@@ -427,33 +430,30 @@ process hisat2Align {
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.ht2)?$/
     if (params.singleEnd) {
-
         """
-        hisat2  -p ${task.cpus} \\
+        hisat2  -p ${task.cpus} --dta\\
                 -x $index_base \\
                 -U $reads \\
-                -S ${reads.baseName}_hisat2.sam
+                -S ${reads.baseName}_hisat2.sam 2> ${reads.baseName}_hisat2_summary.txt
         samtools view -bS ${reads.baseName}_hisat2.sam > ${reads.baseName}_hisat2.bam
         """
     } else {
-        println (reads[0])
-        println (reads[1])
         """
-        hisat2  -p ${task.cpus} \\
+        hisat2  -p ${task.cpus} --dta\\
                 -x $index_base \\
                 -1 ${reads[0]} -2 ${reads[1]} \\
-                -S ${reads[0].baseName}_hisat2.sam
+                -S ${reads[0].baseName}_hisat2.sam 2> ${reads[0].baseName}_hisat2_summary.txt
         samtools view -bS ${reads[0].baseName}_hisat2.sam > ${reads[0].baseName}_hisat2.bam
         """
         }
 }
 
-process bwaAlign{
-    tag "$pair_id"
+process BWAAlign{
+    tag "$sample_name"
     publishDir "${params.outdir}/aligners/bwa", mode: 'link', overwrite: true
     
     input:
-    set pair_id, file(reads) from bwa_reads
+    set sample_name, file(reads) from bwa_reads
     file index from bwa_index.collect()
 
     output:
@@ -495,13 +495,13 @@ process bwaAlign{
     }
 }
 
-process starAlign {
-    tag "$pair_id"
+process StarAlign {
+    tag "$sample_name"
     publishDir "${params.outdir}/aligners/star", mode: 'link', overwrite: true
     
     input:
-    set pair_id, file(reads) from star_reads
-    file index from star_index.collect()
+    set sample_name, file(reads) from star_reads
+    file star_index from star_index.collect()
 
     output:
     file "*_star.bam" into star_bam
@@ -513,34 +513,43 @@ process starAlign {
     if (params.singleEnd) {
         """
         STAR --runThreadN ${task.cpus} \\
-            --genomeDir $index \\
+            --twopassMode Basic \\
+            --genomeDir $star_index \\
             --readFilesIn $reads  \\
+            --outSAMtype BAM Unsorted \\
             --outFileNamePrefix ${reads.baseName} 
-        samtools view -h -bS ${reads.baseName}Aligned.out.sam > ${reads.baseName}_star.bam
+        mv ${reads.baseName}Aligned.out.bam > ${reads.baseName}_star.bam
         """
     } else {
-        println (reads[0])
-        println (reads[1])
         """
-        STAR --genomeDir $index \\
+        STAR --runThreadN ${task.cpus} \\
+            --twopassMode Basic \\
+            --genomeDir $star_index \\
             --readFilesIn ${reads[0]} ${reads[1]}  \\
-            --runThreadN ${task.cpus} \\
+            --outSAMtype BAM Unsorted \\
             --outFileNamePrefix ${reads[0].baseName}
-        samtools view -h -bS ${reads[0].baseName}Aligned.out.sam > ${reads[0].baseName}_star.bam
+        mv ${reads[0].baseName}Aligned.out.bam > ${reads[0].baseName}_star.bam
         """
     }
 }
-
+/*
+========================================================================================
+                        Step 3 Sort BAM file AND QC
+========================================================================================
+*/ 
 Channel
     .from()
     .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam)
-    .into {merge_bam_file; test_channel2}
-
-process mid_process {
-    publishDir "${params.outdir}/rename/", mode: 'link', overwrite: true
+    .into {merge_bam_file; test_channel1}
+test_channel1.subscribe{ println it }
+/*
+ * STEP 3-1 - Sort BAM file
+*/
+process Sort {
+    publishDir "${params.outdir}/samtools_sort/", mode: 'link', overwrite: true
     input:
     file( bam_query_file ) from merge_bam_file.collect()
-    file designfile  // designfile:filename,control_treated,input_ip,ID
+    file designfile  // designfile:filename,control_treated,input_ip
 
     output:
     file "*_sort*" into exomepeak_bam, macs2_bam, metpeak_bam, metdiff_bam, 
@@ -555,16 +564,16 @@ process mid_process {
     """ 
     cat $designfile > tmp_designfile.txt 
     dos2unix tmp_designfile.txt     
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rename_and_sort.sh tophat2 ; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rename_and_sort.sh hisat2 ; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/rename_and_sort.sh bwa ; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/rename_and_sort.sh star ; fi &
+    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh tophat2 ; fi &
+    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh hisat2 ; fi &
+    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/samtools_sort.sh bwa ; fi &
+    if [ $skip_star == "false" ]; then bash $baseDir/bin/samtools_sort.sh star ; fi &
     """
 }
 /*
- * STEP 4 - RSeQC analysis
+ * STEP 3-2 - RSeQC analysis
 */
-process rseqc {
+process RSeQC {
     publishDir "${params.outdir}/RSeQC" , mode: 'copy', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf("bam_stat.txt") > 0)                      "bam_stat/$filename"
@@ -621,7 +630,7 @@ process rseqc {
     """
 }
 
-process createBigWig {
+process CreateBigWig {
     publishDir "${params.outdir}/rseqc/bigwig", mode: 'link', overwrite: true
 
     when:
@@ -642,7 +651,7 @@ process createBigWig {
     '''
 }
 
-process genebody_coverage {
+process GenebodyCoverage {
        publishDir "${params.outdir}/rseqc" , mode: 'link', overwrite: true, 
         saveAs: {filename ->
             if (filename.indexOf("geneBodyCoverage.curves.pdf") > 0)       "geneBodyCoverage/$filename"
@@ -672,148 +681,14 @@ process genebody_coverage {
 }
 
 /*
- * STEP 5 - 1  diff express
-*/
-process htseq_count{
-    publishDir "${params.outdir}/diff_expr/htseq_count", mode: 'link', overwrite: true
-
-    input:
-    file bam_bai_file from htseq_count_bam
-    file gtf
-
-    output:
-    file "*input*.count" into htseq_count_input_to_deseq2, htseq_count_input_to_edgeR, htseq_count_input_to_QNB
-    file "*ip*.count" into htseq_count_ip_to_QNB
-
-    when:
-    true
-
-    script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then bash $baseDir/bin/htseq_count_input.sh tophat2 $gtf ; 
-             bash $baseDir/bin/htseq_count_ip.sh tophat2 $gtf ;
-             Rscript $baseDir/bin/get_htseq_matrix.R tophat2 ;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then bash $baseDir/bin/htseq_count_input.sh hisat2 $gtf ; 
-             bash $baseDir/bin/htseq_count_ip.sh hisat2 $gtf ;
-             Rscript $baseDir/bin/get_htseq_matrix.R hisat2 ;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then bash $baseDir/bin/htseq_count_input.sh bwa $gtf ; 
-             bash $baseDir/bin/htseq_count_ip.sh bwa $gtf ;
-             Rscript $baseDir/bin/get_htseq_matrix.R bwa ;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then bash $baseDir/bin/htseq_count_input.sh star $gtf ; 
-             bash $baseDir/bin/htseq_count_ip.sh star $gtf ;
-             Rscript $baseDir/bin/get_htseq_matrix.R star ;
-        fi &
-    """
-}
-
-process deseq2{
-    publishDir "${params.outdir}/diff_expr/deseq2", mode: 'link', overwrite: true
-
-    input:
-    file reads_count_input from htseq_count_input_to_deseq2
-
-    output:
-    file "*.csv" into deseq2_results
-    
-    when:
-    true
-
-    script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R tophat2 ;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R hisat2 ;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R bwa ;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R star ;
-        fi &
-    """
-}
-
-process edgeR{
-    publishDir "${params.outdir}/diff_expr/edgeR", mode: 'link', overwrite: true
-
-    input:
-    file reads_count_input from htseq_count_input_to_edgeR
-
-    output:
-    //file "*.csv" into edgeR_results
-    
-    when:
-    true
-
-    script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R tophat2 ;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R hisat2 ;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R bwa ;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R star ;
-        fi &
-    """
-}
-
-process cufflinks{
-    publishDir "${params.outdir}/peak_calling/cufflinks", mode: 'link', overwrite: true
-
-    input:
-    file bam_bai_file from cufflinks_bam
-    file designfile
-
-    output:
-    file "*" into cufflinks_results
-
-    when:
-    false
-
-    script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    cat designfile.txt > tmp_designfile.txt
-    dos2unix tmp_designfile.txt
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 ; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 ; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa ; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star ; fi &
-    """
-}
+========================================================================================
+                            Step 4 Peak Calling
+========================================================================================
+*/ 
 /*
- * STEP 5 - 2  Peak Calling
+ * STEP 4 - 1  Peak Calling------ExomePeak, MetPeak, MACS2
 */
-process exomepeak {
+process Exomepeak {
     publishDir "${params.outdir}/peak_calling/exomepeak", mode: 'link', overwrite: true
 
     input:
@@ -849,7 +724,7 @@ process exomepeak {
     """
 }
 
-process metpeak {
+process Metpeak {
     publishDir "${params.outdir}/peak_calling/metpeak", mode: 'link', overwrite: true
 
     input:
@@ -885,7 +760,7 @@ process metpeak {
     """
 }
 
-process macs2{
+process Macs2{
     publishDir "${params.outdir}/peak_calling/macs2", mode: 'link', overwrite: true
 
     input:
@@ -913,11 +788,46 @@ process macs2{
     if [ $skip_star == "false" ]; then bash $baseDir/bin/macs2.sh star ; fi &
     """
 }
-
 /*
- * STEP 5 - 3 Differential methylation analysis 
+ * STEP 4 - 2 Differential methylation analysis------ExomePeak, MetPeak, QNB, MATK
 */
-process metdiff {
+process DiffExomepeak {
+    publishDir "${params.outdir}/peak_diff/diffexomepeak", mode: 'link', overwrite: true
+
+    input:
+    file bam_bai_file from diffexomepeak_bam
+    file gtf
+    file designfile
+
+    output:
+    file "*" into diffexomepeak_results
+    file "diffexomePeak*.bed" into diffexomepeak_bed
+    
+    when:
+    true
+
+    script:  
+    skip_tophat2 = params.skip_tophat2
+    skip_hisat2 = params.skip_hisat2
+    skip_bwa = params.skip_bwa
+    skip_star = params.skip_star
+    """
+    if [ $skip_tophat2 == "false" ]; 
+        then Rscript $baseDir/bin/diffexomePeak.R tophat2 ;
+        fi &
+    if [ $skip_hisat2 == "false" ]; 
+        then Rscript $baseDir/bin/diffexomePeak.R hisat2 ;
+        fi &
+    if [ $skip_bwa == "false" ]; 
+        then Rscript $baseDir/bin/diffexomePeak.R bwa ;
+        fi &
+    if [ $skip_star == "false" ]; 
+        then Rscript $baseDir/bin/diffexomePeak.R star ;
+        fi &
+    """
+}
+
+process Metdiff {
     publishDir "${params.outdir}/peak_diff/metdiff", mode: 'link', overwrite: true
 
     input:
@@ -953,38 +863,45 @@ process metdiff {
     """
 }
 
-process diffexomepeak {
-    publishDir "${params.outdir}/peak_diff/diffexomepeak", mode: 'link', overwrite: true
+process Htseq_count{
+    publishDir "${params.outdir}/diff_expr/htseq_count", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from diffexomepeak_bam
+    file bam_bai_file from htseq_count_bam
     file gtf
-    file designfile
 
     output:
-    file "*" into diffexomepeak_results
-    file "diffexomePeak*.bed" into diffexomepeak_bed
-    
+    file "*input*.count" into htseq_count_input_to_QNB, htseq_count_input_to_deseq2, htseq_count_input_to_edgeR
+    file "*ip*.count" into htseq_count_ip_to_QNB
+
     when:
     true
 
-    script:  
+    script:
     skip_tophat2 = params.skip_tophat2
     skip_hisat2 = params.skip_hisat2
     skip_bwa = params.skip_bwa
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R tophat2 ;
+        then bash $baseDir/bin/htseq_count_input.sh tophat2 $gtf ; 
+             bash $baseDir/bin/htseq_count_ip.sh tophat2 $gtf ;
+             Rscript $baseDir/bin/get_htseq_matrix.R tophat2 ;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R hisat2 ;
+        then bash $baseDir/bin/htseq_count_input.sh hisat2 $gtf ; 
+             bash $baseDir/bin/htseq_count_ip.sh hisat2 $gtf ;
+             Rscript $baseDir/bin/get_htseq_matrix.R hisat2 ;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R bwa ;
+        then bash $baseDir/bin/htseq_count_input.sh bwa $gtf ; 
+             bash $baseDir/bin/htseq_count_ip.sh bwa $gtf ;
+             Rscript $baseDir/bin/get_htseq_matrix.R bwa ;
         fi &
     if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R star ;
+        then bash $baseDir/bin/htseq_count_input.sh star $gtf ; 
+             bash $baseDir/bin/htseq_count_ip.sh star $gtf ;
+             Rscript $baseDir/bin/get_htseq_matrix.R star ;
         fi &
     """
 }
@@ -1022,9 +939,13 @@ process QNB {
         fi &
     """
 }
-
 /*
- * STEP 6 Merge
+========================================================================================
+                        Step 5 Merge Peak AND Peak Visualization
+========================================================================================
+*/
+/*
+ * STEP 5-1 Merge Peak
 */
 Channel
     .from()
@@ -1036,7 +957,7 @@ Channel
     .concat(diffexomepeak_bed, metdiff_bed)
     .into {merge_bed_diffpeak_file; test_channel4}
 
-process peak_merge_bed {
+process PeakMergeBYBed {
     publishDir "${params.outdir}/merge/", mode: 'link', overwrite: true
     
     input:
@@ -1063,7 +984,7 @@ process peak_merge_bed {
     '''
 }
 
-process diffpeak_merge_bed {
+process DiffPeakMergeBYBed {
     publishDir "${params.outdir}/merge/", mode: 'link', overwrite: true
     
     input:
@@ -1088,4 +1009,103 @@ process diffpeak_merge_bed {
     done
     ls */*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
     '''
+}
+
+/*
+========================================================================================
+                        Step X Differential expression analysis
+========================================================================================
+*/
+process Deseq2{
+    publishDir "${params.outdir}/diff_expr/deseq2", mode: 'link', overwrite: true
+
+    input:
+    file reads_count_input from htseq_count_input_to_deseq2
+
+    output:
+    file "*.csv" into deseq2_results
+    
+    when:
+    true
+
+    script:
+    skip_tophat2 = params.skip_tophat2
+    skip_hisat2 = params.skip_hisat2
+    skip_bwa = params.skip_bwa
+    skip_star = params.skip_star
+    """
+    if [ $skip_tophat2 == "false" ]; 
+        then Rscript $baseDir/bin/DESeq2.R tophat2 ;
+        fi &
+    if [ $skip_hisat2 == "false" ]; 
+        then Rscript $baseDir/bin/DESeq2.R hisat2 ;
+        fi &
+    if [ $skip_bwa == "false" ]; 
+        then Rscript $baseDir/bin/DESeq2.R bwa ;
+        fi &
+    if [ $skip_star == "false" ]; 
+        then Rscript $baseDir/bin/DESeq2.R star ;
+        fi &
+    """
+}
+
+process EdgeR{
+    publishDir "${params.outdir}/diff_expr/edgeR", mode: 'link', overwrite: true
+
+    input:
+    file reads_count_input from htseq_count_input_to_edgeR
+
+    output:
+    //file "*.csv" into edgeR_results
+    
+    when:
+    true
+
+    script:
+    skip_tophat2 = params.skip_tophat2
+    skip_hisat2 = params.skip_hisat2
+    skip_bwa = params.skip_bwa
+    skip_star = params.skip_star
+    """
+    if [ $skip_tophat2 == "false" ]; 
+        then Rscript $baseDir/bin/edgeR.R tophat2 ;
+        fi &
+    if [ $skip_hisat2 == "false" ]; 
+        then Rscript $baseDir/bin/edgeR.R hisat2 ;
+        fi &
+    if [ $skip_bwa == "false" ]; 
+        then Rscript $baseDir/bin/edgeR.R bwa ;
+        fi &
+    if [ $skip_star == "false" ]; 
+        then Rscript $baseDir/bin/edgeR.R star ;
+        fi &
+    """
+}
+
+process Cufflinks{
+    publishDir "${params.outdir}/peak_calling/cufflinks", mode: 'link', overwrite: true
+
+    input:
+    file bam_bai_file from cufflinks_bam
+    file designfile
+
+    output:
+    file "*" into cufflinks_results
+
+    when:
+    false
+
+    script:
+    skip_tophat2 = params.skip_tophat2
+    skip_hisat2 = params.skip_hisat2
+    skip_bwa = params.skip_bwa
+    skip_star = params.skip_star
+    """
+    cat designfile.txt > tmp_designfile.txt
+    dos2unix tmp_designfile.txt
+    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 ; fi &
+    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 ; fi &
+    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa ; fi &
+    if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star ; fi &
+    """
 }
