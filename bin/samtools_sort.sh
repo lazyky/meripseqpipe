@@ -1,7 +1,8 @@
 #!/bin/bash
 #$1 argv 1 : uesd Aligner
-for bam_file in *$1.bam
+Aligner_name=$1
+for bam_file in *$Aligner_name.bam
 do
-    samtools sort $bam_file -o ${bam_file/.bam/_sort.bam}
+    samtools sort $bam_file ${bam_file/.bam/_sort}
     samtools index ${bam_file/.bam/_sort.bam}
 done
