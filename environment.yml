@@ -12,7 +12,8 @@ dependencies:
   - bwa=0.7.17
   - star=2.6.1b
   - tophat=2.1.1
-  - samtools=1.9
+  - samtools=0.1.19
+  - rseqc=2.6.4
   - bioconductor-edger=3.22.5
   - bioconductor-deseq2=1.20.0
   - htseq=0.11.2

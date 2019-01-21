@@ -20,5 +20,6 @@ Bootstrap:docker
     /opt/conda/bin/conda clean -a
     conda install --yes nextflow fastqc bedtools ucsc-gtftogenepred hiast2 bowtie2 bwa samtools star tophat
     conda install --yes bioconductor-edger bioconductor-deseq2 htseq cufflinks bioconductor-exomepeak macs2 python=2.7.13
+    conda install --yes -c bioconda rseqc
 
 

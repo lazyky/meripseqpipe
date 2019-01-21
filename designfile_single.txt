@@ -1,9 +1,9 @@
 Sample_name(_1/2),control_or_treated,ip_or_input
-WT2input,control,input
-WT2ip,control,ip
-Mut2input,treated,input
-Mut2ip,treated,ip
-WT1input,control,input
-WT1ip,control,ip
-Mut1input,treated,input
-Mut1ip,treated,ip
+WT2input,control,input,0
+WT2ip,control,ip,0
+Mut2input,treated,input,1
+Mut2ip,treated,ip,1
+WT1input,control,input,0
+WT1ip,control,ip,0
+Mut1input,treated,input,1
+Mut1ip,treated,ip,1

@@ -1,0 +1,13 @@
+filename,control_or_treated,input_or_ip,situation
+A-shm3-1_input,treated,input,1
+A-shm3-1_ip,treated,ip,1
+A-shm3-2_input,treated,input,2
+A-shm3-2_ip,treated,ip,2
+B-shm3-1input,treated,input,1
+B-shm3-1_ip,treated,ip,1
+B-shm3-2input,treated,input,2
+B-shm3-2_ip,treated,ip,2
+A-shNC_input,control,input,0
+A-shNC_ip,control,ip,0
+B-shNC_input,control,input,0
+B-shNC_ip,control,ip,0

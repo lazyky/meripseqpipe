@@ -94,27 +94,16 @@ if (params.help){
 params.name = false
 params.project = false
 params.genome = false
-
-//params.reads = "$baseDir/data/*{input,ip}.read1_clean.fastq.gz"
-params.fasta = "$baseDir/Genome/hg38/hg38_genome.fa"
-params.gtf = "$baseDir/Genome/hg38/hg38_genes.gtf"
-params.gff = false
-params.bed12 = false
 params.designfile = false
 params.call = false
-params.bowtie_index = false
-params.tophat2_index = "/home/zky/m6apipe/results/Genome/Tophat2Index/*"
-params.hisat2_index = false
-params.bwa_index = "/home/zky/m6apipe/results/Genome/BWAIndex/*"
-params.star_index = false
 params.email = false
 params.plaintext_email = false
 params.seqCenter = false
-
-unstrand = params.unstrand ? true : false
+params.help = false
+unstranded = params.unstranded ? true : false
 
 // Preset trimming options
-params.pico = false
+/*params.pico = false
 if (params.pico){
     clip_r1 = 3
     clip_r2 = 0
@@ -124,7 +113,7 @@ if (params.pico){
     reverse_stranded = false
     unstranded = false
 }
-
+*/
 // Validate inputs
 
 if ( params.fasta ){
@@ -156,8 +145,9 @@ if(params.readPaths){
         //.map { row -> [ row[0], [file(row[1][0])]] }
         .ifEmpty { exit 1, print_red( "params.readPaths was empty - no input files supplied" )}
         //.subscribe { println it }
-        .set { raw_reads_fastqc }
+        .into{ raw_reads_fastqc; test123 }
 }
+test123.subscribe{println it}
 /*
 ========================================================================================
                              check or build the index
@@ -321,7 +311,7 @@ if( params.star_index ){
         --genomeDir StarIndex \\
         --genomeFastaFiles $fasta \\
         --sjdbGTFfile $gtf \\
-        --sjdbOverhang $Overhang \\
+        --sjdbOverhang $overhang \\
         """
     }
 
@@ -389,7 +379,7 @@ process Tophat2Align {
 
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.bt2)?$/
-    strand_str = unstrand ? "fr-unstranded" : "fr-firststrand"
+    strand_str = unstranded ? "fr-unstranded" : "fr-firststrand"
     if (params.singleEnd) {
         """
         tophat  -p ${task.cpus} \\
@@ -518,7 +508,7 @@ process StarAlign {
             --readFilesIn $reads  \\
             --outSAMtype BAM Unsorted \\
             --outFileNamePrefix ${reads.baseName} 
-        mv ${reads.baseName}Aligned.out.bam > ${reads.baseName}_star.bam
+        mv ${reads.baseName}Aligned.out.bam ${reads.baseName}_star.bam
         """
     } else {
         """
@@ -528,7 +518,7 @@ process StarAlign {
             --readFilesIn ${reads[0]} ${reads[1]}  \\
             --outSAMtype BAM Unsorted \\
             --outFileNamePrefix ${reads[0].baseName}
-        mv ${reads[0].baseName}Aligned.out.bam > ${reads[0].baseName}_star.bam
+        mv ${reads[0].baseName}Aligned.out.bam ${reads[0].baseName}_star.bam
         """
     }
 }
@@ -634,7 +624,7 @@ process CreateBigWig {
     publishDir "${params.outdir}/rseqc/bigwig", mode: 'link', overwrite: true
 
     when:
-    !params.skip_qc && !params.skip_genebody_coverage  
+    !params.skip_rseqc && !params.skip_genebody_coverage  
 
     input:
     file bam from genebody_bam
@@ -662,7 +652,7 @@ process GenebodyCoverage {
         }
 
     when:
-    !params.skip_qc && !params.skip_genebody_coverage
+    !params.skip_rseqc && !params.skip_genebody_coverage
 
     input:
     file bigwig from bigwig_for_genebody
@@ -679,7 +669,6 @@ process GenebodyCoverage {
     done
     '''
 }
-
 /*
 ========================================================================================
                             Step 4 Peak Calling
@@ -701,7 +690,7 @@ process Exomepeak {
     file "exomePeak*.bed" into exomepeak_bed
     
     when:
-    true
+    !skip_exomepeak
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -737,7 +726,7 @@ process Metpeak {
     file "metpeak*.bed" into metpeak_bed
 
     when:
-    true
+    !skip_metpeak
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -772,7 +761,7 @@ process Macs2{
     file "*/*.bed" into macs2_bed
 
     when:
-    true
+    !skip_macs2
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -780,7 +769,7 @@ process Macs2{
     skip_bwa = params.skip_bwa
     skip_star = params.skip_star
     """
-    cat designfile.txt > tmp_designfile.txt
+    cat $designfile > tmp_designfile.txt
     dos2unix tmp_designfile.txt
     if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/macs2.sh tophat2 ; fi &
     if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/macs2.sh hisat2 ; fi &
@@ -804,7 +793,7 @@ process DiffExomepeak {
     file "diffexomePeak*.bed" into diffexomepeak_bed
     
     when:
-    true
+    !skip_diffexomepeak
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -840,7 +829,7 @@ process Metdiff {
     file "metdiff*.bed" into metdiff_bed
     
     when:
-    true
+    !skip_metdiff
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -875,7 +864,7 @@ process Htseq_count{
     file "*ip*.count" into htseq_count_ip_to_QNB
 
     when:
-    true
+    !skip_QNB || !skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -884,23 +873,23 @@ process Htseq_count{
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then bash $baseDir/bin/htseq_count_input.sh tophat2 $gtf ; 
-             bash $baseDir/bin/htseq_count_ip.sh tophat2 $gtf ;
+        then bash $baseDir/bin/htseq_count.sh tophat2 $gtf input ; 
+             bash $baseDir/bin/htseq_count.sh tophat2 $gtf ip;
              Rscript $baseDir/bin/get_htseq_matrix.R tophat2 ;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then bash $baseDir/bin/htseq_count_input.sh hisat2 $gtf ; 
-             bash $baseDir/bin/htseq_count_ip.sh hisat2 $gtf ;
+        then bash $baseDir/bin/htseq_count.sh hisat2 $gtf input ; 
+             bash $baseDir/bin/htseq_count.sh hisat2 $gtf ip ;
              Rscript $baseDir/bin/get_htseq_matrix.R hisat2 ;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then bash $baseDir/bin/htseq_count_input.sh bwa $gtf ; 
-             bash $baseDir/bin/htseq_count_ip.sh bwa $gtf ;
+        then bash $baseDir/bin/htseq_count.sh bwa $gtf input ; 
+             bash $baseDir/bin/htseq_count.sh bwa $gtf ip ;
              Rscript $baseDir/bin/get_htseq_matrix.R bwa ;
         fi &
     if [ $skip_star == "false" ]; 
-        then bash $baseDir/bin/htseq_count_input.sh star $gtf ; 
-             bash $baseDir/bin/htseq_count_ip.sh star $gtf ;
+        then bash $baseDir/bin/htseq_count.sh star $gtf input ; 
+             bash $baseDir/bin/htseq_count.sh star $gtf ip ;
              Rscript $baseDir/bin/get_htseq_matrix.R star ;
         fi &
     """
@@ -917,7 +906,7 @@ process QNB {
     file "*" into qnb_results
     
     when:
-    true
+    !skip_QNB
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -1026,7 +1015,7 @@ process Deseq2{
     file "*.csv" into deseq2_results
     
     when:
-    true
+    !skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1059,7 +1048,7 @@ process EdgeR{
     //file "*.csv" into edgeR_results
     
     when:
-    true
+    !skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1093,7 +1082,7 @@ process Cufflinks{
     file "*" into cufflinks_results
 
     when:
-    false
+    !skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1101,7 +1090,7 @@ process Cufflinks{
     skip_bwa = params.skip_bwa
     skip_star = params.skip_star
     """
-    cat designfile.txt > tmp_designfile.txt
+    cat $designfile > tmp_designfile.txt
     dos2unix tmp_designfile.txt
     if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 ; fi &
     if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 ; fi &
