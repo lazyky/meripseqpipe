@@ -531,7 +531,7 @@ Channel
     .from()
     .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam)
     .into {merge_bam_file; test_channel1}
-test_channel1.subscribe{ println it }
+//test_channel1.subscribe{ println it }
 /*
  * STEP 3-1 - Sort BAM file
 */
@@ -621,16 +621,16 @@ process RSeQC {
 }
 
 process CreateBigWig {
-    publishDir "${params.outdir}/rseqc/bigwig", mode: 'link', overwrite: true
-
-    when:
-    !params.skip_rseqc && !params.skip_genebody_coverage  
+    publishDir "${params.outdir}/rseqc/bigwig", mode: 'link', overwrite: true 
 
     input:
     file bam from genebody_bam
 
     output:
     file "*.bigwig" into bigwig_for_genebody
+
+    when:
+    false 
 
     script:
     '''
@@ -699,16 +699,16 @@ process Exomepeak {
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/exomePeak.R tophat2 ;
+        then Rscript $baseDir/bin/exomePeak.R tophat2 $designfile $gtf;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/exomePeak.R hisat2 ;
+        then Rscript $baseDir/bin/exomePeak.R hisat2 $designfile $gtf;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/exomePeak.R bwa ;
+        then Rscript $baseDir/bin/exomePeak.R bwa $designfile $gtf;
         fi &
     if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/exomePeak.R star ;
+        then Rscript $baseDir/bin/exomePeak.R star $designfile $gtf;
         fi &
     """
 }
@@ -735,16 +735,16 @@ process Metpeak {
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/MeTPeak.R tophat2 ;
+        then Rscript $baseDir/bin/MeTPeak.R tophat2 $designfile $gtf;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/MeTPeak.R hisat2 ;
+        then Rscript $baseDir/bin/MeTPeak.R hisat2 $designfile $gtf;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/MeTPeak.R bwa ;
+        then Rscript $baseDir/bin/MeTPeak.R bwa $designfile $gtf;
         fi &
     if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/MeTPeak.R star ;
+        then Rscript $baseDir/bin/MeTPeak.R star $designfile $gtf;
         fi &
     """
 }
@@ -802,16 +802,16 @@ process DiffExomepeak {
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R tophat2 ;
+        then Rscript $baseDir/bin/diffexomePeak.R tophat2 $designfile $gtf;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R hisat2 ;
+        then Rscript $baseDir/bin/diffexomePeak.R hisat2 $designfile $gtf;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R bwa ;
+        then Rscript $baseDir/bin/diffexomePeak.R bwa $designfile $gtf;
         fi &
     if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R star ;
+        then Rscript $baseDir/bin/diffexomePeak.R star $designfile $gtf;
         fi &
     """
 }
@@ -838,16 +838,16 @@ process Metdiff {
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/MeTDiff.R tophat2 ;
+        then Rscript $baseDir/bin/MeTDiff.R tophat2 $designfile $gtf;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/MeTDiff.R hisat2 ;
+        then Rscript $baseDir/bin/MeTDiff.R hisat2 $designfile $gtf;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/MeTDiff.R bwa ;
+        then Rscript $baseDir/bin/MeTDiff.R bwa $designfile $gtf;
         fi &
     if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/MeTDiff.R star ;
+        then Rscript $baseDir/bin/MeTDiff.R star $designfile $gtf;
         fi &
     """
 }
@@ -857,6 +857,7 @@ process Htseq_count{
 
     input:
     file bam_bai_file from htseq_count_bam
+    file designfile
     file gtf
 
     output:
@@ -873,25 +874,21 @@ process Htseq_count{
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then bash $baseDir/bin/htseq_count.sh tophat2 $gtf input ; 
-             bash $baseDir/bin/htseq_count.sh tophat2 $gtf ip;
-             Rscript $baseDir/bin/get_htseq_matrix.R tophat2 ;
-        fi &
+        then bash $baseDir/bin/htseq_count.sh tophat2 $gtf ${task.cpus} ; 
+             Rscript $baseDir/bin/get_htseq_matrix.R tophat2 $designfile ;
+        fi
     if [ $skip_hisat2 == "false" ]; 
-        then bash $baseDir/bin/htseq_count.sh hisat2 $gtf input ; 
-             bash $baseDir/bin/htseq_count.sh hisat2 $gtf ip ;
-             Rscript $baseDir/bin/get_htseq_matrix.R hisat2 ;
-        fi &
+        then bash $baseDir/bin/htseq_count.sh hisat2 $gtf ${task.cpus} ; 
+             Rscript $baseDir/bin/get_htseq_matrix.R hisat2 $designfile ;
+        fi
     if [ $skip_bwa == "false" ]; 
-        then bash $baseDir/bin/htseq_count.sh bwa $gtf input ; 
-             bash $baseDir/bin/htseq_count.sh bwa $gtf ip ;
-             Rscript $baseDir/bin/get_htseq_matrix.R bwa ;
-        fi &
+        then bash $baseDir/bin/htseq_count.sh bwa $gtf ${task.cpus} ; 
+             Rscript $baseDir/bin/get_htseq_matrix.R bwa $designfile ;
+        fi
     if [ $skip_star == "false" ]; 
-        then bash $baseDir/bin/htseq_count.sh star $gtf input ; 
-             bash $baseDir/bin/htseq_count.sh star $gtf ip ;
-             Rscript $baseDir/bin/get_htseq_matrix.R star ;
-        fi &
+        then bash $baseDir/bin/htseq_count.sh star $gtf ${task.cpus} ; 
+             Rscript $baseDir/bin/get_htseq_matrix.R star $designfile ;
+        fi
     """
 }
 
@@ -901,6 +898,7 @@ process QNB {
     input:
     file reads_count_input from htseq_count_input_to_QNB
     file reads_count_ip from htseq_count_ip_to_QNB
+    file designfile
 
     output:
     file "*" into qnb_results
@@ -915,16 +913,16 @@ process QNB {
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/QNB.R tophat2 ;
+        then Rscript $baseDir/bin/QNB.R tophat2 $designfile ;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/QNB.R hisat2 ;
+        then Rscript $baseDir/bin/QNB.R hisat2 $designfile ;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/QNB.R bwa ;
+        then Rscript $baseDir/bin/QNB.R bwa $designfile ;
         fi &
     if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/QNB.R star ;
+        then Rscript $baseDir/bin/QNB.R star $designfile ;
         fi &
     """
 }
@@ -1015,7 +1013,7 @@ process Deseq2{
     file "*.csv" into deseq2_results
     
     when:
-    !skip_expression
+    false//!skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1048,7 +1046,7 @@ process EdgeR{
     //file "*.csv" into edgeR_results
     
     when:
-    !skip_expression
+    false//!skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1079,7 +1077,7 @@ process Cufflinks{
     file designfile
 
     output:
-    file "*" into cufflinks_results
+    false//file "*" into cufflinks_results
 
     when:
     !skip_expression

@@ -1,52 +1,60 @@
-setwd("./")
-getwd()
+## Rscript exomePeak.R aligner_tools designfile gtf eg. Rscript exomePeak.R tophat2 designfile_single.txt genes.gtf
+## designfile: filename, control_or_treated, input_or_ip, situation(default 0 is CONTROL_SITUATION else are TREATED_SITUATION)
+## TREATED_SITUATION_STARTPOINT is the default situation check point
+#!/bin/Rscript
 library(stringr)
 library("exomePeak")
-args <- commandArgs(T) # Rscript exomePeak.R aligner_tools eg. bwa
-output_control_bed_name <- str_c("exomePeak_",args[1],".bed") #con_peak.bed
-output_treated_bed_name <- str_c("exomePeak_",args[1],".bed") #con_peak.bed
+args <- commandArgs(T) 
+aligner_tools_name <- args[1]
+designfile <- args[2]
+gtf <- args[3]
+TREATED_SITUATION_STARTPOINT <- 1
 
-#生成designfile的table
-designfile <- read.csv("designfile.txt",head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
-control_input <- subset(designfile, control_or_treated == "control" & ip_or_input == "input")
-control_ip <- subset(designfile, control_or_treated == "control" & ip_or_input == "ip")
-treated_input <- subset(designfile, control_or_treated == "treated" & ip_or_input == "input")
-treated_ip <- subset(designfile, control_or_treated == "treated" & ip_or_input == "ip")
-gtf <- "genes.gtf"
-
-#通过designfile生成对应bam文件的name，并合并到向量里
-control_input_bam <- vector()
-for (i in c(1:nrow(control_input))) {
-    tmp_bam_name=str_c(str_c(as.character(control_input[i,]),collapse='_'),"_",args[1],"_sort.bam")
-    control_input_bam <- c(control_input_bam,tmp_bam_name)
+##setting CONTROL_SITUATION and TREATED_SITUATION 
+#default 0 is CONTROL_SITUATION else are TREATED_SITUATION
+designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
+CONTROL_SITUATION <- c()
+TREATED_SITUATION <- c()
+for (i in c(0:(TREATED_SITUATION_STARTPOINT-1))){
+  CONTROL_SITUATION <- c(CONTROL_SITUATION,str_c("_",i,"_"))
 }
-control_ip_bam <- vector()
-for (i in c(1:nrow(control_ip))) {
-    tmp_bam_name <- str_c(str_c(as.character(control_ip[i,]),collapse='_'),"_",args[1],"_sort.bam")
-    control_ip_bam <- c(control_ip_bam,tmp_bam_name)
-}
-treated_input_bam <- vector()
-for (i in c(1:nrow(treated_input))) {
-    tmp_bam_name <- str_c(str_c(as.character(treated_input[i,]),collapse='_'),"_",args[1],"_sort.bam")
-    treated_input_bam <- c(treated_input_bam,tmp_bam_name)
-}
-treated_ip_bam <- vector()
-for (i in c(1:nrow(treated_ip))) {
-    tmp_bam_name <- str_c(str_c(as.character(treated_ip[i,]),collapse='_'),"_",args[1],"_sort.bam")
-    treated_ip_bam <- c(treated_ip_bam,tmp_bam_name)
+for (i in c(TREATED_SITUATION_STARTPOINT:max(designtable$situation))){
+  TREATED_SITUATION <- c(TREATED_SITUATION,str_c("_",i,"_"))
 }
 
-output_pattern <- str_c("exomePeak_",args[1],"/")
-result_control <- exomepeak(GENE_ANNO_GTF=gtf,
-                    OUTPUT_DIR=str_c(output_pattern,"control"),
-                    IP_BAM=control_ip_bam, 
-                    INPUT_BAM=control_input_bam)
+##Traversing all situations
+filelist = grep(aligner_tools_name,grep(".bai",list.files(path = "./",pattern = ".bam"),value = TRUE,invert = TRUE),value = TRUE)
+bamlist <- NULL
+for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
+  if (i %in% CONTROL_SITUATION){
+    a = grep(str_c("input",i),filelist,value = TRUE)
+    b = grep(str_c("ip",i),filelist,value = TRUE)
+    bamlist[[i]] <- cbind(a,b)
+  }
+  if (i %in% TREATED_SITUATION){
+    a = grep(str_c("input",i),filelist,value = TRUE)
+    b = grep(str_c("ip",i),filelist,value = TRUE)
+    bamlist[[i]] <- cbind(a,b)
+  }
+}
 
-result_treated <- exomepeak(GENE_ANNO_GTF=gtf,
-                    OUTPUT_DIR=str_c(output_pattern,"treated"),
-                    IP_BAM=treated_ip_bam, 
-                    INPUT_BAM=treated_input_bam)
-control_bed_name <- str_c(output_pattern,"control/","exomePeak_output/","con_peak.bed")
-treated_bed_name <- str_c(output_pattern,"treated/","exomePeak_output/","con_peak.bed")
-file.rename( control_bed_name , output_control_bed_name )
-file.rename( treated_bed_name , output_treated_bed_name )
+##Running exomePeak and rename the output name
+output_pattern <- str_c("exomePeak_",aligner_tools_name,"/")
+for (i in CONTROL_SITUATION){
+  exomepeak(GENE_ANNO_GTF = gtf,
+            OUTPUT_DIR = str_c(output_pattern,"control",i),
+            INPUT_BAM = bamlist[[i]][,1],
+            IP_BAM = bamlist[[i]][,2])
+  control_bed_name <- str_c(output_pattern,"control",i,"/exomePeak_output/","con_peak.bed")
+  output_control_bed_name <- str_c("exomePeak_situaion",i,aligner_tools_name,".bed") #con_peak.bed
+  file.rename( control_bed_name , output_control_bed_name )
+}
+for (i in TREATED_SITUATION){
+  exomepeak(GENE_ANNO_GTF = gtf,
+            OUTPUT_DIR = str_c(output_pattern,"treated",i),
+            INPUT_BAM = bamlist[[i]][,1],
+            IP_BAM = bamlist[[i]][,2])
+  treated_bed_name <- str_c(output_pattern,"treated",i,"/exomePeak_output/","con_peak.bed")
+  output_treated_bed_name <- str_c("exomePeak_situaion",i,aligner_tools_name,".bed") #con_peak.bed
+  file.rename( treated_bed_name , output_treated_bed_name )
+}

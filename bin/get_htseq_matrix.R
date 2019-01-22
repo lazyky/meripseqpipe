@@ -1,80 +1,54 @@
-#Zhao Qi 
+## Rscript get_htseq_matrix.R aligner_tools designfile gtf eg. Rscript get_htseq_matrix.R tophat2 designfile_single.txt
+## designfile: filename, control_or_treated, input_or_ip, situation(default 0 is CONTROL_SITUATION else are TREATED_SITUATION)
+## TREATED_SITUATION_STARTPOINT is the default situation check point
+#!/bin/Rscript
 library(stringr)
-#setwd(dir = "E:/zky/m6Apipe/bin/htseq_count/") #test
-args<-commandArgs(T) # Rscript get_htseq_matrix.R aligner_tools eg. bwa
+args<-commandArgs(T) 
+aligner_tools_name <- args[1]
+designfile <- args[2]
+TREATED_SITUATION_STARTPOINT <- 1
+
+#setting CONTROL_SITUATION and TREATED_SITUATION 
+#default 0 is CONTROL_SITUATION else are TREATED_SITUATION
+designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
+CONTROL_SITUATION <- c()
+TREATED_SITUATION <- c()
+for (i in c(0:(TREATED_SITUATION_STARTPOINT-1))){
+  CONTROL_SITUATION <- c(CONTROL_SITUATION,str_c("_",i,"_"))
+}
+for (i in c(TREATED_SITUATION_STARTPOINT:max(designtable$situation))){
+  TREATED_SITUATION <- c(TREATED_SITUATION,str_c("_",i,"_"))
+}
 
 #Gene expression matrix for control_input_bwa(aligner)
-
-filename_pattern = str_c(str_c("*control_input","1",args[1],sep="_"),".txt")
-htseq.files <- list.files("./",pattern = filename_pattern)
-trans.htseq.count <- c()
-pc.names <- c()
-for(pc in htseq.files){
-  pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
-  trans.htseq.count <- cbind(trans.htseq.count,pc.exp[,1])
-  pc.names <- rownames(pc.exp) #基因名
+htseq.files <- list.files("./",pattern = str_c(aligner_tools_name,".txt"))
+for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
+  trans.htseq.input.count <- c()
+  pc.names <- c()
+  pc.samples <- c()
+  for(pc in grep(str_c("input",i),htseq.files,value = TRUE)){
+    pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
+    trans.htseq.input.count <- cbind(trans.htseq.input.count,pc.exp[,1])
+    pc.names <- rownames(pc.exp) #genes name
+    pc.samples <- c(pc.samples,pc) #samples name
+  }
+  colnames(trans.htseq.input.count) <- pc.samples
+  rownames(trans.htseq.input.count) <- pc.names
+  
+  trans.htseq.ip.count <- c()
+  pc.names <- c()
+  pc.samples <- c()
+  for(pc in grep(str_c("ip",i),htseq.files,value = TRUE)){
+    pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
+    trans.htseq.ip.count <- cbind(trans.htseq.ip.count,pc.exp[,1])
+    pc.names <- rownames(pc.exp) #genes name
+    pc.samples <- c(pc.samples,pc) #samples name
+  }
+  colnames(trans.htseq.ip.count) <- pc.samples
+  rownames(trans.htseq.ip.count) <- pc.names  
+  #parsing samplenames
+  output_pattern = str_c("situation",i,aligner_tools_name)  #添加aligner
+  write.table(trans.htseq.input.count, file = str_c(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
+  write.table(trans.htseq.ip.count, file = str_c(output_pattern,"_ip.count") , sep ="\t", row.names =T,col.names =T)
 }
-#parsing samplenames
-output_pattern = str_c("control_input",args[1],sep = "_")  #添加aligner
-pc.samples <- str_c(unlist(lapply(htseq.files,function(x){unlist(strsplit(x,"_"))[1]})),"_",output_pattern) #添加列的samplename
-colnames(trans.htseq.count) <- pc.samples
-rownames(trans.htseq.count) <- pc.names
-write.table(trans.htseq.count, file = str_c(output_pattern,".count") , sep ="\t", row.names =T,col.names =T)
-
-
-#Gene expression matrix for control_ip_bwa(aligner)
-
-filename_pattern = str_c(str_c("*control_ip","1",args[1],sep="_"),".txt")
-htseq.files <- list.files("./",pattern = filename_pattern)
-trans.htseq.count <- c()
-pc.names <- c()
-for(pc in htseq.files){
-  pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
-  trans.htseq.count <- cbind(trans.htseq.count,pc.exp[,1])
-  pc.names <- rownames(pc.exp)
-}
-#parsing samplenames
-output_pattern = str_c("control_ip",args[1],sep = "_")
-pc.samples <- str_c(unlist(lapply(htseq.files,function(x){unlist(strsplit(x,"_"))[1]})),"_",output_pattern)
-colnames(trans.htseq.count) <- pc.samples
-rownames(trans.htseq.count) <- pc.names
-write.table(trans.htseq.count, file = str_c(output_pattern,".count") , sep ="\t", row.names =T,col.names =T)
-
-
-#Gene expression matrix for treated_input_bwa(aligner)
-
-filename_pattern = str_c(str_c("*treated_input","1",args[1],sep="_"),".txt")
-htseq.files <- list.files("./",pattern = filename_pattern)
-trans.htseq.count <- c()
-pc.names <- c()
-for(pc in htseq.files){
-  pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
-  trans.htseq.count <- cbind(trans.htseq.count,pc.exp[,1])
-  pc.names <- rownames(pc.exp)
-}
-#parsing samplenames
-output_pattern = str_c("treated_input",args[1],sep = "_")
-pc.samples <- str_c(unlist(lapply(htseq.files,function(x){unlist(strsplit(x,"_"))[1]})),"_",output_pattern)
-colnames(trans.htseq.count) <- pc.samples
-rownames(trans.htseq.count) <- pc.names
-write.table(trans.htseq.count, file = str_c(output_pattern,".count") , sep ="\t", row.names =T,col.names =T)
-
-
-#Gene expression matrix for treated_ip_bwa(aligner)
-
-filename_pattern = str_c(str_c("*treated_ip","1",args[1],sep="_"),".txt")
-htseq.files <- list.files("./",pattern = filename_pattern)
-trans.htseq.count <- c()
-pc.names <- c()
-for(pc in htseq.files){
-  pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
-  trans.htseq.count <- cbind(trans.htseq.count,pc.exp[,1])
-  pc.names <- rownames(pc.exp)
-}
-#parsing samplenames
-output_pattern = str_c("treated_ip",args[1],sep = "_")
-pc.samples <- str_c(unlist(lapply(htseq.files,function(x){unlist(strsplit(x,"_"))[1]})),"_",output_pattern)
-colnames(trans.htseq.count) <- pc.samples
-rownames(trans.htseq.count) <- pc.names
-write.table(trans.htseq.count, file = str_c(output_pattern,".count") , sep ="\t", row.names =T,col.names =T)
 

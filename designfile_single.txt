@@ -1,4 +1,4 @@
-Sample_name(_1/2),control_or_treated,ip_or_input
+Sample_name(_1/2),control_or_treated,ip_or_input,situation
 WT2input,control,input,0
 WT2ip,control,ip,0
 Mut2input,treated,input,1

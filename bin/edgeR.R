@@ -4,7 +4,7 @@ library("edgeR")
 setwd(dir = "E:/zky/m6Apipe/bin/readscount/") #test
 args<-commandArgs(T) # Rscript get_htseq_matrix.R aligner_tools eg. bwa
 output_name <- str_c("treated_vs_control_","bwa","_edgeR.csv")
-
+aligner_tools_name <- args[1]
 #合并表达矩阵
 control_file = str_c("control_input_","bwa",".count") 
 treated_file = str_c("treated_input_","bwa",".count")

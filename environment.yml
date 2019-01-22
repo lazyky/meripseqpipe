@@ -24,6 +24,8 @@ dependencies:
   - r-readr=1.1.1
   - perl=5.26.2
   - python=2.7.13
+  - meme=5.0.2
+  - homer=4.9.1
   - QNB
   - MetPeak
   - MetDIff

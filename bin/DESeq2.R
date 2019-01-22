@@ -1,12 +1,14 @@
+## Rscript get_htseq_matrix.R aligner_tools eg. bwa
 #!/bin/Rscript
 library(stringr)
 library("DESeq2")
-#setwd(dir = "E:/zky/m6Apipe/bin/readscount/") #test
-args<-commandArgs(T) # Rscript get_htseq_matrix.R aligner_tools eg. bwa
-output_name <- str_c("treated_vs_control_",args[1],"_deseq2.csv")
+args<-commandArgs(T)
+aligner_tools_name <- args[1]
+#set output_name
+output_name <- str_c("treated_vs_control_",aligner_tools_name,"_deseq2.csv")
 
-control_file = str_c("control_input_",args[1],".count") 
-treated_file = str_c("treated_input_",args[1],".count")
+control_file = str_c("control_input_",aligner_tools_name,".count") 
+treated_file = str_c("treated_input_",aligner_tools_name,".count")
 control_database=read.table(control_file,sep="\t",header=T,row.names=1)
 treated_database=read.table(treated_file,sep="\t",header=T,row.names=1)
 combined_database <- cbind(control_database,treated_database)
@@ -25,5 +27,5 @@ resdata <- merge(as.data.frame(res), as.data.frame(counts(dds, normalized=TRUE))
 write.csv(resdata, file = output_name )
 #
 resdata2=resdata[resdata$log2FoldChange > 1|resdata$log2FoldChange < -1,]
-write.csv(resdata2,file = str_c("treated_vs_control_",args[1],"_log2.csv"),row.names =FALSE)
+write.csv(resdata2,file = str_c("treated_vs_control_",aligner_tools_name,"_log2.csv"),row.names =FALSE)
 
