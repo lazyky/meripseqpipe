@@ -36,9 +36,9 @@ for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
 }
 
 ##Running MeTDiff and rename the output name
-output_pattern <- str_c("diffexomePeak_",aligner_tools_name,"/")
 for(i in CONTROL_SITUATION){
   for(j in TREATED_SITUATION){
+    output_pattern <- str_c("diffexomePeak_situation",i,j,aligner_tools_name)
     exomepeak(GENE_ANNO_GTF = gtf,
               OUTPUT_DIR = output_pattern,
               IP_BAM = bamlist[[i]][,2],
@@ -47,9 +47,9 @@ for(i in CONTROL_SITUATION){
               TREATED_INPUT_BAM = bamlist[[j]][,1]
     )
     #set output_name
-    output_bed_name <- str_c("DiffexomePeak_situation",i,j,aligner_tools_name,".bed") #con_sig_diff_peak.bed
-    bed_name <- str_c(aligner_tools_name,"/diff_peak.bed")
-    file.rename( bed_name , output_bed_name )
+    output_bed_name <- str_c("diffexomePeak_situation",i,j,aligner_tools_name,".bed") #con_sig_diff_peak.bed
+    bed_name <- str_c(output_pattern,"/exomePeak_output/","con_sig_diff_peak.bed") #choose diff_peak.bed sig_diff_peak.bed con_sig_diff_peak
+    file.rename( bed_name , output_bed_name )  
   }
 }
 

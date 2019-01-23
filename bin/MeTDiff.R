@@ -41,15 +41,16 @@ for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
 ##Running MeTDiff and rename the output name
 for(i in CONTROL_SITUATION){
   for(j in TREATED_SITUATION){
+    output_pattern <- str_c("diffmetdiff_situation",i,j,aligner_tools_name,"/")
     metdiff(GENE_ANNO_GTF=gtf,
             IP_BAM = bamlist[[i]][,2],
             INPUT_BAM = bamlist[[i]][,1],
             TREATED_IP_BAM = bamlist[[j]][,2],
             TREATED_INPUT_BAM = bamlist[[j]][,1],
-            EXPERIMENT_NAME = aligner_tools_name)
+            EXPERIMENT_NAME = output_pattern)
     #set output_name
     output_bed_name <- str_c("metdiff_situation",i,j,aligner_tools_name,".bed") #diff_peak.bed
-    bed_name <- str_c(aligner_tools_name,"/diff_peak.bed")
+    bed_name <- str_c(output_pattern,"/diff_peak.bed") #choose peak.bed diff_peak.bed
     file.rename( bed_name , output_bed_name )
   }
 }

@@ -237,6 +237,8 @@ if( params.hisat2_index ){
         mkdir Hisat2Index
         hisat2_extract_exons.py $gtf > Hisat2Index/${gtf.baseName}.exon
         hisat2_extract_splice_sites.py $gtf > Hisat2Index/${gtf.baseName}.ss
+        #hisat2_extract_splice_sites.py snp.txt > Hisat2Index/genome.snp
+        #hisat2-build -f $fasta --exon genome.exon --ss genome.ss --snp genome.snp Hisat2Index
         hisat2-build -p ${task.cpus} -f $fasta --exon Hisat2Index/${gtf.baseName}.exon --ss Hisat2Index/${gtf.baseName}.ss Hisat2Index/${fasta.baseName}
         """
     }
@@ -314,7 +316,6 @@ if( params.star_index ){
         --sjdbOverhang $overhang \\
         """
     }
-
 }else {
    exit 1, print_red("There is no STAR Index")
 }
@@ -564,7 +565,7 @@ process Sort {
  * STEP 3-2 - RSeQC analysis
 */
 process RSeQC {
-    publishDir "${params.outdir}/RSeQC" , mode: 'copy', overwrite: true,
+    publishDir "${params.outdir}/rseqc" , mode: 'copy', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf("bam_stat.txt") > 0)                      "bam_stat/$filename"
             else if (filename.indexOf("infer_experiment.txt") > 0)              "infer_experiment/$filename"
@@ -630,15 +631,12 @@ process CreateBigWig {
     file "*.bigwig" into bigwig_for_genebody
 
     when:
-    false 
+    !params.skip_rseqc && !params.skip_genebody_coverage 
 
     script:
-    '''
-    for bam_file in *.bam
-    do
-        bamCoverage -b $bam_file -o ${bam_file%.bam*}.bigwig
-    done
-    '''
+    """
+    bash $baseDir/bin/create_bigwig.sh ${task.cpus}
+    """
 }
 
 process GenebodyCoverage {
@@ -661,13 +659,10 @@ process GenebodyCoverage {
     output:
     file "*.{txt,pdf,r}" into genebody_coverage_results
 
-    shell:
-    '''
-    for bigwig_file in *.bigwig
-    do
-        geneBody_coverage2.py -i $bigwig_file -o ${bigwig_file%.bigwig*}.rseqc.txt -r !{bed12}
-    done
-    '''
+    script:
+    """
+    bash $baseDir/bin/geneBody_coverage2.sh $bed12 ${task.cpus}
+    """
 }
 /*
 ========================================================================================
@@ -757,8 +752,8 @@ process Macs2{
     file designfile
 
     output:
-    file "macs2*" into macs2_results
-    file "*/*.bed" into macs2_bed
+    file "macs2*.xls" into macs2_results
+    file "macs2*.bed" into macs2_bed
 
     when:
     !skip_macs2
@@ -769,12 +764,10 @@ process Macs2{
     skip_bwa = params.skip_bwa
     skip_star = params.skip_star
     """
-    cat $designfile > tmp_designfile.txt
-    dos2unix tmp_designfile.txt
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/macs2.sh tophat2 ; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/macs2.sh hisat2 ; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/macs2.sh bwa ; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/macs2.sh star ; fi &
+    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/macs2.sh tophat2 $designfile; fi &
+    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/macs2.sh hisat2 $designfile; fi &
+    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/macs2.sh bwa $designfile; fi &
+    if [ $skip_star == "false" ]; then bash $baseDir/bin/macs2.sh star $designfile; fi &
     """
 }
 /*
@@ -952,22 +945,26 @@ process PeakMergeBYBed {
     file designfile
 
     output:
-    file "*/ConsensusPeaks.bed" into merge_bed
+    file "mspc*.bed" into merge_bed
 
     when:
     true
 
     shell:
-    mspc_dir = baseDir + "/bin/mspc_v3.3/*"
+    mspc_directory = baseDir + "/bin/mspc_v3.3"
     '''
-    ln -s !{mspc_dir} ./
-    ls exomePeak*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
-    ls metpeak*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
-    for bed in */*.bed
-    do
-        mv $bed ${bed/%ConsensusPeaks.bed/temp.bed}
+    for bed_file in *.bed
+    do 
+        bedtools sort -chrThenScoreA -i $bed_file > ${bed_file/.bed/_sort.bed}
     done
-    ls */*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
+
+    ln -s !{mspc_directory}/* ./
+    MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{designfile} | sort -r | head -1)
+    for ((i=0;i<=$MAX_SITUATION;i++))
+    do
+        ls *situaion_${i}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8"}' | bash
+        mv */ConsensusPeaks.bed mspc_situaion_$i.bed
+    done
     '''
 }
 
@@ -979,22 +976,29 @@ process DiffPeakMergeBYBed {
     file designfile
 
     output:
-    file "*/*.bed" into diffmerge_bed
+    file "mspc*.bed" into diffmerge_bed
 
     when:
-    false
+    true
 
     shell:
-    mspc_dir = baseDir + "/bin/mspc_v3.3/*"
+    mspc_directory = baseDir + "/bin/mspc_v3.3"
     '''
-    ln -s !{mspc_dir} ./
-    ls diffexomePeak*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
-    ls metdiff*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
-    for bed in */*.bed
-    do
-        mv $bed abc.bed
+    for bed_file in *.bed
+    do 
+        bedtools sort -chrThenScoreA -i $bed_file > ${bed_file/.bed/_sort.bed}
     done
-    ls */*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
+
+    ln -s !{mspc_directory}/* ./
+    MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{designfile} | sort -r | head -1)
+    for ((i=0;i<=$MAX_SITUATION;i++))
+    do
+        for ((j=i+1;j<=$MAX_SITUATION;j++))
+        do
+            ls *situation_${i}__${j}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8"}' | bash
+            mv */ConsensusPeaks.bed mspc_situation_${i}_${j}.bed
+        done
+    done
     '''
 }
 

@@ -18,10 +18,10 @@ Bootstrap:docker
 %post
     /opt/conda/bin/conda env create -f /environment.yml
     /opt/conda/bin/conda clean -a
-    conda install --yes nextflow fastqc bedtools ucsc-gtftogenepred hiast2 bowtie2 bwa samtools star tophat
+    conda install --yes nextflow fastqc bedtools ucsc-gtftogenepred hiast bowtie2 bwa samtools star tophat
     conda install --yes bioconductor-edger bioconductor-deseq2 htseq cufflinks bioconductor-exomepeak macs2 python=2.7.13
     conda install --yes -c bioconda rseqc
     conda install --yes -c bioconda meme=5.0.2
     conda install -c bioconda homer=4.9.1
-
+    conda install -c bioconda ucsc-bedtobigbed
 

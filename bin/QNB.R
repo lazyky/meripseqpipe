@@ -33,7 +33,7 @@ for(i in CONTROL_SITUATION){
     treated_input <- read.table(str_c("situation", j, aligner_tools_name, "_input.count"), header = TRUE, row.names = 1)
     #set output_name
     result <- qnbtest(control_ip, treated_ip,control_input,treated_input,mode="auto")
-    output_name <- str_c("QNB_situation",i,j,"QNB.csv")
+    output_name <- str_c("QNB_situation",i,j,aligner_tools_name,".csv")
     write.csv(result, file = output_name)
   }
 }

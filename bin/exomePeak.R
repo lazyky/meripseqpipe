@@ -39,22 +39,22 @@ for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
 }
 
 ##Running exomePeak and rename the output name
-output_pattern <- str_c("exomePeak_",aligner_tools_name,"/")
+output_pattern <- str_c("exomePeak_",aligner_tools_name)
 for (i in CONTROL_SITUATION){
   exomepeak(GENE_ANNO_GTF = gtf,
-            OUTPUT_DIR = str_c(output_pattern,"control",i),
+            OUTPUT_DIR = str_c(output_pattern,"_control",i),
             INPUT_BAM = bamlist[[i]][,1],
             IP_BAM = bamlist[[i]][,2])
-  control_bed_name <- str_c(output_pattern,"control",i,"/exomePeak_output/","con_peak.bed")
+  control_bed_name <- str_c(output_pattern,"_control",i,"/exomePeak_output/","con_peak.bed")
   output_control_bed_name <- str_c("exomePeak_situaion",i,aligner_tools_name,".bed") #con_peak.bed
   file.rename( control_bed_name , output_control_bed_name )
 }
 for (i in TREATED_SITUATION){
   exomepeak(GENE_ANNO_GTF = gtf,
-            OUTPUT_DIR = str_c(output_pattern,"treated",i),
+            OUTPUT_DIR = str_c(output_pattern,"_treated",i),
             INPUT_BAM = bamlist[[i]][,1],
             IP_BAM = bamlist[[i]][,2])
-  treated_bed_name <- str_c(output_pattern,"treated",i,"/exomePeak_output/","con_peak.bed")
+  treated_bed_name <- str_c(output_pattern,"_treated",i,"/exomePeak_output/","con_peak.bed")
   output_treated_bed_name <- str_c("exomePeak_situaion",i,aligner_tools_name,".bed") #con_peak.bed
   file.rename( treated_bed_name , output_treated_bed_name )
 }

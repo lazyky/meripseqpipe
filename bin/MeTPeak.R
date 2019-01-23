@@ -56,7 +56,7 @@ for (i in TREATED_SITUATION){
           INPUT_BAM = bamlist[[i]][,1],
           EXPERIMENT_NAME = str_c( output_pattern, "treated",i )
   )
-  treated_bed_name <- str_c(output_pattern,"treated",i,"peak.bed")
+  treated_bed_name <- str_c(output_pattern,"treated",i,"/peak.bed")
   output_treated_bed_name <- str_c("metpeak_situaion",i,aligner_tools_name,".bed") #peak.bed
   file.rename( treated_bed_name , output_treated_bed_name )
 }
