@@ -4,6 +4,8 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - R=3.4.1
+  - python=2.7
   - fastqc=0.11.8
   - bedtools=2.27.1
   - ucsc-gtftogenepred=357 
@@ -19,15 +21,15 @@ dependencies:
   - htseq=0.11.2
   - cufflinks=2.2.1
   - bioconductor-exomepeak=2.14.0
-  - macs2=2.1.2
+  - macs2=2.1.2 (r=3.4.1)
   - r-dplyr=0.7.6
   - r-readr=1.1.1
   - perl=5.26.2
   - python=2.7.13
   - meme=5.0.2
   - homer=4.9.1
-  - QNB
-  - MetPeak
-  - MetDIff
-  - mspc
+  - QNB=1.1.11
+  - MetPeak=1.0.0
+  - MetDIff=1.0.0
+  - mspc=3.3
   - MATK

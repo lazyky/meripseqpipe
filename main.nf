@@ -308,6 +308,7 @@ if( params.star_index ){
         readLength = 50
         overhang = readLength - 1
         """
+        mkdir StarIndex
         STAR --runThreadN ${task.cpus} \\
         --runMode genomeGenerate \\
         --genomeDir StarIndex \\
@@ -426,7 +427,7 @@ process Hisat2Align {
                 -x $index_base \\
                 -U $reads \\
                 -S ${reads.baseName}_hisat2.sam 2> ${reads.baseName}_hisat2_summary.txt
-        samtools view -bS ${reads.baseName}_hisat2.sam > ${reads.baseName}_hisat2.bam
+        samtools view -@ ${task.cpus} -h -bS ${reads.baseName}_hisat2.sam > ${reads.baseName}_hisat2.bam
         """
     } else {
         """
@@ -434,7 +435,7 @@ process Hisat2Align {
                 -x $index_base \\
                 -1 ${reads[0]} -2 ${reads[1]} \\
                 -S ${reads[0].baseName}_hisat2.sam 2> ${reads[0].baseName}_hisat2_summary.txt
-        samtools view -bS ${reads[0].baseName}_hisat2.sam > ${reads[0].baseName}_hisat2.bam
+        samtools view -@ ${task.cpus} -h -bS ${reads[0].baseName}_hisat2.sam > ${reads[0].baseName}_hisat2.bam
         """
         }
 }
@@ -465,7 +466,7 @@ process BWAAlign{
                 $index_base \\
                 ${reads.baseName}.sai \\
                 $reads
-        samtools view -h -bS ${reads.baseName}_bwa.sam > ${reads.baseName}_bwa.bam
+        samtools view -@ ${task.cpus} -h -bS ${reads.baseName}_bwa.sam > ${reads.baseName}_bwa.bam
         """
     } else {
         """
@@ -481,7 +482,7 @@ process BWAAlign{
                 $index_base \\
                 ${reads[0].baseName}.sai ${reads[0].baseName}.sai \\
                 ${reads[0]} ${reads[1]}
-        samtools view -h -bS ${reads[0].baseName}_bwa.sam > ${reads[0].baseName}_bwa.bam
+        samtools view -@ ${task.cpus} -h -bS ${reads[0].baseName}_bwa.sam > ${reads[0].baseName}_bwa.bam
         """
     }
 }
@@ -511,6 +512,7 @@ process StarAlign {
             --outFileNamePrefix ${reads.baseName} 
         mv ${reads.baseName}Aligned.out.bam ${reads.baseName}_star.bam
         """
+
     } else {
         """
         STAR --runThreadN ${task.cpus} \\
@@ -1012,12 +1014,13 @@ process Deseq2{
 
     input:
     file reads_count_input from htseq_count_input_to_deseq2
+    file designfile
 
     output:
-    file "*.csv" into deseq2_results
+    file "Deseq2*.csv" into deseq2_results
     
     when:
-    false//!skip_expression
+    !skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1026,16 +1029,16 @@ process Deseq2{
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R tophat2 ;
+        then Rscript $baseDir/bin/DESeq2.R tophat2 $designfile ;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R hisat2 ;
+        then Rscript $baseDir/bin/DESeq2.R hisat2 $designfile ;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R bwa ;
+        then Rscript $baseDir/bin/DESeq2.R bwa $designfile ;
         fi &
     if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R star ;
+        then Rscript $baseDir/bin/DESeq2.R star $designfile ;
         fi &
     """
 }
@@ -1045,12 +1048,13 @@ process EdgeR{
 
     input:
     file reads_count_input from htseq_count_input_to_edgeR
+    file designfile
 
     output:
-    //file "*.csv" into edgeR_results
+    file "edgeR*.csv" into edgeR_results
     
     when:
-    false//!skip_expression
+    !skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1059,16 +1063,16 @@ process EdgeR{
     skip_star = params.skip_star
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R tophat2 ;
+        then Rscript $baseDir/bin/edgeR.R tophat2 $designfile;
         fi &
     if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R hisat2 ;
+        then Rscript $baseDir/bin/edgeR.R hisat2 $designfile;
         fi &
     if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R bwa ;
+        then Rscript $baseDir/bin/edgeR.R bwa $designfile;
         fi &
     if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R star ;
+        then Rscript $baseDir/bin/edgeR.R star $designfile;
         fi &
     """
 }
@@ -1078,10 +1082,11 @@ process Cufflinks{
 
     input:
     file bam_bai_file from cufflinks_bam
+    file gtf
     file designfile
 
     output:
-    false//file "*" into cufflinks_results
+    file "*" into cufflinks_results
 
     when:
     !skip_expression
@@ -1094,9 +1099,9 @@ process Cufflinks{
     """
     cat $designfile > tmp_designfile.txt
     dos2unix tmp_designfile.txt
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 ; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 ; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa ; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star ; fi &
+    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 $designfile $gtf ${task.cpus}; fi &
+    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 $designfile $gtf ${task.cpus}; fi &
+    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa $designfile $gtf ${task.cpus}; fi &
+    if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star $designfile $gtf ${task.cpus}; fi &
     """
 }

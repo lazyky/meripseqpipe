@@ -47,7 +47,7 @@ for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
   colnames(trans.htseq.ip.count) <- pc.samples
   rownames(trans.htseq.ip.count) <- pc.names  
   #parsing samplenames
-  output_pattern = str_c("situation",i,aligner_tools_name)  #添加aligner
+  output_pattern = str_c("htseq_situation",i,aligner_tools_name)  #添加aligner
   write.table(trans.htseq.input.count, file = str_c(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
   write.table(trans.htseq.ip.count, file = str_c(output_pattern,"_ip.count") , sep ="\t", row.names =T,col.names =T)
 }

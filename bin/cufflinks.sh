@@ -1,10 +1,15 @@
 #!/bin/bash
 #$1 argv 1 : uesd Aligner
-awk -F, '{if( $2 == "control" && $3 == "input")print $1,$2,$3}' OFS="_" ORS="_$1_sort.bam\n" tmp_designfile.txt | xargs samtools merge -f control_input_$1_sort.bam
-awk -F, '{if( $2 == "control" && $3 == "ip")print $1,$2,$3}' OFS="_" ORS="_$1_sort.bam\n" tmp_designfile.txt | xargs samtools merge -f control_ip_$1_sort.bam
-awk -F, '{if( $2 == "treated" && $3 == "input")print $1,$2,$3}' OFS="_" ORS="_$1_sort.bam\n" tmp_designfile.txt | xargs samtools merge -f treated_input_$1_sort.bam
-awk -F, '{if( $2 == "treated" && $3 == "ip")print $1,$2,$3}' OFS="_" ORS="_$1_sort.bam\n" tmp_designfile.txt | xargs samtools merge -f treated_ip_$1_sort.bam
-macs2 callpeak -t control_ip_$1_sort.bam -c control_input_$1_sort.bam -g dm --outdir macs2_$1_control -n macs2_$1_control -p 1e-6 -f BAM --shift=150 --nomodel
-macs2 callpeak -t treated_ip_$1_sort.bam -c treated_input_$1_sort.bam -g dm --outdir macs2_$1_treated -n macs2_$1_treated -p 1e-6 -f BAM --shift=150 --nomodel
-mv macs2_$1_control/macs2_$1_control_summits.bed macs2_$1_control/macs2_$1_control.bed
-mv macs2_$1_treated/macs2_$1_treated_summits.bed macs2_$1_treated/macs2_$1_treated.bed
+#$2 argv 2 : designfile
+#$3 argv 3 : gtf file
+#$4 argv 4 : THREAD_NUM
+Aligner_name=$1
+designfile=$2
+gtf_file=$3
+THREAD_NUM=$4
+MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -1)
+lable=$(for ((i=0;i<=$MAX_SITUATION;i++));do echo "Situation"$i","; done |awk 'BEGIN{FS=",";OFS=",";ORS=" "}{print $1,$2}')
+bam_file=$(for ((i=0;i<=$MAX_SITUATION;i++));do ls *input_${i}_${Aligner_name}*.bam | awk '{ORS=","}{print $0}END{ORS=" ";print "\t"}';done | awk 'BEGIN{FS=",\t";OFS=" "}{print $1,$2}')
+echo $lable
+echo $bam_file 
+#cuffdiff -L $lable -p ${THREAD_NUM} --time-series --multi-read-correct --library-type fr-unstranded --poisson-dispersion $gtf_file ${bam_file}
