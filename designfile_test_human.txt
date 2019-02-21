@@ -6,7 +6,7 @@ A-shm3-2_ip.read1_Clean,treated,ip,2
 B-shm3-1_input.read1_Clean,treated,input,1
 B-shm3-1_ip.read1_Clean,treated,ip,1
 B-shm3-2_input.read1_Clean,treated,input,2
-B-shm3-2_ip,.read1_Cleantreated,ip,2
+B-shm3-2_ip.read1_Clean,treated,ip,2
 A-shNC_input.read1_Clean,control,input,0
 A-shNC_ip.read1_Clean,control,ip,0
 B-shNC_input.read1_Clean,control,input,0

@@ -25,4 +25,6 @@ Bootstrap:docker
     conda install -c bioconda homer=4.9.1
     conda install -c bioconda ucsc-bedtobigbed
     conda install cufflinks=2.2.1
+    conda install -c bioconda bioconductor-genogam=1.8.0
+    conda install -c bioconda pepr=1.1.24
 

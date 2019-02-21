@@ -119,8 +119,7 @@ if (params.pico){
 if ( params.fasta ){
     fasta = file(params.fasta)
     if( !fasta.exists() ) exit 1, print_red("Fasta file not found: ${params.fasta}")
-}
-else {
+}else {
     exit 1, print_red("No reference genome specified!")
 }
 if( params.gtf ){
@@ -217,7 +216,7 @@ if( params.hisat2_index ){
     hisat2_index = Channel
         .fromPath(params.hisat2_index)
         .ifEmpty { exit 1, "hisat2 index not found: ${params.hisat2_index}" }
-}else if( params.fasta ){
+}else if( params.fasta && params.snp){
     process MakeHisat2Index {
         tag "hisat2_index"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/ " : params.outdir },
@@ -225,6 +224,7 @@ if( params.hisat2_index ){
         input:
         file fasta
         file gtf
+        file params.snp
 
         output:
         file "Hisat2Index/*" into hisat2_index
@@ -237,9 +237,8 @@ if( params.hisat2_index ){
         mkdir Hisat2Index
         hisat2_extract_exons.py $gtf > Hisat2Index/${gtf.baseName}.exon
         hisat2_extract_splice_sites.py $gtf > Hisat2Index/${gtf.baseName}.ss
-        #hisat2_extract_splice_sites.py snp.txt > Hisat2Index/genome.snp
-        #hisat2-build -f $fasta --exon genome.exon --ss genome.ss --snp genome.snp Hisat2Index
-        hisat2-build -p ${task.cpus} -f $fasta --exon Hisat2Index/${gtf.baseName}.exon --ss Hisat2Index/${gtf.baseName}.ss Hisat2Index/${fasta.baseName}
+        hisat2_extract_splice_sites.py ${params.snp} > Hisat2Index/${gtf.baseName}.snp
+        hisat2-build -p ${task.cpus} -f $fasta --snp Hisat2Index/${gtf.baseName}.snp --exon Hisat2Index/${gtf.baseName}.exon --ss Hisat2Index/${gtf.baseName}.ss Hisat2Index/${fasta.baseName}
         """
     }
 }else {
@@ -428,6 +427,7 @@ process Hisat2Align {
                 -U $reads \\
                 -S ${reads.baseName}_hisat2.sam 2> ${reads.baseName}_hisat2_summary.txt
         samtools view -@ ${task.cpus} -h -bS ${reads.baseName}_hisat2.sam > ${reads.baseName}_hisat2.bam
+        rm *.sam
         """
     } else {
         """
@@ -436,6 +436,7 @@ process Hisat2Align {
                 -1 ${reads[0]} -2 ${reads[1]} \\
                 -S ${reads[0].baseName}_hisat2.sam 2> ${reads[0].baseName}_hisat2_summary.txt
         samtools view -@ ${task.cpus} -h -bS ${reads[0].baseName}_hisat2.sam > ${reads[0].baseName}_hisat2.bam
+        rm *.sam
         """
         }
 }
@@ -467,6 +468,7 @@ process BWAAlign{
                 ${reads.baseName}.sai \\
                 $reads
         samtools view -@ ${task.cpus} -h -bS ${reads.baseName}_bwa.sam > ${reads.baseName}_bwa.bam
+        rm *.sam
         """
     } else {
         """
@@ -483,6 +485,7 @@ process BWAAlign{
                 ${reads[0].baseName}.sai ${reads[0].baseName}.sai \\
                 ${reads[0]} ${reads[1]}
         samtools view -@ ${task.cpus} -h -bS ${reads[0].baseName}_bwa.sam > ${reads[0].baseName}_bwa.bam
+        rm *.sam
         """
     }
 }
@@ -547,7 +550,7 @@ process Sort {
     output:
     file "*_sort*" into exomepeak_bam, macs2_bam, metpeak_bam, metdiff_bam, 
                         htseq_count_bam, rseqc_bam, genebody_bam, diffexomepeak_bam,
-                        cufflinks_bam
+                        cufflinks_bam, matk_bam
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -557,10 +560,10 @@ process Sort {
     """ 
     cat $designfile > tmp_designfile.txt 
     dos2unix tmp_designfile.txt     
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh tophat2 ; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh hisat2 ; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/samtools_sort.sh bwa ; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/samtools_sort.sh star ; fi &
+    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh tophat2 ${task.cpus}; fi
+    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh hisat2 ${task.cpus}; fi
+    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/samtools_sort.sh bwa ${task.cpus}; fi
+    if [ $skip_star == "false" ]; then bash $baseDir/bin/samtools_sort.sh star ${task.cpus}; fi
     """
 }
 /*
@@ -687,16 +690,17 @@ process Exomepeak {
     file "exomePeak*.bed" into exomepeak_bed
     
     when:
-    !skip_exomepeak
+    !params.skip_exomepeak
 
     script:  
     skip_tophat2 = params.skip_tophat2
     skip_hisat2 = params.skip_hisat2
     skip_bwa = params.skip_bwa
     skip_star = params.skip_star
+    
     """
     if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/exomePeak.R tophat2 $designfile $gtf;
+        then  Rscript $baseDir/bin/exomePeak.R tophat2 $designfile $gtf;
         fi &
     if [ $skip_hisat2 == "false" ]; 
         then Rscript $baseDir/bin/exomePeak.R hisat2 $designfile $gtf;
@@ -723,7 +727,7 @@ process Metpeak {
     file "metpeak*.bed" into metpeak_bed
 
     when:
-    !skip_metpeak
+    !params.skip_metpeak
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -758,7 +762,7 @@ process Macs2{
     file "macs2*.bed" into macs2_bed
 
     when:
-    !skip_macs2
+    !params.skip_macs2
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -788,7 +792,7 @@ process DiffExomepeak {
     file "diffexomePeak*.bed" into diffexomepeak_bed
     
     when:
-    !skip_diffexomepeak
+    !params.skip_diffexomepeak
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -822,9 +826,9 @@ process Metdiff {
     output:
     file "*" into metdiff_results
     file "metdiff*.bed" into metdiff_bed
-    
+
     when:
-    !skip_metdiff
+    !params.skip_metdiff
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -860,7 +864,7 @@ process Htseq_count{
     file "*ip*.count" into htseq_count_ip_to_QNB
 
     when:
-    !skip_QNB || !skip_expression
+    !params.skip_QNB || !params.skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -899,7 +903,7 @@ process QNB {
     file "*" into qnb_results
     
     when:
-    !skip_QNB
+    !params.skip_QNB
 
     script:  
     skip_tophat2 = params.skip_tophat2
@@ -921,6 +925,35 @@ process QNB {
         fi &
     """
 }
+
+process MATK {
+    publishDir "${params.outdir}/peak_diff/MATK", mode: 'link', overwrite: true
+
+    input:
+    file bam_bai_file from matk_bam
+    file gtf
+    file designfile
+
+    output:
+    file "*" into matk_results
+    file "diffexomePeak*.bed" into matk_bed
+    
+    when:
+    false//!params.skip_matk
+
+    script:
+    skip_tophat2 = params.skip_tophat2
+    skip_hisat2 = params.skip_hisat2
+    skip_bwa = params.skip_bwa
+    skip_star = params.skip_star
+    matk_jar = baseDir + "/bin/MATK-1.0.jar"
+    """
+    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/matk.sh tophat2 $matk_jar $designfile $gtf;fi &
+    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/matk.sh hisat2 $matk_jar $designfile $gtf; fi &
+    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/matk.sh bwa $matk_jar $designfile $gtf; fi &
+    if [ $skip_star == "false" ]; then bash $baseDir/bin/matk.sh star $matk_jar $designfile $gtf; fi &
+    """
+}
 /*
 ========================================================================================
                         Step 5 Merge Peak AND Peak Visualization
@@ -932,18 +965,18 @@ process QNB {
 Channel
     .from()
     .concat(exomepeak_bed, metpeak_bed, macs2_bed)
-    .into {merge_bed_peak_file; test_channel3}
+    .into {mspc_merge_peak_bed; pepr_merge_peak_bed; test_channel3}
 
 Channel
     .from()
     .concat(diffexomepeak_bed, metdiff_bed)
-    .into {merge_bed_diffpeak_file; test_channel4}
+    .into {mspc_merge_diffpeak_bed; pepr_merge_diffpeak_bed; test_channel4}
 
-process PeakMergeBYBed {
-    publishDir "${params.outdir}/merge/", mode: 'link', overwrite: true
+process PeakMergeBYMspc {
+    publishDir "${params.outdir}/merge/mspc", mode: 'link', overwrite: true
     
     input:
-    file peak_bed from merge_bed_peak_file.collect()
+    file peak_bed from mspc_merge_peak_bed.collect()
     file designfile
 
     output:
@@ -956,8 +989,10 @@ process PeakMergeBYBed {
     mspc_directory = baseDir + "/bin/mspc_v3.3"
     '''
     for bed_file in *.bed
-    do 
-        bedtools sort -chrThenScoreA -i $bed_file > ${bed_file/.bed/_sort.bed}
+    do
+        #Scientific notation converted to numbers
+        head $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
+        bedtools sort -chrThenScoreA -i ${bed_file/.bed/_buffer.bed}  > ${bed_file/.bed/_sort.bed}
     done
 
     ln -s !{mspc_directory}/* ./
@@ -970,11 +1005,11 @@ process PeakMergeBYBed {
     '''
 }
 
-process DiffPeakMergeBYBed {
-    publishDir "${params.outdir}/merge/", mode: 'link', overwrite: true
+process DiffPeakMergeBYMspc {
+    publishDir "${params.outdir}/merge/mspc", mode: 'link', overwrite: true
     
     input:
-    file peak_bed from merge_bed_diffpeak_file.collect()
+    file peak_bed from mspc_merge_diffpeak_bed.collect()
     file designfile
 
     output:
@@ -985,15 +1020,18 @@ process DiffPeakMergeBYBed {
 
     shell:
     mspc_directory = baseDir + "/bin/mspc_v3.3"
+    treated_situation_startpoint = 1
     '''
     for bed_file in *.bed
-    do 
-        bedtools sort -chrThenScoreA -i $bed_file > ${bed_file/.bed/_sort.bed}
+    do
+        #Scientific notation converted to numbers
+        head $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
+        bedtools sort -chrThenScoreA -i ${bed_file/.bed/_buffer.bed}  > ${bed_file/.bed/_sort.bed}
     done
 
     ln -s !{mspc_directory}/* ./
     MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{designfile} | sort -r | head -1)
-    for ((i=0;i<=$MAX_SITUATION;i++))
+    for ((i=0;i<!{treated_situation_startpoint};i++))
     do
         for ((j=i+1;j<=$MAX_SITUATION;j++))
         do
@@ -1003,7 +1041,43 @@ process DiffPeakMergeBYBed {
     done
     '''
 }
+/*
+process PeakMergeBYPepr {
+    publishDir "${params.outdir}/merge/pepr", mode: 'link', overwrite: true
+    
+    input:
+    file peak_bed from pepr_merge_peak_bed.collect()
+    file designfile
 
+    output:
+    file "pepr*.bed" into merge_bed
+
+    when:
+    false
+
+    shell:
+    '''
+
+    '''
+}
+process DiffPeakMergeBYPepr {
+    publishDir "${params.outdir}/merge/pepr", mode: 'link', overwrite: true
+    
+    input:
+    file peak_bed from pepr_merge_diffpeak_bed.collect()
+    file designfile
+
+    output:
+    file "pepr*.bed" into pepr_diffmerge_bed
+
+    when:
+    false
+
+    shell:
+    '''
+    '''
+}
+*/
 /*
 ========================================================================================
                         Step X Differential expression analysis
@@ -1020,7 +1094,7 @@ process Deseq2{
     file "Deseq2*.csv" into deseq2_results
     
     when:
-    !skip_expression
+    !params.skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1054,7 +1128,7 @@ process EdgeR{
     file "edgeR*.csv" into edgeR_results
     
     when:
-    !skip_expression
+    !params.skip_expression
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1078,7 +1152,7 @@ process EdgeR{
 }
 
 process Cufflinks{
-    publishDir "${params.outdir}/peak_calling/cufflinks", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_expr/cufflinks", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from cufflinks_bam
@@ -1086,10 +1160,10 @@ process Cufflinks{
     file designfile
 
     output:
-    file "*" into cufflinks_results
+    file "cuffdiff_*" into cufflinks_results
 
     when:
-    !skip_expression
+    !params.skip_expression && !params.skip_cufflinks
 
     script:
     skip_tophat2 = params.skip_tophat2
@@ -1097,11 +1171,9 @@ process Cufflinks{
     skip_bwa = params.skip_bwa
     skip_star = params.skip_star
     """
-    cat $designfile > tmp_designfile.txt
-    dos2unix tmp_designfile.txt
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 $designfile $gtf ${task.cpus}; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 $designfile $gtf ${task.cpus}; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa $designfile $gtf ${task.cpus}; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star $designfile $gtf ${task.cpus}; fi &
+    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 $designfile $gtf ${task.cpus}; fi
+    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 $designfile $gtf ${task.cpus}; fi
+    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa $designfile $gtf ${task.cpus}; fi
+    if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star $designfile $gtf ${task.cpus}; fi
     """
 }

@@ -11,11 +11,11 @@ for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
     echo >&9                   #&9代表引用文件描述符9，这条命令代表往管道里面放入了一个"令牌"
 done
-
 for bigwig_file in *.bigwig
 do
 read -u 9
 {
     geneBody_coverage2.py -i $bigwig_file -o ${bigwig_file%.bigwig*}.rseqc.txt -r ${bed12_file}
+    echo >&9
 }& 
 done

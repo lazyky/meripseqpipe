@@ -3,7 +3,7 @@
 ### designfile: filename, control_or_treated, input_or_ip, situation(default 0 is CONTROL_SITUATION else are TREATED_SITUATION)
 ### TREATED_SITUATION_STARTPOINT is the default situation check point
 library(stringr)
-library(DEseq2)
+library(DESeq2)
 args<-commandArgs(T) 
 aligner_tools_name <- args[1]
 designfile <- args[2]
