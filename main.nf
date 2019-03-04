@@ -138,15 +138,37 @@ if( params.designfile ) {
 /*
  * Create a channel for input read files
  */
-if(params.readPaths){
+if( params.readPaths && !params.skip_aligners ){
+    if( params.singleEnd ){
+        Channel
+            .fromFilePairs( "$params.readPaths/*.fastq", size: 1 ) 
+            //.map { row -> [ row[0], [file(row[1][0])]] }
+            .ifEmpty { exit 1, print_red( "params.readPaths was empty - no input files supplied" )}
+            //.subscribe { println it }
+            .into{ raw_data; test123 }
+    }
+    else if ( !params.singleEnd ){
+        Channel
+            .fromFilePairs( "$params.readPaths/*{1,2}.fastq", size: 2 ) 
+            //.map { row -> [ row[0], [file(row[1][0])]] }
+            .ifEmpty { exit 1, print_red( "params.readPaths was empty - no input files supplied" )}
+            //.subscribe { println it }
+            .into{ raw_data; test123 }
+    }
+    else {
+        exit 1, print_red("The param 'singleEnd' was not defined!")
+    }
+}else if( params.readPaths && params.skip_aligners ){
     Channel
-        .fromFilePairs( "$params.readPaths/*", size: params.singleEnd ? 1 : 2 ) 
+        .fromFilePairs( "$params.readPaths/*.bam",size: 1) 
         //.map { row -> [ row[0], [file(row[1][0])]] }
-        .ifEmpty { exit 1, print_red( "params.readPaths was empty - no input files supplied" )}
+        .ifEmpty { exit 1, print_red( "params.readPaths was empty - no bam files supplied" )}
         //.subscribe { println it }
-        .into{ raw_reads_fastqc; test123 }
+        .into{ raw_data; test123 }
+} 
+else{
+    print_red( "params.readPaths was empty ")
 }
-test123.subscribe{println it}
 /*
 ========================================================================================
                              check or build the index
@@ -179,7 +201,7 @@ if(params.gtf && !params.bed12){
  * PREPROCESSING - Build TOPHAT2 index
  * NEED genome.fa
  */
-if( params.tophat2_index ){
+if( params.tophat2_index && !params.skip_aligners){
     tophat2_index = Channel
         .fromPath(params.tophat2_index)
         .ifEmpty { exit 1, "STAR index not found: ${params.tophat2_index}" }
@@ -195,7 +217,7 @@ if( params.tophat2_index ){
         file "Tophat2Index/*" into tophat2_index
 
         when:
-        !params.skip_tophat2
+        !params.skip_tophat2 && !params.skip_aligners
 
         script:
         tophat2_index = "Tophat2Index/" + fasta.baseName.toString()
@@ -212,11 +234,11 @@ if( params.tophat2_index ){
  * PREPROCESSING - Build HISAT2 index
  * NEED genome.fa genes.gtf snp.txt/vcf
  */
-if( params.hisat2_index ){
+if( params.hisat2_index && !params.skip_aligners ){
     hisat2_index = Channel
         .fromPath(params.hisat2_index)
         .ifEmpty { exit 1, "hisat2 index not found: ${params.hisat2_index}" }
-}else if( params.fasta && params.snp){
+}else if( params.fasta){
     process MakeHisat2Index {
         tag "hisat2_index"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/ " : params.outdir },
@@ -224,20 +246,20 @@ if( params.hisat2_index ){
         input:
         file fasta
         file gtf
-        file params.snp
+        //file params.snp
 
         output:
         file "Hisat2Index/*" into hisat2_index
 
         when:
-        !params.skip_hisat2
+        !params.skip_hisat2 && !params.skip_aligners
         
         script:
         """
         mkdir Hisat2Index
         hisat2_extract_exons.py $gtf > Hisat2Index/${gtf.baseName}.exon
         hisat2_extract_splice_sites.py $gtf > Hisat2Index/${gtf.baseName}.ss
-        hisat2_extract_splice_sites.py ${params.snp} > Hisat2Index/${gtf.baseName}.snp
+        #hisat2_extract_splice_sites.py ${params.snp} > Hisat2Index/${gtf.baseName}.snp
         hisat2-build -p ${task.cpus} -f $fasta --snp Hisat2Index/${gtf.baseName}.snp --exon Hisat2Index/${gtf.baseName}.exon --ss Hisat2Index/${gtf.baseName}.ss Hisat2Index/${fasta.baseName}
         """
     }
@@ -249,7 +271,7 @@ if( params.hisat2_index ){
  * PREPROCESSING - Build BWA index
  * NEED genome.fa
  */
-if( params.bwa_index ){
+if( params.bwa_index && !params.skip_aligners){
     bwa_index = Channel
         .fromPath(params.bwa_index)
         .ifEmpty { exit 1, "bwa index not found: ${params.bwa_index}" }
@@ -266,7 +288,7 @@ if( params.bwa_index ){
         file "BWAIndex/*" into bwa_index
 
         when:
-        !params.skip_bwa
+        !params.skip_bwa && !params.skip_aligners
      
         script:
         """
@@ -284,7 +306,7 @@ if( params.bwa_index ){
  * PREPROCESSING - Build STAR index
  * NEED genome.fa genes.gtf
  */
-if( params.star_index ){
+if( params.star_index && !params.skip_aligners){
     star_index = Channel
         .fromPath(params.star_index)
         .ifEmpty { exit 1, "STAR index not found: ${params.star_index}" }
@@ -301,7 +323,7 @@ if( params.star_index ){
         file "StarIndex" into star_index
 
         when:
-        !params.skip_star 
+        !params.skip_star && !params.skip_aligners 
 
         script:
         readLength = 50
@@ -324,9 +346,46 @@ if( params.star_index ){
                                 Step 1. QC------FastQC
 ========================================================================================
 */ 
+process RenameByDesignfile{
+    tag "$sample_name"
+    publishDir "${params.outdir}/Sample_rename", mode: 'link', overwrite: true
+
+    input:
+    set sample_name, file(reads) from raw_data
+    file designfile
+
+    output:
+    set sample_name, file("*_aligners*") into raw_reads_fastqc,bam_renamed
+    
+    when:
+    true
+
+    script:
+    if ( params.skip_aligners ) {
+        filename = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        sample_name = filename
+        """
+        bash $baseDir/bin/rename.sh $designfile $filename bam
+        """
+    } else if (params.singleEnd) {
+        filename = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        sample_name = filename
+        """
+        bash $baseDir/bin/rename.sh $designfile ${reads.baseName} fastq       
+        """
+    } else {
+        filename = reads[0].toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        sample_name = filename
+        """
+        bash $baseDir/bin/rename.sh $designfile ${reads[0].baseName} fastq
+        bash $baseDir/bin/rename.sh $designfile ${reads[1].baseName} fastq      
+        """
+    }
+}
+
 process Fastqc{
     tag "$sample_name"
-    publishDir "${params.outdir}/fastqc", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/Sample_rename", mode: 'link', overwrite: true
 
     input:
     set sample_name, file(reads) from raw_reads_fastqc
@@ -337,25 +396,26 @@ process Fastqc{
     file "fastqc/*" into fastq_results
 
     when:
-    !params.skip_fastqc
+    !params.skip_fastqc && !params.skip_aligners
 
-    script:
+    shell:
     if (params.singleEnd) {
-        filename = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
-        sample_name = filename
-        whether_unzip = (params.inputformat == "fastq") ? "" : "gzip -fd $reads"
+        remove_aligners = reads.toString() - ~/(_aligners)?(\.fq)?(\.fastq)?$/ + ".fastq"
         """
-        $whether_unzip
-        bash $baseDir/bin/rename_and_fastqc.sh $designfile $filename
-        """
+        mkdir fastqc
+        mv ${reads} ${remove_aligners}
+        fastqc -o fastqc --noextract ${remove_aligners}
+        """       
     } else {
-        filename = reads[0].toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
-        sample_name = filename
-        whether_unzip = (params.inputformat == "fastq") ? "" : "gzip -fd ${reads[0]} ${reads[1]}" 
+        remove_aligners_0 = reads[0].toString() - ~/(_aligners)?(\.fq)?(\.fastq)?$/ + ".fastq"
+        remove_aligners_1 = reads[1].toString() - ~/(_aligners)?(\.fq)?(\.fastq)?$/ + ".fastq"
         """
-        $whether_unzip
-        bash $baseDir/bin/rename_and_fastqc.sh $designfile $filename        
-        """
+        mkdir fastqc   
+        mv ${reads[0]} ${remove_aligners_0}
+        mv ${reads[1]} ${remove_aligners_1}
+        fastqc -o fastqc --noextract ${remove_aligners_0}
+        fastqc -o fastqc --noextract ${remove_aligners_1}
+        """      
     }
 }
 /*
@@ -376,7 +436,7 @@ process Tophat2Align {
     file "*_tophat2.bam" into tophat2_bam
     
     when:
-    !params.skip_tophat2
+    !params.skip_tophat2 && !params.skip_aligners
 
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.bt2)?$/
@@ -416,7 +476,7 @@ process Hisat2Align {
     file "*_hisat2.bam" into hisat2_bam
 
     when:
-    !params.skip_hisat2
+    !params.skip_hisat2 && !params.skip_aligners
 
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.ht2)?$/
@@ -453,7 +513,7 @@ process BWAAlign{
     file "*_bwa.bam" into bwa_bam
 
     when:
-    !params.skip_bwa
+    !params.skip_bwa && !params.skip_aligners
 
     script:
     index_base = index[0].toString() - ~/(\.pac)?(\.bwt)?(\.ann)?(\.amb)?(\.sa)?(\.fa)?$/
@@ -502,7 +562,7 @@ process StarAlign {
     file "*_star.bam" into star_bam
 
     when:
-    !params.skip_star
+    !params.skip_star && !params.skip_aligners
 
     script:
     if (params.singleEnd) {
@@ -535,9 +595,9 @@ process StarAlign {
 */ 
 Channel
     .from()
-    .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam)
+    .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam, bam_renamed)
     .into {merge_bam_file; test_channel1}
-//test_channel1.subscribe{ println it }
+test_channel1.subscribe{ println it }
 /*
  * STEP 3-1 - Sort BAM file
 */
@@ -553,18 +613,28 @@ process Sort {
                         cufflinks_bam, matk_bam
 
     script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """ 
-    cat $designfile > tmp_designfile.txt 
-    dos2unix tmp_designfile.txt     
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh tophat2 ${task.cpus}; fi
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh hisat2 ${task.cpus}; fi
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/samtools_sort.sh bwa ${task.cpus}; fi
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/samtools_sort.sh star ${task.cpus}; fi
-    """
+    skip_aligners = params.skip_aligners
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """ 
+        cat $designfile > tmp_designfile.txt 
+        dos2unix tmp_designfile.txt     
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh tophat2 ${task.cpus}; fi
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh hisat2 ${task.cpus}; fi
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/samtools_sort.sh bwa ${task.cpus}; fi
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/samtools_sort.sh star ${task.cpus}; fi
+        """
+    } else{
+        """ 
+        cat $designfile > tmp_designfile.txt 
+        dos2unix tmp_designfile.txt     
+        bash $baseDir/bin/samtools_sort.sh aligners ${task.cpus}
+        """
+    }
+   
 }
 /*
  * STEP 3-2 - RSeQC analysis
@@ -614,16 +684,27 @@ process RSeQC {
         strandRule = params.singleEnd ? '-d +-,-+' : '-d 1+-,1-+,2++,2--'
     }
     */
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rseqc.sh tophat2 $bed12 ; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rseqc.sh hisat2 $bed12 ; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/rseqc.sh bwa $bed12 ; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/rseqc.sh star $bed12 ; fi &
-    """
+    skip_aligners = params.skip_aligners
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """ 
+        cat $designfile > tmp_designfile.txt 
+        dos2unix tmp_designfile.txt     
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rseqc.sh tophat2 $bed12 ; fi &
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rseqc.sh hisat2 $bed12; fi &
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/rseqc.sh bwa $bed12 ; fi &
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/rseqc.sh star $bed12 ; fi &
+        """
+    } else{
+        """ 
+        cat $designfile > tmp_designfile.txt 
+        dos2unix tmp_designfile.txt     
+        bash $baseDir/bin/rseqc.sh aligners $bed12
+        """
+    }
 }
 
 process CreateBigWig {
@@ -690,28 +771,34 @@ process Exomepeak {
     file "exomePeak*.bed" into exomepeak_bed
     
     when:
-    !params.skip_exomepeak
+    !params.skip_exomepeak && !params.skip_peakCalling
 
-    script:  
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then  Rscript $baseDir/bin/exomePeak.R tophat2 $designfile $gtf;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/exomePeak.R hisat2 $designfile $gtf;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/exomePeak.R bwa $designfile $gtf;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/exomePeak.R star $designfile $gtf;
-        fi &
-    """
+    script:
+    skip_aligners = params.skip_aligners
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then  Rscript $baseDir/bin/exomePeak.R tophat2 $designfile $gtf;
+            fi &
+        if [ $skip_hisat2 == "false" ]; 
+            then Rscript $baseDir/bin/exomePeak.R hisat2 $designfile $gtf;
+            fi &
+        if [ $skip_bwa == "false" ]; 
+            then Rscript $baseDir/bin/exomePeak.R bwa $designfile $gtf;
+            fi &
+        if [ $skip_star == "false" ]; 
+            then Rscript $baseDir/bin/exomePeak.R star $designfile $gtf;
+            fi &
+        """
+    } else{
+        """     
+        Rscript $baseDir/bin/exomePeak.R aligners $designfile $gtf ;
+        """
+    } 
 }
 
 process Metpeak {
@@ -727,27 +814,34 @@ process Metpeak {
     file "metpeak*.bed" into metpeak_bed
 
     when:
-    !params.skip_metpeak
+    !params.skip_metpeak && !params.skip_peakCalling
 
-    script:  
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
+    script: 
+    skip_aligners = params.skip_aligners
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then Rscript $baseDir/bin/MeTPeak.R tophat2 $designfile $gtf;
+            fi &
+        if [ $skip_hisat2 == "false" ]; 
+            then Rscript $baseDir/bin/MeTPeak.R hisat2 $designfile $gtf;
+            fi &
+        if [ $skip_bwa == "false" ]; 
+            then Rscript $baseDir/bin/MeTPeak.R bwa $designfile $gtf;
+            fi &
+        if [ $skip_star == "false" ]; 
+            then Rscript $baseDir/bin/MeTPeak.R star $designfile $gtf;
+            fi &
     """
-    if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/MeTPeak.R tophat2 $designfile $gtf;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/MeTPeak.R hisat2 $designfile $gtf;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/MeTPeak.R bwa $designfile $gtf;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/MeTPeak.R star $designfile $gtf;
-        fi &
-    """
+    } else{
+        """     
+        Rscript $baseDir/bin/MeTPeak.R aligners $designfile $gtf ;
+        """
+    } 
 }
 
 process Macs2{
@@ -762,19 +856,34 @@ process Macs2{
     file "macs2*.bed" into macs2_bed
 
     when:
-    !params.skip_macs2
+    !params.skip_macs2 && !params.skip_peakCalling
 
     script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/macs2.sh tophat2 $designfile; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/macs2.sh hisat2 $designfile; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/macs2.sh bwa $designfile; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/macs2.sh star $designfile; fi &
-    """
+    skip_aligners = params.skip_aligners
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then bash $baseDir/bin/macs2.sh tophat2 $designfile ;
+            fi &
+        if [ $skip_hisat2 == "false" ]; 
+            then bash $baseDir/bin/macs2.sh hisat2 $designfile ;
+            fi &
+        if [ $skip_bwa == "false" ]; 
+            then bash $baseDir/bin/macs2.sh bwa $designfile ;
+            fi &
+        if [ $skip_star == "false" ]; 
+            then bash $baseDir/bin/macs2.sh star $designfile ;
+            fi &
+        """
+    } else{
+        """     
+        bash $baseDir/bin/macs2.sh aligners $designfile $gtf ;
+        """ 
+    }
 }
 /*
  * STEP 4 - 2 Differential methylation analysis------ExomePeak, MetPeak, QNB, MATK
@@ -792,27 +901,34 @@ process DiffExomepeak {
     file "diffexomePeak*.bed" into diffexomepeak_bed
     
     when:
-    !params.skip_diffexomepeak
+    !params.skip_diffexomepeak && !params.skip_diffpeakCalling
 
-    script:  
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R tophat2 $designfile $gtf;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R hisat2 $designfile $gtf;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R bwa $designfile $gtf;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/diffexomePeak.R star $designfile $gtf;
-        fi &
-    """
+    script: 
+    skip_aligners = params.skip_aligners
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then Rscript $baseDir/bin/diffexomePeak.R tophat2 $designfile $gtf;
+            fi &
+        if [ $skip_hisat2 == "false" ]; 
+            then Rscript $baseDir/bin/diffexomePeak.R hisat2 $designfile $gtf;
+            fi &
+        if [ $skip_bwa == "false" ]; 
+            then Rscript $baseDir/bin/diffexomePeak.R bwa $designfile $gtf;
+            fi &
+        if [ $skip_star == "false" ]; 
+            then Rscript $baseDir/bin/diffexomePeak.R star $designfile $gtf;
+            fi &
+        """
+    } else{
+        """     
+        Rscript $baseDir/bin/diffexomePeak.R aligners $designfile $gtf ;
+        """ 
+    }
 }
 
 process Metdiff {
@@ -828,27 +944,34 @@ process Metdiff {
     file "metdiff*.bed" into metdiff_bed
 
     when:
-    !params.skip_metdiff
+    !params.skip_metdiff && !params.skip_diffpeakCalling
 
-    script:  
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/MeTDiff.R tophat2 $designfile $gtf;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/MeTDiff.R hisat2 $designfile $gtf;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/MeTDiff.R bwa $designfile $gtf;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/MeTDiff.R star $designfile $gtf;
-        fi &
-    """
+    script:
+    skip_aligners = params.skip_aligners  
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then Rscript $baseDir/bin/MeTDiff.R tophat2 $designfile $gtf;
+            fi &
+        if [ $skip_hisat2 == "false" ]; 
+            then Rscript $baseDir/bin/MeTDiff.R hisat2 $designfile $gtf;
+            fi &
+        if [ $skip_bwa == "false" ]; 
+            then Rscript $baseDir/bin/MeTDiff.R bwa $designfile $gtf;
+            fi &
+        if [ $skip_star == "false" ]; 
+            then Rscript $baseDir/bin/MeTDiff.R star $designfile $gtf;
+            fi &
+        """
+    } else{
+        """     
+        Rscript $baseDir/bin/MeTDiff.R aligners $designfile $gtf ;
+        """ 
+    }
 }
 
 process Htseq_count{
@@ -864,31 +987,39 @@ process Htseq_count{
     file "*ip*.count" into htseq_count_ip_to_QNB
 
     when:
-    !params.skip_QNB || !params.skip_expression
+    !params.skip_QNB && !params.skip_diffpeakCalling
 
     script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then bash $baseDir/bin/htseq_count.sh tophat2 $gtf ${task.cpus} ; 
-             Rscript $baseDir/bin/get_htseq_matrix.R tophat2 $designfile ;
-        fi
-    if [ $skip_hisat2 == "false" ]; 
-        then bash $baseDir/bin/htseq_count.sh hisat2 $gtf ${task.cpus} ; 
-             Rscript $baseDir/bin/get_htseq_matrix.R hisat2 $designfile ;
-        fi
-    if [ $skip_bwa == "false" ]; 
-        then bash $baseDir/bin/htseq_count.sh bwa $gtf ${task.cpus} ; 
-             Rscript $baseDir/bin/get_htseq_matrix.R bwa $designfile ;
-        fi
-    if [ $skip_star == "false" ]; 
-        then bash $baseDir/bin/htseq_count.sh star $gtf ${task.cpus} ; 
-             Rscript $baseDir/bin/get_htseq_matrix.R star $designfile ;
-        fi
-    """
+    skip_aligners = params.skip_aligners
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then bash $baseDir/bin/htseq_count.sh tophat2 $gtf ${task.cpus} ; 
+                 Rscript $baseDir/bin/get_htseq_matrix.R tophat2 $designfile ;
+            fi
+        if [ $skip_hisat2 == "false" ]; 
+            then bash $baseDir/bin/htseq_count.sh hisat2 $gtf ${task.cpus} ; 
+                 Rscript $baseDir/bin/get_htseq_matrix.R hisat2 $designfile ;
+            fi
+        if [ $skip_bwa == "false" ]; 
+            then bash $baseDir/bin/htseq_count.sh bwa $gtf ${task.cpus} ; 
+                 Rscript $baseDir/bin/get_htseq_matrix.R bwa $designfile ;
+            fi
+        if [ $skip_star == "false" ]; 
+            then bash $baseDir/bin/htseq_count.sh star $gtf ${task.cpus} ; 
+                 Rscript $baseDir/bin/get_htseq_matrix.R star $designfile ;
+            fi
+        """
+    } else{
+        """     
+        bash $baseDir/bin/htseq_count.sh aligners $gtf ${task.cpus}  
+        Rscript $baseDir/bin/get_htseq_matrix.R aligners $designfile 
+        """ 
+    }
 }
 
 process QNB {
@@ -903,27 +1034,34 @@ process QNB {
     file "*" into qnb_results
     
     when:
-    !params.skip_QNB
+    !params.skip_QNB && !params.skip_diffpeakCalling
 
     script:  
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/QNB.R tophat2 $designfile ;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/QNB.R hisat2 $designfile ;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/QNB.R bwa $designfile ;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/QNB.R star $designfile ;
-        fi &
-    """
+    skip_aligners = params.skip_aligners  
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then Rscript $baseDir/bin/QNB.R tophat2 $designfile ;
+            fi &
+        if [ $skip_hisat2 == "false" ]; 
+            then Rscript $baseDir/bin/QNB.R hisat2 $designfile ;
+            fi &
+        if [ $skip_bwa == "false" ]; 
+            then Rscript $baseDir/bin/QNB.R bwa $designfile ;
+            fi &
+        if [ $skip_star == "false" ]; 
+            then Rscript $baseDir/bin/QNB.R star $designfile ;
+            fi &
+        """
+    } else{
+        """     
+        Rscript $baseDir/bin/QNB.R aligners $designfile ;
+        """ 
+    } 
 }
 
 process MATK {
@@ -942,17 +1080,24 @@ process MATK {
     false//!params.skip_matk
 
     script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
     matk_jar = baseDir + "/bin/MATK-1.0.jar"
-    """
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/matk.sh tophat2 $matk_jar $designfile $gtf;fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/matk.sh hisat2 $matk_jar $designfile $gtf; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/matk.sh bwa $matk_jar $designfile $gtf; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/matk.sh star $matk_jar $designfile $gtf; fi &
-    """
+    skip_aligners = params.skip_aligners  
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/matk.sh tophat2 $matk_jar $designfile $gtf;fi &
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/matk.sh hisat2 $matk_jar $designfile $gtf; fi &
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/matk.sh bwa $matk_jar $designfile $gtf; fi &
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/matk.sh star $matk_jar $designfile $gtf; fi &
+        """
+    } else{
+        """     
+        bash $baseDir/bin/matk.sh aligners $matk_jar $designfile $gtf ;
+        """ 
+    }     
 }
 /*
 ========================================================================================
@@ -965,12 +1110,12 @@ process MATK {
 Channel
     .from()
     .concat(exomepeak_bed, metpeak_bed, macs2_bed)
-    .into {mspc_merge_peak_bed; pepr_merge_peak_bed; test_channel3}
+    .into {mspc_merge_peak_bed; pepr_merge_peak_bed }
 
 Channel
     .from()
     .concat(diffexomepeak_bed, metdiff_bed)
-    .into {mspc_merge_diffpeak_bed; pepr_merge_diffpeak_bed; test_channel4}
+    .into {mspc_merge_diffpeak_bed; pepr_merge_diffpeak_bed }
 
 process PeakMergeBYMspc {
     publishDir "${params.outdir}/merge/mspc", mode: 'link', overwrite: true
@@ -983,7 +1128,7 @@ process PeakMergeBYMspc {
     file "mspc*.bed" into merge_bed
 
     when:
-    true
+    !params.skip_mspc && !params.skip_peakCalling
 
     shell:
     mspc_directory = baseDir + "/bin/mspc_v3.3"
@@ -991,7 +1136,7 @@ process PeakMergeBYMspc {
     for bed_file in *.bed
     do
         #Scientific notation converted to numbers
-        head $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
+        cat $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
         bedtools sort -chrThenScoreA -i ${bed_file/.bed/_buffer.bed}  > ${bed_file/.bed/_sort.bed}
     done
 
@@ -1016,7 +1161,7 @@ process DiffPeakMergeBYMspc {
     file "mspc*.bed" into diffmerge_bed
 
     when:
-    true
+    !params.skip_mspc && !params.skip_diffpeakCalling
 
     shell:
     mspc_directory = baseDir + "/bin/mspc_v3.3"
@@ -1025,7 +1170,7 @@ process DiffPeakMergeBYMspc {
     for bed_file in *.bed
     do
         #Scientific notation converted to numbers
-        head $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
+        cat $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
         bedtools sort -chrThenScoreA -i ${bed_file/.bed/_buffer.bed}  > ${bed_file/.bed/_sort.bed}
     done
 
@@ -1097,24 +1242,31 @@ process Deseq2{
     !params.skip_expression
 
     script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R tophat2 $designfile ;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R hisat2 $designfile ;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R bwa $designfile ;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/DESeq2.R star $designfile ;
-        fi &
-    """
+    skip_aligners = params.skip_aligners  
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then Rscript $baseDir/bin/DESeq2.R tophat2 $designfile ;
+            fi &
+        if [ $skip_hisat2 == "false" ]; 
+            then Rscript $baseDir/bin/DESeq2.R hisat2 $designfile ;
+            fi &
+        if [ $skip_bwa == "false" ]; 
+            then Rscript $baseDir/bin/DESeq2.R bwa $designfile ;
+            fi &
+        if [ $skip_star == "false" ]; 
+            then Rscript $baseDir/bin/DESeq2.R star $designfile ;
+            fi &
+        """
+    } else{
+        """     
+        Rscript $baseDir/bin/DESeq2.R aligners $designfile ;
+        """ 
+    } 
 }
 
 process EdgeR{
@@ -1131,24 +1283,32 @@ process EdgeR{
     !params.skip_expression
 
     script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R tophat2 $designfile;
-        fi &
-    if [ $skip_hisat2 == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R hisat2 $designfile;
-        fi &
-    if [ $skip_bwa == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R bwa $designfile;
-        fi &
-    if [ $skip_star == "false" ]; 
-        then Rscript $baseDir/bin/edgeR.R star $designfile;
-        fi &
-    """
+    skip_aligners = params.skip_aligners  
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; 
+            then Rscript $baseDir/bin/edgeR.R tophat2 $designfile ;
+            fi &
+        if [ $skip_hisat2 == "false" ]; 
+            then Rscript $baseDir/bin/edgeR.R hisat2 $designfile ;
+            fi &
+        if [ $skip_bwa == "false" ]; 
+            then Rscript $baseDir/bin/edgeR.R bwa $designfile ;
+            fi &
+        if [ $skip_star == "false" ]; 
+            then Rscript $baseDir/bin/edgeR.R star $designfile ;
+            fi &
+        """
+    } else{
+        """     
+        Rscript $baseDir/bin/edgeR.R aligners $designfile ;
+        """ 
+    } 
+
 }
 
 process Cufflinks{
@@ -1166,14 +1326,42 @@ process Cufflinks{
     !params.skip_expression && !params.skip_cufflinks
 
     script:
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_bwa = params.skip_bwa
-    skip_star = params.skip_star
-    """
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 $designfile $gtf ${task.cpus}; fi
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 $designfile $gtf ${task.cpus}; fi
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa $designfile $gtf ${task.cpus}; fi
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star $designfile $gtf ${task.cpus}; fi
-    """
+    skip_aligners = params.skip_aligners  
+    if (!params.skip_aligners){
+        skip_tophat2 = params.skip_tophat2
+        skip_hisat2 = params.skip_hisat2
+        skip_bwa = params.skip_bwa
+        skip_star = params.skip_star
+        """
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 $designfile $gtf ${task.cpus}; fi
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 $designfile $gtf ${task.cpus}; fi
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa $designfile $gtf ${task.cpus}; fi
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star $designfile $gtf ${task.cpus}; fi
+        """
+    } else{
+        """     
+        bash $baseDir/bin/cufflinks.sh aligners $designfile $gtf ${task.cpus}
+        """ 
+    } 
+}
+Channel
+    .from()
+    .concat(merge_bed, diffmerge_bed, deseq2_results, edgeR_results, cufflinks_results)
+    .set {results_collection }
+
+process ShowResults{
+    publishDir "${params.outdir}/merge/results_showing", mode: 'link', overwrite: true
+    
+    input:
+    file results from results_collection.collect()
+    file designfile
+
+    when:
+    true
+
+    shell:
+    '''
+        echo "done"
+    '''    
+
 }
