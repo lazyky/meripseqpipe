@@ -143,7 +143,7 @@ if( params.readPaths && !params.skip_aligners ){
         Channel
             .fromFilePairs( "$params.readPaths/*.fastq", size: 1 ) 
             //.map { row -> [ row[0], [file(row[1][0])]] }
-            .ifEmpty { exit 1, print_red( "params.readPaths was empty - no input files supplied" )}
+            .ifEmpty { exit 1, print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
             //.subscribe { println it }
             .into{ raw_data; test123 }
     }
@@ -151,7 +151,7 @@ if( params.readPaths && !params.skip_aligners ){
         Channel
             .fromFilePairs( "$params.readPaths/*{1,2}.fastq", size: 2 ) 
             //.map { row -> [ row[0], [file(row[1][0])]] }
-            .ifEmpty { exit 1, print_red( "params.readPaths was empty - no input files supplied" )}
+            .ifEmpty { exit 1, print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
             //.subscribe { println it }
             .into{ raw_data; test123 }
     }
@@ -160,14 +160,14 @@ if( params.readPaths && !params.skip_aligners ){
     }
 }else if( params.readPaths && params.skip_aligners ){
     Channel
-        .fromFilePairs( "$params.readPaths/*.bam",size: 1) 
+        .fromPath( "$params.readPaths/*.bam") 
         //.map { row -> [ row[0], [file(row[1][0])]] }
-        .ifEmpty { exit 1, print_red( "params.readPaths was empty - no bam files supplied" )}
+        .ifEmpty { exit 1, print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
         //.subscribe { println it }
-        .into{ raw_data; test123 }
+        .into{ raw_bam; raw_data; test123 }
 } 
 else{
-    print_red( "params.readPaths was empty ")
+    print_red( "readPaths was empty: ${params.readPaths}")
 }
 /*
 ========================================================================================
@@ -346,53 +346,17 @@ if( params.star_index && !params.skip_aligners){
                                 Step 1. QC------FastQC
 ========================================================================================
 */ 
-process RenameByDesignfile{
+process Fastqc{
     tag "$sample_name"
-    publishDir "${params.outdir}/Sample_rename", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/fastqc", mode: 'link', overwrite: true
 
     input:
     set sample_name, file(reads) from raw_data
     file designfile
 
     output:
-    set sample_name, file("*_aligners*") into raw_reads_fastqc,bam_renamed
-    
-    when:
-    true
-
-    script:
-    if ( params.skip_aligners ) {
-        filename = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
-        sample_name = filename
-        """
-        bash $baseDir/bin/rename.sh $designfile $filename bam
-        """
-    } else if (params.singleEnd) {
-        filename = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
-        sample_name = filename
-        """
-        bash $baseDir/bin/rename.sh $designfile ${reads.baseName} fastq       
-        """
-    } else {
-        filename = reads[0].toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
-        sample_name = filename
-        """
-        bash $baseDir/bin/rename.sh $designfile ${reads[0].baseName} fastq
-        bash $baseDir/bin/rename.sh $designfile ${reads[1].baseName} fastq      
-        """
-    }
-}
-
-process Fastqc{
-    tag "$sample_name"
-    publishDir "${params.outdir}/Sample_rename", mode: 'link', overwrite: true
-
-    input:
-    set sample_name, file(reads) from raw_reads_fastqc
-    file designfile
-
-    output:
-    set sample_name, file("*.fastq") into  tophat2_reads , hisat2_reads , bwa_reads , star_reads
+    val sample_name into pair_id_tophat2, pair_id_hisat2, pair_id_bwa, pair_id_star 
+    file "*.fastq" into tophat2_reads , hisat2_reads , bwa_reads , star_reads
     file "fastqc/*" into fastq_results
 
     when:
@@ -400,21 +364,25 @@ process Fastqc{
 
     shell:
     if (params.singleEnd) {
-        remove_aligners = reads.toString() - ~/(_aligners)?(\.fq)?(\.fastq)?$/ + ".fastq"
+        filename = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        sample_name = filename
+        add_aligners = reads.toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
         """
         mkdir fastqc
-        mv ${reads} ${remove_aligners}
-        fastqc -o fastqc --noextract ${remove_aligners}
+        fastqc -o fastqc --noextract ${reads}
+        mv ${reads} ${add_aligners}
         """       
     } else {
-        remove_aligners_0 = reads[0].toString() - ~/(_aligners)?(\.fq)?(\.fastq)?$/ + ".fastq"
-        remove_aligners_1 = reads[1].toString() - ~/(_aligners)?(\.fq)?(\.fastq)?$/ + ".fastq"
+        filename = reads[0].toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        sample_name = filename
+        add_aligners_1 = reads[0].toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
+        add_aligners_2 = reads[1].toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
         """
         mkdir fastqc   
-        mv ${reads[0]} ${remove_aligners_0}
-        mv ${reads[1]} ${remove_aligners_1}
-        fastqc -o fastqc --noextract ${remove_aligners_0}
-        fastqc -o fastqc --noextract ${remove_aligners_1}
+        fastqc -o fastqc --noextract ${reads[0]}
+        fastqc -o fastqc --noextract ${reads[1]}
+        mv ${reads[0]} ${add_aligners_1}
+        mv ${reads[1]} ${add_aligners_2}
         """      
     }
 }
@@ -428,7 +396,8 @@ process Tophat2Align {
     publishDir "${params.outdir}/aligners/tophat2", mode: 'link', overwrite: true
 
     input:
-    set sample_name, file(reads) from tophat2_reads
+    val sample_name from pair_id_tophat2
+    file(reads) from tophat2_reads
     file index from tophat2_index.collect()
     file gtf
 
@@ -469,7 +438,8 @@ process Hisat2Align {
     publishDir "${params.outdir}/aligners/hisat2", mode: 'link', overwrite: true
 
     input:
-    set sample_name, file(reads) from hisat2_reads
+    val sample_name from pair_id_hisat2
+    file(reads) from hisat2_reads
     file index from hisat2_index.collect()
 
     output:
@@ -506,7 +476,8 @@ process BWAAlign{
     publishDir "${params.outdir}/aligners/bwa", mode: 'link', overwrite: true
     
     input:
-    set sample_name, file(reads) from bwa_reads
+    val sample_name from pair_id_bwa
+    file(reads) from bwa_reads
     file index from bwa_index.collect()
 
     output:
@@ -555,7 +526,8 @@ process StarAlign {
     publishDir "${params.outdir}/aligners/star", mode: 'link', overwrite: true
     
     input:
-    set sample_name, file(reads) from star_reads
+    val sample_name from pair_id_star
+    file(reads) from star_reads
     file star_index from star_index.collect()
 
     output:
@@ -595,22 +567,72 @@ process StarAlign {
 */ 
 Channel
     .from()
-    .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam, bam_renamed)
+    .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam, raw_bam)
     .into {merge_bam_file; test_channel1}
 test_channel1.subscribe{ println it }
 /*
  * STEP 3-1 - Sort BAM file
 */
+process RenameByDesignfile{
+    publishDir "${params.outdir}/Sample_rename", mode: 'link', overwrite: true
+
+    input:
+    file (reads) from merge_bam_file.collect()
+    file designfile
+
+    output:
+    file ("*.bam") into rename_bam_file
+    
+    when:
+    true
+
+    script:
+    skip_aligners = params.skip_aligners
+    skip_tophat2 = params.skip_tophat2
+    skip_hisat2 = params.skip_hisat2
+    skip_bwa = params.skip_bwa
+    skip_star = params.skip_star
+    if ( skip_aligners == true ) {
+        """
+        #Windows and linux newline ^M conversion
+        cat $designfile > tmp_designfile.txt 
+        dos2unix tmp_designfile.txt  
+        bash $baseDir/bin/rename.sh aligners tmp_designfile.txt
+        """
+    } else if (params.singleEnd) {
+        """
+        #Windows and linux newline ^M conversion
+        cat $designfile > tmp_designfile.txt 
+        dos2unix tmp_designfile.txt  
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rename.sh tophat2 tmp_designfile.txt; fi
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rename.sh hisat2 tmp_designfile.txt; fi
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/rename.sh bwa tmp_designfile.txt; fi
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/rename.sh star tmp_designfile.txt; fi     
+        """
+    } else {
+        """
+        #Windows and linux newline ^M conversion
+        cat $designfile > tmp_designfile.txt 
+        dos2unix tmp_designfile.txt  
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rename.sh tophat2 tmp_designfile.txt; fi
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rename.sh hisat2 tmp_designfile.txt; fi
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/rename.sh bwa tmp_designfile.txt; fi
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/rename.sh star tmp_designfile.txt; fi     
+        """
+    }
+}
 process Sort {
     publishDir "${params.outdir}/samtools_sort/", mode: 'link', overwrite: true
+
     input:
-    file( bam_query_file ) from merge_bam_file.collect()
+    file( bam_query_file ) from rename_bam_file.collect()
     file designfile  // designfile:filename,control_treated,input_ip
 
     output:
     file "*_sort*" into exomepeak_bam, macs2_bam, metpeak_bam, metdiff_bam, 
                         htseq_count_bam, rseqc_bam, genebody_bam, diffexomepeak_bam,
                         cufflinks_bam, matk_bam
+    file ("formatted_designfile.txt") into formatted_designfile
 
     script:
     skip_aligners = params.skip_aligners

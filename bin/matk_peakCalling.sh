@@ -13,6 +13,11 @@ MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -
 do
     ls *input_${i}_*.bam | awk '{ORS=";"}{print $0}'
 done
+bam_file_array=$(for ((i=0;i<=$MAX_SITUATION;i++));
+        do 
+               echo *input_${i}_${Aligner_name}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x"," }END{print $x" "}'
+        done 
+        )
 java -jar MATK-1.0.jar -peakCalling -ip "Mut1ip_treated_ip_1_tophat2_sort.bam;Mut2ip_treated_ip_1_tophat2_sort.bam" -input "Mut1input_treated_input_1_tophat2_sort.bam;Mut2input_treated_input_1_tophat2_sort.bam" -out test2.bed
 java -jar MATK-1.0.jar -diff \
                            -control_ip "control_ip1.bam;control_ip2.bam;control_ip3.bam" \
