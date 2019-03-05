@@ -37,3 +37,4 @@ dependencies:
   - bioconductor-genogam=1.8.0
   - pepr=1.1.24
   - deeptools=3.1.3
+  - picard=2.18.27

@@ -7,8 +7,15 @@ MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -
 
 for ((i=0;i<=$MAX_SITUATION;i++))
 do
-    ls *input_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print $0}'|xargs samtools merge -f macs2_situation_${i}_input_${Aligner_name}.bam
-    ls *ip_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print $0}'|xargs samtools merge -f macs2_situation_${i}_ip_${Aligner_name}.bam
+    count=$(ls *input_${i}_${Aligner_name}*.bam| wc -w)
+    if [ $count -gt 1 ]; 
+    then
+        ls *ip_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print $0}'|xargs samtools merge -f macs2_situation_${i}_ip_${Aligner_name}.bam
+        ls *input_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print $0}'|xargs samtools merge -f macs2_situation_${i}_input_${Aligner_name}.bam
+    else 
+        ls *ip_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print "mv "$0," macs2_situation_'${i}'_ip_'${Aligner_name}'.bam"}' | bash
+        ls *input_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print "mv "$0," macs2_situation_'${i}'_input_'${Aligner_name}'.bam"}' | bash
+    fi
     macs2 callpeak -t macs2_situation_${i}_ip_${Aligner_name}.bam -c macs2_situation_${i}_input_${Aligner_name}.bam -g dm -n macs2_situation_${i}_${Aligner_name} -p 1e-6 -f BAM --shift=150 --nomodel
     mv macs2_situation_${i}_${Aligner_name}_summits.bed macs2_situation_${i}_${Aligner_name}.bed
 done

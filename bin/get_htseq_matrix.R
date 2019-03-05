@@ -3,10 +3,10 @@
 ## TREATED_SITUATION_STARTPOINT is the default situation check point
 #!/bin/Rscript
 library(stringr)
-args<-commandArgs(T) 
-aligner_tools_name <- args[1]
-designfile <- args[2]
-TREATED_SITUATION_STARTPOINT <- 1
+args<-commandArgs(T)
+TREATED_SITUATION_STARTPOINT <- args[1] 
+aligner_tools_name <- args[2]
+designfile <- args[3]
 
 #setting CONTROL_SITUATION and TREATED_SITUATION 
 #default 0 is CONTROL_SITUATION else are TREATED_SITUATION

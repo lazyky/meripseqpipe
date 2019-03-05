@@ -5,9 +5,9 @@
 library(stringr)
 library("edgeR")
 args<-commandArgs(T) 
-aligner_tools_name <- args[1]
-designfile <- args[2]
-TREATED_SITUATION_STARTPOINT <- 1
+TREATED_SITUATION_STARTPOINT <- args[1] 
+aligner_tools_name <- args[2]
+designfile <- args[3]
 
 # setting CONTROL_SITUATION and TREATED_SITUATION 
 ## default 0 is CONTROL_SITUATION else are TREATED_SITUATION
