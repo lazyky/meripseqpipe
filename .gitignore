@@ -42,3 +42,5 @@ designfile_bam.txt
 circpipe.nf
 nextflow_test_fly.config
 nextflow_for_bam.config
+designfile_test_human.txt
+designfile_test_human.txt

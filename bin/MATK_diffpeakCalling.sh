@@ -1,5 +1,5 @@
 #!/bin/bash
-## matk.sh tophat2 $matk_jar $designfile $gtf
+## MATK_diffpeakCalling.sh tophat2 $matk_jar $designfile $gtf
 ## $1 argv 1 : TREATED_SITUATION_STARTPOINT
 ## $2 argv 2 : uesd Aligner
 ## $3 argv 3 : matk_jar

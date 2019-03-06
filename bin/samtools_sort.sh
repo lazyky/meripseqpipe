@@ -9,5 +9,5 @@ do
 {
     samtools sort -@ ${THREAD_NUM:=1} $bam_file ${bam_file/.bam/_sort}
     samtools index ${bam_file/.bam/_sort.bam}
-}&
+}
 done

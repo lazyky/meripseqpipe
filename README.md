@@ -16,19 +16,20 @@ A full tutorial of m6APipe can be found at Wiki page of this project. plz go to 
 
 ### Pipeline Steps
 
-m6APipe allows you to run arbitrary pipelines among five pipelines.
-Choose between workflows by using `--skip_ToolsName` or not(default) .
+m6APipe allows you to run pipelines skip the tools by your params.
+You can skip the tools by using `--skip_ToolsName` or not(default).
 
-| Step                                    | Pipeline                      |
-|-----------------------------------------|-------------------------------|
-| Raw Data QC                             | FastQC                        |
-| Reads Mapping                           | star, bwa, tophat, hisat2     |
-| Sort BAM file AND Post-alignment QC     | samtools, RSeQC               |
-| Reads counting                          | htseq-count                   |
-| Peak Calling                            | MeTPeak, exomePeak, macs2     |
-| Differential methylation analysis       | MeTDiff, exomePeak, QNB       |
-| Differential expression analysis        | deseq2, edgeR, cufflinks      |
-| Combines Peaks information              | MSPC                          |
+
+| Step                                    | Pipeline                        | Pipeline(skip_mode)             |
+|-----------------------------------------|---------------------------------|---------------------------------|
+| Raw Data QC                             | FastQC                          |----  --skip_aligners true  -----|
+| Reads Mapping                           | star, bwa, tophat, hisat2       |----  --skip_aligners true  -----|
+| Sort BAM file AND Post-alignment QC     | samtools, RSeQC                 |---------------------------------|
+| Reads counting                          | htseq-count                     |---------------------------------|
+| Peak Calling                            | MeTPeak, exomePeak, macs2, MATK |---  --skip_peakCalling true  ---|
+| Differential methylation analysis       | MeTDiff, exomePeak, QNB, MATK   |-  --skip_diffpeakCalling true  -|
+| Differential expression analysis        | deseq2, edgeR, cufflinks        |---  --skip_expressiion true  ---|
+| Combines Peaks information              | MSPC                            |------  --skip_mspc true  -------|
 
 ### Dependencies
 * Softwares
