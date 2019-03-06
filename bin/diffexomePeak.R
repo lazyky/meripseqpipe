@@ -6,6 +6,7 @@ TREATED_SITUATION_STARTPOINT <- args[1]
 aligner_tools_name <- args[2]
 designfile <- args[3]
 gtf <- args[4]
+TREATED_SITUATION_STARTPOINT <- as.numeric(TREATED_SITUATION_STARTPOINT)
 
 ##setting CONTROL_SITUATION and TREATED_SITUATION 
 #default 0 is CONTROL_SITUATION else are TREATED_SITUATION
