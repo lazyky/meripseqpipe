@@ -9,3 +9,5 @@ if [ $Aligners_name == "aligners" ]; then
 else
     awk '{FS=",";OFS=" "}{if (NR>1)print "ln "$1"_aligners_'${Aligners_name}'.bam",$1"_"$2"_"$3"_"$4"_'${Aligners_name}'.bam"}' $designfile | bash
 fi
+wait
+    echo "File name is renamed by designfile"

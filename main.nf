@@ -226,7 +226,7 @@ if(params.gtf && !params.bed12){
 if( params.tophat2_index && !params.skip_aligners){
     tophat2_index = Channel
         .fromPath(params.tophat2_index)
-        .ifEmpty { exit 1, "STAR index not found: ${params.tophat2_index}" }
+        .ifEmpty { exit 1, "Tophat2 index not found: ${params.tophat2_index}" }
 }else if( params.fasta ){
     process MakeTophat2Index {
         tag "tophat2_index"
@@ -352,12 +352,12 @@ if( params.star_index && !params.skip_aligners){
         overhang = readLength - 1
         """
         mkdir StarIndex
-        STAR --runThreadN ${task.cpus} \\
-        --runMode genomeGenerate \\
-        --genomeDir StarIndex \\
-        --genomeFastaFiles $fasta \\
-        --sjdbGTFfile $gtf \\
-        --sjdbOverhang $overhang \\
+        STAR --runThreadN ${task.cpus} \
+        --runMode genomeGenerate \
+        --genomeDir StarIndex \
+        --genomeFastaFiles $fasta \
+        --sjdbGTFfile $gtf \
+        --sjdbOverhang $overhang \
         """
     }
 }else {
@@ -429,26 +429,28 @@ process Tophat2Align {
     !params.skip_tophat2 && !params.skip_aligners
 
     script:
-    index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.bt2)?$/
+    index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.fa)?(\.bt2)?$/
     strand_str = unstranded ? "fr-unstranded" : "fr-firststrand"
     if (params.singleEnd) {
         """
-        tophat  -p ${task.cpus} \\
-                -G $gtf \\
-                -o $sample_name \\
-                --library-type $strand_str \\
-                $index_base \\
-                $reads 
+        tophat  -p ${task.cpus} \
+                -G $gtf \
+                -o $sample_name \
+                -–no-novel-juncs \
+                --library-type $strand_str \
+                $index_base \
+                $reads &> ${sample_name}_log.txt
         mv $sample_name/accepted_hits.bam ${reads.baseName}_tophat2.bam
         """
     } else {
         """
-        tophat -p ${task.cpus} \\
-                -G $gtf \\
-                -o $sample_name \\
-                --library-type $strand_str \\
-                $index_base \\
-                ${reads[0]} ${reads[1]}
+        tophat -p ${task.cpus} \
+                -G $gtf \
+                -o $sample_name \
+                -–no-novel-juncs \
+                --library-type $strand_str \
+                $index_base \
+                ${reads[0]} ${reads[1]} &> ${sample_name}_log.txt
         mv $sample_name/accepted_hits.bam ${reads[0].baseName}_tophat2.bam
         """
     }
@@ -470,21 +472,21 @@ process Hisat2Align {
     !params.skip_hisat2 && !params.skip_aligners
 
     script:
-    index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.ht2)?$/
+    index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
     if (params.singleEnd) {
         """
-        hisat2  -p ${task.cpus} --dta\\
-                -x $index_base \\
-                -U $reads \\
+        hisat2  -p ${task.cpus} --dta \
+                -x $index_base \
+                -U $reads \
                 -S ${reads.baseName}_hisat2.sam 2> ${reads.baseName}_hisat2_summary.txt
         samtools view -@ ${task.cpus} -h -bS ${reads.baseName}_hisat2.sam > ${reads.baseName}_hisat2.bam
         rm *.sam
         """
     } else {
         """
-        hisat2  -p ${task.cpus} --dta\\
-                -x $index_base \\
-                -1 ${reads[0]} -2 ${reads[1]} \\
+        hisat2  -p ${task.cpus} --dta \
+                -x $index_base \
+                -1 ${reads[0]} -2 ${reads[1]} \
                 -S ${reads[0].baseName}_hisat2.sam 2> ${reads[0].baseName}_hisat2_summary.txt
         samtools view -@ ${task.cpus} -h -bS ${reads[0].baseName}_hisat2.sam > ${reads[0].baseName}_hisat2.bam
         rm *.sam
@@ -511,31 +513,31 @@ process BWAAlign{
     index_base = index[0].toString() - ~/(\.pac)?(\.bwt)?(\.ann)?(\.amb)?(\.sa)?(\.fa)?$/
     if (params.singleEnd) {
         """
-        bwa aln -t ${task.cpus} \\
-                -f ${reads.baseName}.sai \\
-                $index_base \\
+        bwa aln -t ${task.cpus} \
+                -f ${reads.baseName}.sai \
+                $index_base \
                 $reads
-        bwa samse -f ${reads.baseName}_bwa.sam \\
-                $index_base \\
-                ${reads.baseName}.sai \\
-                $reads
+        bwa samse -f ${reads.baseName}_bwa.sam \
+                $index_base \
+                ${reads.baseName}.sai \
+                $reads &> ${sample_name}_log.txt
         samtools view -@ ${task.cpus} -h -bS ${reads.baseName}_bwa.sam > ${reads.baseName}_bwa.bam
         rm *.sam
         """
     } else {
         """
-        bwa aln -t ${task.cpus} \\
-                -f ${reads[0].baseName}.sai \\
-                $index_base \\
+        bwa aln -t ${task.cpus} \
+                -f ${reads[0].baseName}.sai \
+                $index_base \
                 ${reads[0]}
-        bwa aln -t ${task.cpus} \\
-                -f ${reads[1].baseName}.sai \\
-                $index_base \\
+        bwa aln -t ${task.cpus} \
+                -f ${reads[1].baseName}.sai \
+                $index_base \
                 ${reads[1]}
-        bwa sampe -f ${reads[0].baseName}_bwa.sam \\
-                $index_base \\
-                ${reads[0].baseName}.sai ${reads[0].baseName}.sai \\
-                ${reads[0]} ${reads[1]}
+        bwa sampe -f ${reads[0].baseName}_bwa.sam \
+                $index_base \
+                ${reads[0].baseName}.sai ${reads[0].baseName}.sai \
+                ${reads[0]} ${reads[1]} &> ${sample_name}_log.txt
         samtools view -@ ${task.cpus} -h -bS ${reads[0].baseName}_bwa.sam > ${reads[0].baseName}_bwa.bam
         rm *.sam
         """
@@ -560,23 +562,34 @@ process StarAlign {
     script:
     if (params.singleEnd) {
         """
-        STAR --runThreadN ${task.cpus} \\
-            --twopassMode Basic \\
-            --genomeDir $star_index \\
-            --readFilesIn $reads  \\
-            --outSAMtype BAM Unsorted \\
-            --outFileNamePrefix ${reads.baseName} 
+        STAR --runThreadN ${task.cpus} \
+            --twopassMode Basic \
+            --genomeDir $star_index \
+            --readFilesIn $reads  \
+            --outSAMtype BAM Unsorted \
+            --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 \
+            --outFilterIntronMotifs RemoveNoncanonical \
+            --outFilterMultimapNmax 20 \
+            --alignIntronMin 20 \
+            --alignIntronMax 1000000 \
+            --alignMatesGapMax 1000000 \
+            --outFileNamePrefix ${reads.baseName}  &> ${sample_name}_log.txt
         mv ${reads.baseName}Aligned.out.bam ${reads.baseName}_star.bam
         """
-
     } else {
         """
-        STAR --runThreadN ${task.cpus} \\
-            --twopassMode Basic \\
-            --genomeDir $star_index \\
-            --readFilesIn ${reads[0]} ${reads[1]}  \\
-            --outSAMtype BAM Unsorted \\
-            --outFileNamePrefix ${reads[0].baseName}
+        STAR --runThreadN ${task.cpus} \
+            --twopassMode Basic \
+            --genomeDir $star_index \
+            --readFilesIn ${reads[0]} ${reads[1]}  \
+            --outSAMtype BAM Unsorted \
+            --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 \
+            --outFilterIntronMotifs RemoveNoncanonical \
+            --outFilterMultimapNmax 20 \
+            --alignIntronMin 20 \
+            --alignIntronMax 1000000 \
+            --alignMatesGapMax 1000000 \
+            --outFileNamePrefix ${reads[0].baseName} &> ${sample_name}_log.txt
         mv ${reads[0].baseName}Aligned.out.bam ${reads[0].baseName}_star.bam
         """
     }
@@ -668,10 +681,19 @@ process Sort {
         if [ $skip_bwa == "false" ]; then bash $baseDir/bin/samtools_sort.sh bwa ${task.cpus}; fi
         if [ $skip_star == "false" ]; then bash $baseDir/bin/samtools_sort.sh star ${task.cpus}; fi
         """
-    } else{
+    } else if (!params.skip_sort){
         """    
         bash $baseDir/bin/samtools_sort.sh aligners ${task.cpus}
         """
+    } else {
+        '''
+        for bam_file in *.bam
+        do
+        {
+            mv ${bam_file} ${bam_file/.bam/_sort.bam}
+        }
+        done
+        '''
     }
    
 }
@@ -803,7 +825,7 @@ process Exomepeak {
 
     output:
     file "*" into exomepeak_results
-    file "exomePeak*.bed" into exomepeak_bed
+    file "exomePeak*.bed" into exomepeak_bed, exomePeak_for_annotate
     
     when:
     !params.skip_exomepeak && !params.skip_peakCalling
@@ -846,7 +868,7 @@ process Metpeak {
 
     output:
     file "*" into metpeak_results
-    file "metpeak*.bed" into metpeak_bed
+    file "metpeak*.bed" into metpeak_bed, metpeak_for_annotate
 
     when:
     !params.skip_metpeak && !params.skip_peakCalling
@@ -888,7 +910,7 @@ process Macs2{
 
     output:
     file "macs2*.xls" into macs2_results
-    file "macs2*.bed" into macs2_bed
+    file "macs2*.bed" into macs2_bed, macs2_for_annotate
 
     when:
     !params.skip_macs2 && !params.skip_peakCalling
@@ -902,21 +924,21 @@ process Macs2{
         skip_star = params.skip_star
         """
         if [ $skip_tophat2 == "false" ]; 
-            then bash $baseDir/bin/macs2.sh tophat2 $formatted_designfile ;
-            fi &
+            then bash $baseDir/bin/macs2.sh tophat2 $formatted_designfile ${task.cpus};
+            fi 
         if [ $skip_hisat2 == "false" ]; 
-            then bash $baseDir/bin/macs2.sh hisat2 $formatted_designfile ;
-            fi &
+            then bash $baseDir/bin/macs2.sh hisat2 $formatted_designfile ${task.cpus};
+            fi 
         if [ $skip_bwa == "false" ]; 
-            then bash $baseDir/bin/macs2.sh bwa $formatted_designfile ;
-            fi &
+            then bash $baseDir/bin/macs2.sh bwa $formatted_designfile ${task.cpus};
+            fi 
         if [ $skip_star == "false" ]; 
-            then bash $baseDir/bin/macs2.sh star $formatted_designfile ;
-            fi &
+            then bash $baseDir/bin/macs2.sh star $formatted_designfile ${task.cpus};
+            fi 
         """
     } else{
         """     
-        bash $baseDir/bin/macs2.sh aligners $formatted_designfile $gtf ;
+        bash $baseDir/bin/macs2.sh aligners $formatted_designfile ${task.cpus};
         """ 
     }
 }
@@ -925,11 +947,12 @@ process MATKpeakCalling {
 
     input:
     file bam_bai_file from matk_bam
+    file gtf
     file formatted_designfile from formatted_designfile.collect()
 
     output:
     file "*" into matk_results
-    file "MATK*.bed" into matk_bed, matk_bed_for_diffmatk
+    file "MATK*.bed" into matk_bed, matk_bed_for_diffmatk, matk_for_annotate
     
     when:
     !params.skip_matk && !params.skip_peakCalling
@@ -943,14 +966,14 @@ process MATKpeakCalling {
         skip_bwa = params.skip_bwa
         skip_star = params.skip_star
         """
-        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh tophat2 $matk_jar $formatted_designfile ;fi &
-        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh hisat2 $matk_jar $formatted_designfile ; fi &
-        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh bwa $matk_jar $formatted_designfile ; fi &
-        if [ $skip_star == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh star $matk_jar $formatted_designfile ; fi &
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh tophat2 $matk_jar $formatted_designfile ${task.cpus};fi 
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh hisat2 $matk_jar $formatted_designfile ${task.cpus}; fi 
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh bwa $matk_jar $formatted_designfile ${task.cpus}; fi 
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh star $matk_jar $formatted_designfile ${task.cpus}; fi 
         """
     } else{
         """     
-        bash $baseDir/bin/MATK_peakCalling.sh aligners $matk_jar $formatted_designfile ;
+        bash $baseDir/bin/MATK_peakCalling.sh aligners $matk_jar $formatted_designfile ${task.cpus};
         """ 
     }     
 }
@@ -967,7 +990,7 @@ process DiffExomepeak {
 
     output:
     file "*" into diffexomepeak_results
-    file "diffexomePeak*.bed" into diffexomepeak_bed
+    file "diffexomePeak*.bed" into diffexomepeak_bed, diffexomepeak_for_annotate
     
     when:
     !params.skip_diffexomepeak && !params.skip_diffpeakCalling
@@ -1010,7 +1033,7 @@ process Metdiff {
 
     output:
     file "*" into metdiff_results
-    file "metdiff*.bed" into metdiff_bed
+    file "metdiff*.bed" into metdiff_bed, metdiff_for_annotate
 
     when:
     !params.skip_metdiff && !params.skip_diffpeakCalling
@@ -1047,12 +1070,13 @@ process MATKdiffpeakCalling {
 
     input:
     file bam_bai_file from diffmatk_bam
+    file gtf
     file bed from matk_bed_for_diffmatk.collect()
     file formatted_designfile from formatted_designfile.collect()
 
     output:
     file "*" into diffmatk_results
-    file "MATK*.bed" into diffmatk_bed
+    file "MATK*.bed" into diffmatk_bed, diffmatk_for_annotate
     
     when:
     !params.skip_diffmatk && !params.skip_diffpeakCalling
@@ -1066,14 +1090,14 @@ process MATKdiffpeakCalling {
         skip_bwa = params.skip_bwa
         skip_star = params.skip_star
         """
-        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT tophat2 $matk_jar $formatted_designfile ;fi &
-        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT hisat2 $matk_jar $formatted_designfile ; fi &
-        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT bwa $matk_jar $formatted_designfile ; fi &
-        if [ $skip_star == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT star $matk_jar $formatted_designfile ; fi &
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT tophat2 $matk_jar $formatted_designfile $gtf ${task.cpus};fi 
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT hisat2 $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT bwa $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT star $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
         """
     } else{
         """     
-        bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT  aligners $matk_jar $formatted_designfile ;
+        bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT  aligners $matk_jar $formatted_designfile $gtf ${task.cpus};
         """ 
     }     
 }
@@ -1195,7 +1219,7 @@ process PeakMergeBYMspc {
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "mspc*.bed" into merge_bed
+    file "mspc*.bed" into merge_bed_for_annotate
 
     when:
     !params.skip_mspc && !params.skip_peakCalling
@@ -1212,9 +1236,9 @@ process PeakMergeBYMspc {
 
     ln -s !{mspc_directory}/* ./
     MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{designfile} | sort -r | head -1)
-    for ((i=0;i<=$MAX_SITUATION;i++))
+    for ((i=1;i<=$MAX_SITUATION;i++))
     do
-        ls *situaion_${i}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8"}' | bash
+        ls *situation_${i}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}' "}' | bash
         mv */ConsensusPeaks.bed mspc_situaion_$i.bed
     done
     '''
@@ -1228,7 +1252,7 @@ process DiffPeakMergeBYMspc {
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "mspc*.bed" into diffmerge_bed
+    file "mspc*.bed" into diffmerge_bed_for_annotate
 
     when:
     !params.skip_mspc && !params.skip_diffpeakCalling
@@ -1246,11 +1270,11 @@ process DiffPeakMergeBYMspc {
 
     ln -s !{mspc_directory}/* ./
     MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{designfile} | sort -r | head -1)
-    for ((i=0;i<!{treated_situation_startpoint};i++))
+    for ((i=1;i<!{treated_situation_startpoint};i++))
     do
         for ((j=i+1;j<=$MAX_SITUATION;j++))
         do
-            ls *situation_${i}__${j}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8"}' | bash
+            ls *situation_${i}__${j}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}'_'${j}'.log"}' | bash
             mv */ConsensusPeaks.bed mspc_situation_${i}_${j}.bed
         done
     done
@@ -1416,22 +1440,34 @@ process Cufflinks{
 }
 Channel
     .from()
-    .concat(merge_bed, diffmerge_bed, deseq2_results, edgeR_results, cufflinks_results)
-    .set {results_collection }
+    .concat(merge_bed_for_annotate, diffmerge_bed_for_annotate, 
+            metpeak_for_annotate, macs2_for_annotate, exomePeak_for_annotate, matk_for_annotate,
+            metdiff_for_annotate, diffexomepeak_for_annotate, diffmatk_for_annotate
+            )
+    .set { annotate_collection }
 
-process ShowResults{
-    publishDir "${params.outdir}/merge/results_showing", mode: 'link', overwrite: true
+process BedAnnotated{
+    publishDir "${params.outdir}/merge/annotation", mode: 'link', overwrite: true
     
     input:
-    file results from results_collection.collect()
+    file annotate_file from annotate_collection.collect()
     file formatted_designfile from formatted_designfile.collect()
+    file fasta
+    file gtf
+
+    output:
+    file "*annotatedbyhomer.bed" into homer_annotated
+    file "*annotatedbyxy*" into xy_annotated
 
     when:
     true
 
-    shell:
-    '''
-        echo "done"
-    '''    
-
+    script:
+    annotated_script_dir = baseDir + "/bin"
+    """
+    ln ${annotated_script_dir}/intersec.pl ./
+    ln ${annotated_script_dir}/m6A_annotate.v2.R ./
+    ln ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
+    bash $baseDir/bin/annotation.sh $fasta $gtf ${task.cpus}
+    """ 
 }

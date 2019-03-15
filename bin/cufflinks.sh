@@ -8,7 +8,7 @@ designfile=$2
 gtf_file=$3
 THREAD_NUM=$4
 MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -1)
-tag=$(for ((i=0;i<=$MAX_SITUATION;i++))
+tag=$(for ((i=1;i<=$MAX_SITUATION;i++))
         do 
                 if [ $i -lt $MAX_SITUATION ] 
                 then echo -e "Situation"$i",\c"
@@ -16,7 +16,7 @@ tag=$(for ((i=0;i<=$MAX_SITUATION;i++))
                 fi          
         done 
         )
-bam_file_array=$(for ((i=0;i<=$MAX_SITUATION;i++));
+bam_file_array=$(for ((i=1;i<=$MAX_SITUATION;i++));
         do 
                echo *input_${i}_${Aligner_name}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x"," }END{print $x" "}'
         done 

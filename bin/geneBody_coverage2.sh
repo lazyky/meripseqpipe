@@ -19,3 +19,5 @@ read -u 9
     echo >&9
 }& 
 done
+wait
+echo "执行结束"

@@ -27,4 +27,8 @@ Bootstrap:docker
     conda install cufflinks=2.2.1
     conda install -c bioconda bioconductor-genogam=1.8.0
     conda install -c bioconda pepr=1.1.24
+    conda install -c r r-stringr=1.3.1
+    conda install -c bioconda bioconductor-exomepeak=2.14.0
+    conda install -c bioconda bioconductor-genomeinfodb=1.10.3
+
 

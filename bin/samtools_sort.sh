@@ -11,3 +11,5 @@ do
     samtools index ${bam_file/.bam/_sort.bam}
 }
 done
+wait
+    echo $Aligner_name" bam files sort done"
