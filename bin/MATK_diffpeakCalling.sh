@@ -24,7 +24,7 @@ done
 
 MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -1)
 for i in $(seq 1 $(expr ${TREATED_SITUATION_STARTPOINT} - 1));
-do 
+do
     for j in $(seq ${TREATED_SITUATION_STARTPOINT} ${MAX_SITUATION} )
     do
     read -u 9

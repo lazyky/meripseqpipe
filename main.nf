@@ -124,6 +124,7 @@ params.seqCenter = false
 params.help = false
 unstranded = params.unstranded ? true : false
 
+
 // Preset trimming options
 /*params.pico = false
 if (params.pico){
@@ -155,6 +156,11 @@ if( params.designfile ) {
     if( !designfile.exists() ) exit 1, print_red("Design file not found: ${params.designfile}")
 }else{
     exit 1, print_red("No Design file specified!")
+}
+if( params.TREATED_SITUATION_STARTPOINT ){
+    TREATED_SITUATION_STARTPOINT = params.TREATED_SITUATION_STARTPOINT
+}else{
+    exit 1, print_red("TREATED_SITUATION_STARTPOINT must greater than or equal to 1!")
 }
 
 /*
@@ -295,7 +301,7 @@ if( params.hisat2_index && !params.skip_aligners ){
  */
 if( params.bwa_index && !params.skip_aligners){
     bwa_index = Channel
-        .fromPath(params.bwa_index)
+        .fromPath( params.bwa_index )
         .ifEmpty { exit 1, "bwa index not found: ${params.bwa_index}" }
 }else if(params.fasta ){
     process MakeBWAIndex {
@@ -316,7 +322,7 @@ if( params.bwa_index && !params.skip_aligners){
         """
         mkdir BWAIndex
         cd BWAIndex/
-        bwa index -t ${task.cpus} -p ${fasta.baseName} -abwtsw ../$fasta
+        bwa index -b ${task.cpus} -p ${fasta.baseName} -abwtsw ../$fasta
         cd ../
         """
     }
@@ -357,7 +363,7 @@ if( params.star_index && !params.skip_aligners){
         --genomeDir StarIndex \
         --genomeFastaFiles $fasta \
         --sjdbGTFfile $gtf \
-        --sjdbOverhang $overhang \
+        --sjdbOverhang $overhang 
         """
     }
 }else {
@@ -436,7 +442,7 @@ process Tophat2Align {
         tophat  -p ${task.cpus} \
                 -G $gtf \
                 -o $sample_name \
-                -–no-novel-juncs \
+                --no-novel-juncs \
                 --library-type $strand_str \
                 $index_base \
                 $reads &> ${sample_name}_log.txt
@@ -447,7 +453,7 @@ process Tophat2Align {
         tophat -p ${task.cpus} \
                 -G $gtf \
                 -o $sample_name \
-                -–no-novel-juncs \
+                --no-novel-juncs \
                 --library-type $strand_str \
                 $index_base \
                 ${reads[0]} ${reads[1]} &> ${sample_name}_log.txt
@@ -608,7 +614,7 @@ Channel
  * STEP 3-1 - Sort BAM file
 */
 process RenameByDesignfile{
-    publishDir "${params.outdir}/Sample_rename", mode: 'link', overwrite: true
+    //publishDir "${params.outdir}/Sample_rename", mode: 'link', overwrite: true
 
     input:
     file (reads) from merge_bam_file.collect()
@@ -647,8 +653,8 @@ process RenameByDesignfile{
     } else {
         """
         #Windows and linux newline ^M conversion
-        head -n 1 designfile_test_paired.txt > formatted_designfile.txt
-        sed 1d designfile_test_paired.txt | sort | awk '(NR%2)' >> formatted_designfile.txt
+        head -n 1 $designfile > formatted_designfile.txt
+        sed 1d $designfile| sort | awk '(NR%2)' >> formatted_designfile.txt
         dos2unix formatted_designfile.txt
         if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rename.sh tophat2 formatted_designfile.txt; fi
         if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rename.sh hisat2 formatted_designfile.txt; fi
@@ -832,6 +838,7 @@ process Exomepeak {
 
     script:
     skip_aligners = params.skip_aligners
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
@@ -839,21 +846,21 @@ process Exomepeak {
         skip_star = params.skip_star
         """
         if [ $skip_tophat2 == "false" ]; 
-            then  Rscript $baseDir/bin/exomePeak.R $params.TREATED_SITUATION_STARTPOINT tophat2 $formatted_designfile $gtf;
+            then  Rscript $baseDir/bin/exomePeak.R $treated_situation_startpoint tophat2 $formatted_designfile $gtf;
             fi &
         if [ $skip_hisat2 == "false" ]; 
-            then Rscript $baseDir/bin/exomePeak.R $params.TREATED_SITUATION_STARTPOINT hisat2 $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/exomePeak.R $treated_situation_startpoint hisat2 $formatted_designfile $gtf;
             fi &
         if [ $skip_bwa == "false" ]; 
-            then Rscript $baseDir/bin/exomePeak.R $params.TREATED_SITUATION_STARTPOINT bwa $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/exomePeak.R $treated_situation_startpoint bwa $formatted_designfile $gtf;
             fi &
         if [ $skip_star == "false" ]; 
-            then Rscript $baseDir/bin/exomePeak.R $params.TREATED_SITUATION_STARTPOINT star $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/exomePeak.R $treated_situation_startpoint star $formatted_designfile $gtf;
             fi &
         """
     } else{
         """     
-        Rscript $baseDir/bin/exomePeak.R $params.TREATED_SITUATION_STARTPOINT aligners $formatted_designfile $gtf ;
+        Rscript $baseDir/bin/exomePeak.R $treated_situation_startpoint aligners $formatted_designfile $gtf ;
         """
     } 
 }
@@ -875,6 +882,7 @@ process Metpeak {
 
     script: 
     skip_aligners = params.skip_aligners
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
@@ -882,21 +890,21 @@ process Metpeak {
         skip_star = params.skip_star
         """
         if [ $skip_tophat2 == "false" ]; 
-            then Rscript $baseDir/bin/MeTPeak.R $params.TREATED_SITUATION_STARTPOINT tophat2 $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/MeTPeak.R $treated_situation_startpoint tophat2 $formatted_designfile $gtf;
             fi &
         if [ $skip_hisat2 == "false" ]; 
-            then Rscript $baseDir/bin/MeTPeak.R $params.TREATED_SITUATION_STARTPOINT hisat2 $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/MeTPeak.R $treated_situation_startpoint hisat2 $formatted_designfile $gtf;
             fi &
         if [ $skip_bwa == "false" ]; 
-            then Rscript $baseDir/bin/MeTPeak.R $params.TREATED_SITUATION_STARTPOINT bwa $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/MeTPeak.R $treated_situation_startpoint bwa $formatted_designfile $gtf;
             fi &
         if [ $skip_star == "false" ]; 
-            then Rscript $baseDir/bin/MeTPeak.R $params.TREATED_SITUATION_STARTPOINT star $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/MeTPeak.R $treated_situation_startpoint star $formatted_designfile $gtf;
             fi &
     """
     } else{
         """     
-        Rscript $baseDir/bin/MeTPeak.R $params.TREATED_SITUATION_STARTPOINT aligners $formatted_designfile $gtf ;
+        Rscript $baseDir/bin/MeTPeak.R $treated_situation_startpoint aligners $formatted_designfile $gtf ;
         """
     } 
 }
@@ -909,7 +917,7 @@ process Macs2{
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "macs2*.xls" into macs2_results
+    file "macs2*.{narrowPeak,xls}" into macs2_results
     file "macs2*.bed" into macs2_bed, macs2_for_annotate
 
     when:
@@ -917,6 +925,7 @@ process Macs2{
 
     script:
     skip_aligners = params.skip_aligners
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
@@ -981,7 +990,7 @@ process MATKpeakCalling {
  * STEP 4 - 2 Differential methylation analysis------ExomePeak, MetPeak, QNB, MATK
 */
 process DiffExomepeak {
-    publishDir "${params.outdir}/peak_diff/diffexomepeak", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_peak_calling/diffexomepeak", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from diffexomepeak_bam
@@ -997,6 +1006,7 @@ process DiffExomepeak {
 
     script: 
     skip_aligners = params.skip_aligners
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
@@ -1004,27 +1014,27 @@ process DiffExomepeak {
         skip_star = params.skip_star
         """
         if [ $skip_tophat2 == "false" ]; 
-            then Rscript $baseDir/bin/diffexomePeak.R $params.TREATED_SITUATION_STARTPOINT tophat2 $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/diffexomePeak.R $treated_situation_startpoint tophat2 $formatted_designfile $gtf;
             fi &
         if [ $skip_hisat2 == "false" ]; 
-            then Rscript $baseDir/bin/diffexomePeak.R $params.TREATED_SITUATION_STARTPOINT hisat2 $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/diffexomePeak.R $treated_situation_startpoint hisat2 $formatted_designfile $gtf;
             fi &
         if [ $skip_bwa == "false" ]; 
-            then Rscript $baseDir/bin/diffexomePeak.R $params.TREATED_SITUATION_STARTPOINT bwa $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/diffexomePeak.R $treated_situation_startpoint bwa $formatted_designfile $gtf;
             fi &
         if [ $skip_star == "false" ]; 
-            then Rscript $baseDir/bin/diffexomePeak.R $params.TREATED_SITUATION_STARTPOINT star $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/diffexomePeak.R $treated_situation_startpoint star $formatted_designfile $gtf;
             fi &
         """
     } else{
         """     
-        Rscript $baseDir/bin/diffexomePeak.R $params.TREATED_SITUATION_STARTPOINT aligners $formatted_designfile $gtf ;
+        Rscript $baseDir/bin/diffexomePeak.R $treated_situation_startpoint aligners $formatted_designfile $gtf ;
         """ 
     }
 }
 
 process Metdiff {
-    publishDir "${params.outdir}/peak_diff/metdiff", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_peak_calling/metdiff", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from metdiff_bam
@@ -1039,34 +1049,35 @@ process Metdiff {
     !params.skip_metdiff && !params.skip_diffpeakCalling
 
     script:
-    skip_aligners = params.skip_aligners  
+    skip_aligners = params.skip_aligners
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
         skip_bwa = params.skip_bwa
-        skip_star = params.skip_star
+        skip_star = params.skip_star   
         """
         if [ $skip_tophat2 == "false" ]; 
-            then Rscript $baseDir/bin/MeTDiff.R $params.TREATED_SITUATION_STARTPOINT tophat2 $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint tophat2 $formatted_designfile $gtf;
             fi &
         if [ $skip_hisat2 == "false" ]; 
-            then Rscript $baseDir/bin/MeTDiff.R $params.TREATED_SITUATION_STARTPOINT hisat2 $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint hisat2 $formatted_designfile $gtf;
             fi &
         if [ $skip_bwa == "false" ]; 
-            then Rscript $baseDir/bin/MeTDiff.R $params.TREATED_SITUATION_STARTPOINT bwa $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint bwa $formatted_designfile $gtf;
             fi &
         if [ $skip_star == "false" ]; 
-            then Rscript $baseDir/bin/MeTDiff.R $params.TREATED_SITUATION_STARTPOINT star $formatted_designfile $gtf;
+            then Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint star $formatted_designfile $gtf;
             fi &
         """
     } else{
         """     
-        Rscript $baseDir/bin/MeTDiff.R $params.TREATED_SITUATION_STARTPOINT aligners $formatted_designfile $gtf ;
+        Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint aligners $formatted_designfile $gtf ;
         """ 
     }
 }
 process MATKdiffpeakCalling {
-    publishDir "${params.outdir}/peak_diff/MATK", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_peak_calling/MATK", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from diffmatk_bam
@@ -1083,27 +1094,28 @@ process MATKdiffpeakCalling {
 
     script:
     matk_jar = baseDir + "/bin/MATK-1.0.jar"
-    skip_aligners = params.skip_aligners  
+    skip_aligners = params.skip_aligners
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
         skip_bwa = params.skip_bwa
         skip_star = params.skip_star
         """
-        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT tophat2 $matk_jar $formatted_designfile $gtf ${task.cpus};fi 
-        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT hisat2 $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
-        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT bwa $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
-        if [ $skip_star == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT star $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
+        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint tophat2 $matk_jar $formatted_designfile $gtf ${task.cpus};fi 
+        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint hisat2 $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
+        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint bwa $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
+        if [ $skip_star == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint star $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
         """
     } else{
         """     
-        bash $baseDir/bin/MATK_diffpeakCalling.sh $params.TREATED_SITUATION_STARTPOINT  aligners $matk_jar $formatted_designfile $gtf ${task.cpus};
+        bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint  aligners $matk_jar $formatted_designfile $gtf ${task.cpus};
         """ 
     }     
 }
 
 process Htseq_count{
-    publishDir "${params.outdir}/diff_expr/htseq_count", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_expression/htseq_count", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from htseq_count_bam
@@ -1111,14 +1123,15 @@ process Htseq_count{
     file gtf
 
     output:
-    file "*input*.count" into htseq_count_input_to_QNB, htseq_count_input_to_deseq2, htseq_count_input_to_edgeR
-    file "*ip*.count" into htseq_count_ip_to_QNB
+    file "*input*.count" into htseq_count_input_to_QNB, htseq_count_input_to_deseq2, htseq_count_input_to_edgeR, htseq_count_input_to_arrange
+    file "*ip*.count" into htseq_count_ip_to_QNB, htseq_count_ip_to_arrange
 
     when:
     !params.skip_QNB && !params.skip_diffpeakCalling
 
     script:
     skip_aligners = params.skip_aligners
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
@@ -1127,31 +1140,31 @@ process Htseq_count{
         """
         if [ $skip_tophat2 == "false" ];
             then bash $baseDir/bin/htseq_count.sh tophat2 $gtf ${task.cpus} ; 
-                 Rscript $baseDir/bin/get_htseq_matrix.R $params.TREATED_SITUATION_STARTPOINT tophat2 $formatted_designfile ;
+                 Rscript $baseDir/bin/get_htseq_matrix.R $treated_situation_startpoint tophat2 $formatted_designfile ;
             fi
         if [ $skip_hisat2 == "false" ]; 
             then bash $baseDir/bin/htseq_count.sh hisat2 $gtf ${task.cpus} ; 
-                 Rscript $baseDir/bin/get_htseq_matrix.R $params.TREATED_SITUATION_STARTPOINT hisat2 $formatted_designfile ;
+                 Rscript $baseDir/bin/get_htseq_matrix.R $treated_situation_startpoint hisat2 $formatted_designfile ;
             fi
         if [ $skip_bwa == "false" ]; 
             then bash $baseDir/bin/htseq_count.sh bwa $gtf ${task.cpus} ; 
-                 Rscript $baseDir/bin/get_htseq_matrix.R $params.TREATED_SITUATION_STARTPOINT bwa $formatted_designfile ;
+                 Rscript $baseDir/bin/get_htseq_matrix.R $treated_situation_startpoint bwa $formatted_designfile ;
             fi
         if [ $skip_star == "false" ]; 
             then bash $baseDir/bin/htseq_count.sh star $gtf ${task.cpus} ; 
-                 Rscript $baseDir/bin/get_htseq_matrix.R $params.TREATED_SITUATION_STARTPOINT star $formatted_designfile ;
+                 Rscript $baseDir/bin/get_htseq_matrix.R $treated_situation_startpoint star $formatted_designfile ;
             fi
         """
     } else{
         """     
         bash $baseDir/bin/htseq_count.sh aligners $gtf ${task.cpus}  
-        Rscript $baseDir/bin/get_htseq_matrix.R $params.TREATED_SITUATION_STARTPOINT aligners $formatted_designfile 
+        Rscript $baseDir/bin/get_htseq_matrix.R $treated_situation_startpoint aligners $formatted_designfile 
         """ 
     }
 }
 
 process QNB {
-    publishDir "${params.outdir}/peak_diff/QNB", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_peak_calling/QNB", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_QNB
@@ -1166,164 +1179,39 @@ process QNB {
 
     script:  
     skip_aligners = params.skip_aligners  
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT    
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
         skip_bwa = params.skip_bwa
-        skip_star = params.skip_star
+        skip_star = params.skip_star  
         """
         if [ $skip_tophat2 == "false" ]; 
-            then Rscript $baseDir/bin/QNB.R $params.TREATED_SITUATION_STARTPOINT tophat2 $formatted_designfile ;
+            then Rscript $baseDir/bin/QNB.R $treated_situation_startpoint tophat2 $formatted_designfile ;
             fi &
         if [ $skip_hisat2 == "false" ]; 
-            then Rscript $baseDir/bin/QNB.R $params.TREATED_SITUATION_STARTPOINT hisat2 $formatted_designfile ;
+            then Rscript $baseDir/bin/QNB.R $treated_situation_startpoint hisat2 $formatted_designfile ;
             fi &
         if [ $skip_bwa == "false" ]; 
-            then Rscript $baseDir/bin/QNB.R $params.TREATED_SITUATION_STARTPOINT bwa $formatted_designfile ;
+            then Rscript $baseDir/bin/QNB.R $treated_situation_startpoint bwa $formatted_designfile ;
             fi &
         if [ $skip_star == "false" ]; 
-            then Rscript $baseDir/bin/QNB.R $params.TREATED_SITUATION_STARTPOINT star $formatted_designfile ;
+            then Rscript $baseDir/bin/QNB.R $treated_situation_startpoint star $formatted_designfile ;
             fi &
         """
     } else{
         """     
-        Rscript $baseDir/bin/QNB.R $params.TREATED_SITUATION_STARTPOINT aligners $formatted_designfile ;
+        Rscript $baseDir/bin/QNB.R $treated_situation_startpoint aligners $formatted_designfile ;
         """ 
     } 
 }
-
-
 /*
 ========================================================================================
-                        Step 5 Merge Peak AND Peak Visualization
-========================================================================================
-*/
-/*
- * STEP 5-1 Merge Peak
-*/
-Channel
-    .from()
-    .concat(exomepeak_bed, metpeak_bed, macs2_bed)
-    .into {mspc_merge_peak_bed; pepr_merge_peak_bed }
-
-Channel
-    .from()
-    .concat(diffexomepeak_bed, metdiff_bed)
-    .into {mspc_merge_diffpeak_bed; pepr_merge_diffpeak_bed }
-
-process PeakMergeBYMspc {
-    publishDir "${params.outdir}/merge/mspc", mode: 'link', overwrite: true
-    
-    input:
-    file peak_bed from mspc_merge_peak_bed.collect()
-    file formatted_designfile from formatted_designfile.collect()
-
-    output:
-    file "mspc*.bed" into merge_bed_for_annotate
-
-    when:
-    !params.skip_mspc && !params.skip_peakCalling
-
-    shell:
-    mspc_directory = baseDir + "/bin/mspc_v3.3"
-    '''
-    for bed_file in *.bed
-    do
-        #Scientific notation converted to numbers
-        cat $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
-        bedtools sort -chrThenScoreA -i ${bed_file/.bed/_buffer.bed}  > ${bed_file/.bed/_sort.bed}
-    done
-
-    ln -s !{mspc_directory}/* ./
-    MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{designfile} | sort -r | head -1)
-    for ((i=1;i<=$MAX_SITUATION;i++))
-    do
-        ls *situation_${i}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}' "}' | bash
-        mv */ConsensusPeaks.bed mspc_situaion_$i.bed
-    done
-    '''
-}
-
-process DiffPeakMergeBYMspc {
-    publishDir "${params.outdir}/merge/mspc", mode: 'link', overwrite: true
-    
-    input:
-    file peak_bed from mspc_merge_diffpeak_bed.collect()
-    file formatted_designfile from formatted_designfile.collect()
-
-    output:
-    file "mspc*.bed" into diffmerge_bed_for_annotate
-
-    when:
-    !params.skip_mspc && !params.skip_diffpeakCalling
-
-    shell:
-    mspc_directory = baseDir + "/bin/mspc_v3.3"
-    treated_situation_startpoint = 1
-    '''
-    for bed_file in *.bed
-    do
-        #Scientific notation converted to numbers
-        cat $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
-        bedtools sort -chrThenScoreA -i ${bed_file/.bed/_buffer.bed}  > ${bed_file/.bed/_sort.bed}
-    done
-
-    ln -s !{mspc_directory}/* ./
-    MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{designfile} | sort -r | head -1)
-    for ((i=1;i<!{treated_situation_startpoint};i++))
-    do
-        for ((j=i+1;j<=$MAX_SITUATION;j++))
-        do
-            ls *situation_${i}__${j}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}'_'${j}'.log"}' | bash
-            mv */ConsensusPeaks.bed mspc_situation_${i}_${j}.bed
-        done
-    done
-    '''
-}
-/*
-process PeakMergeBYPepr {
-    publishDir "${params.outdir}/merge/pepr", mode: 'link', overwrite: true
-    
-    input:
-    file peak_bed from pepr_merge_peak_bed.collect()
-    file formatted_designfile from formatted_designfile.collect()
-
-    output:
-    file "pepr*.bed" into merge_bed
-
-    when:
-    false
-
-    shell:
-    '''
-
-    '''
-}
-process DiffPeakMergeBYPepr {
-    publishDir "${params.outdir}/merge/pepr", mode: 'link', overwrite: true
-    
-    input:
-    file peak_bed from pepr_merge_diffpeak_bed.collect()
-    file formatted_designfile from formatted_designfile.collect()
-
-    output:
-    file "pepr*.bed" into pepr_diffmerge_bed
-
-    when:
-    false
-
-    shell:
-    '''
-    '''
-}
-*/
-/*
-========================================================================================
-                        Step X Differential expression analysis
+                        Step 5 Differential expression analysis
 ========================================================================================
 */
 process Deseq2{
-    publishDir "${params.outdir}/diff_expr/deseq2", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_expression/deseq2", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_deseq2
@@ -1337,6 +1225,7 @@ process Deseq2{
 
     script:
     skip_aligners = params.skip_aligners  
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
@@ -1344,27 +1233,27 @@ process Deseq2{
         skip_star = params.skip_star
         """
         if [ $skip_tophat2 == "false" ]; 
-            then Rscript $baseDir/bin/DESeq2.R $params.TREATED_SITUATION_STARTPOINT tophat2 $formatted_designfile ;
+            then Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint tophat2 $formatted_designfile ;
             fi &
         if [ $skip_hisat2 == "false" ]; 
-            then Rscript $baseDir/bin/DESeq2.R $params.TREATED_SITUATION_STARTPOINT hisat2 $formatted_designfile ;
+            then Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint hisat2 $formatted_designfile ;
             fi &
         if [ $skip_bwa == "false" ]; 
-            then Rscript $baseDir/bin/DESeq2.R $params.TREATED_SITUATION_STARTPOINT bwa $formatted_designfile ;
+            then Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint bwa $formatted_designfile ;
             fi &
         if [ $skip_star == "false" ]; 
-            then Rscript $baseDir/bin/DESeq2.R $params.TREATED_SITUATION_STARTPOINT star $formatted_designfile ;
+            then Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint star $formatted_designfile ;
             fi &
         """
     } else{
         """     
-        Rscript $baseDir/bin/DESeq2.R $params.TREATED_SITUATION_STARTPOINT aligners $formatted_designfile ;
+        Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint aligners $formatted_designfile ;
         """ 
     } 
 }
 
 process EdgeR{
-    publishDir "${params.outdir}/diff_expr/edgeR", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_expression/edgeR", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_edgeR
@@ -1377,7 +1266,8 @@ process EdgeR{
     !params.skip_edger && !params.skip_expression
 
     script:
-    skip_aligners = params.skip_aligners  
+    skip_aligners = params.skip_aligners
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     if (!params.skip_aligners){
         skip_tophat2 = params.skip_tophat2
         skip_hisat2 = params.skip_hisat2
@@ -1385,28 +1275,28 @@ process EdgeR{
         skip_star = params.skip_star
         """
         if [ $skip_tophat2 == "false" ]; 
-            then Rscript $baseDir/bin/edgeR.R $params.TREATED_SITUATION_STARTPOINT tophat2 $formatted_designfile ;
+            then Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint tophat2 $formatted_designfile ;
             fi &
         if [ $skip_hisat2 == "false" ]; 
-            then Rscript $baseDir/bin/edgeR.R $params.TREATED_SITUATION_STARTPOINT hisat2 $formatted_designfile ;
+            then Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint hisat2 $formatted_designfile ;
             fi &
         if [ $skip_bwa == "false" ]; 
-            then Rscript $baseDir/bin/edgeR.R $params.TREATED_SITUATION_STARTPOINT bwa $formatted_designfile ;
+            then Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint bwa $formatted_designfile ;
             fi &
         if [ $skip_star == "false" ]; 
-            then Rscript $baseDir/bin/edgeR.R $params.TREATED_SITUATION_STARTPOINT star $formatted_designfile ;
+            then Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint star $formatted_designfile ;
             fi &
         """
     } else{
         """     
-        Rscript $baseDir/bin/edgeR.R $params.TREATED_SITUATION_STARTPOINT aligners $formatted_designfile ;
+        Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint aligners $formatted_designfile ;
         """ 
     } 
 
 }
 
 process Cufflinks{
-    publishDir "${params.outdir}/diff_expr/cufflinks", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_expression/cufflinks", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from cufflinks_bam
@@ -1438,16 +1328,131 @@ process Cufflinks{
         """ 
     } 
 }
+
+/*
+========================================================================================
+                        Step 6 Merge Peak AND Analysis
+========================================================================================
+*/
+/*
+ * STEP 5-1 Merge Peak
+*/
 Channel
     .from()
-    .concat(merge_bed_for_annotate, diffmerge_bed_for_annotate, 
+    .concat(exomepeak_bed, metpeak_bed, macs2_bed, matk_bed)
+    .into {mspc_merge_peak_bed; bed_for_motif_searching }
+
+Channel
+    .from()
+    .concat(diffexomepeak_bed, metdiff_bed, diffmatk_bed)
+    .into {mspc_merge_diffpeak_bed; diffbed_for_motif_searching }
+
+process PeakMergeBYMspc {
+    publishDir "${params.outdir}/peak_calling/merge_peak/mspc", mode: 'link', overwrite: true
+    
+    input:
+    file peak_bed from mspc_merge_peak_bed.collect()
+    file formatted_designfile from formatted_designfile.collect()
+
+    output:
+    file "mspc_situation*.bed" into merge_bed_for_annotate
+
+    when:
+    !params.skip_mspc && !params.skip_peakCalling
+
+    shell:
+    mspc_directory = baseDir + "/bin/mspc_v3.3"
+    '''
+    for bed_file in *.bed
+    do
+        #Scientific notation converted to numbers
+        cat $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
+        bedtools sort -chrThenScoreA -i ${bed_file/.bed/_buffer.bed}  > ${bed_file/.bed/_sort.bed}
+    done
+
+    ln -s !{mspc_directory}/* ./
+    MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{formatted_designfile} | sort -r | head -1)
+    for ((i=1;i<=$MAX_SITUATION;i++))
+    do
+        ls *situation_${i}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}' "}' | bash
+        mv */ConsensusPeaks.bed mspc_situaion_$i.bed
+    done
+    ls mspc*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}' "}' | bash
+    mv */ConsensusPeaks.bed mspc_merged_peak.bed
+    '''
+}
+
+process DiffPeakMergeBYMspc {
+    publishDir "${params.outdir}/diff_peak_calling/merge_peak/mspc", mode: 'link', overwrite: true
+    
+    input:
+    file peak_bed from mspc_merge_diffpeak_bed.collect()
+    file formatted_designfile from formatted_designfile.collect()
+
+    output:
+    file "mspc*.bed" into diffmerge_bed_for_annotate
+
+    when:
+    !params.skip_mspc && !params.skip_diffpeakCalling
+
+    shell:
+    mspc_directory = baseDir + "/bin/mspc_v3.3"
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
+    '''
+    for bed_file in *.bed
+    do
+        #Scientific notation converted to numbers
+        cat $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$4,$5,$6,$7,$8,$9,$10,$11,$12}' > ${bed_file/.bed/_buffer.bed} 
+        bedtools sort -chrThenScoreA -i ${bed_file/.bed/_buffer.bed}  > ${bed_file/.bed/_sort.bed}
+    done
+
+    ln -s !{mspc_directory}/* ./
+    MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' !{formatted_designfile} | sort -r | head -1)
+    for ((i=1;i<!{treated_situation_startpoint};i++))
+    do
+        for ((j=i+1;j<=$MAX_SITUATION;j++))
+        do
+            ls *situation_${i}__${j}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}'_'${j}'.log"}' | bash
+            mv */ConsensusPeaks.bed mspc_situation_${i}_${j}.bed
+        done
+    done
+    '''
+}
+
+process MotifSearching {
+    //publishDir "${params.outdir}/merge/motif", mode: 'link', overwrite: true
+    
+    input:
+    file peak_bed from bed_for_motif_searching.collect()
+    file diffpeak_bed from diffbed_for_motif_searching.collect()
+    file formatted_designfile from formatted_designfile.collect()
+    file fasta
+    file gtf
+
+    output:
+    file "*_dreme" into motif_results
+
+    when:
+    false//!params.dreme
+
+    script:
+    mspc_directory = baseDir + "/bin/mspc_v3.3"
+    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
+    """    
+    bash $baseDir/bin/motif_by_dreme.sh 
+    """
+}
+Channel
+    .from()
+    .concat(
+            merge_bed_for_annotate, diffmerge_bed_for_annotate,
             metpeak_for_annotate, macs2_for_annotate, exomePeak_for_annotate, matk_for_annotate,
             metdiff_for_annotate, diffexomepeak_for_annotate, diffmatk_for_annotate
-            )
+        )
     .set { annotate_collection }
 
-process BedAnnotated{
-    publishDir "${params.outdir}/merge/annotation", mode: 'link', overwrite: true
+process BedAnnotatedAndCounted{
+    //publishDir "${params.outdir}/merge/annotation", mode: 'link', overwrite: true
     
     input:
     file annotate_file from annotate_collection.collect()
@@ -1456,18 +1461,177 @@ process BedAnnotated{
     file gtf
 
     output:
-    file "*annotatedbyhomer.bed" into homer_annotated
-    file "*annotatedbyxy*" into xy_annotated
+    //file "*annotatedbyhomer.bed" into homer_annotated
+    file "annotatedbyxy/**" into xy_annotated
+    file "*.count" into peaks_count_for_arranged
 
     when:
     true
 
     script:
     annotated_script_dir = baseDir + "/bin"
+    //Skip Aligners Tools Setting
+    skip_tophat2 = params.skip_tophat2
+    skip_hisat2 = params.skip_hisat2
+    skip_bwa = params.skip_bwa
+    skip_star = params.skip_star
+    skip_aligners = params.skip_aligners
+    //Skip Peak Calling Tools Setting
+    skip_macs2 = params.skip_macs2
+    skip_metpeak = params.skip_metpeak
+    skip_matk = params.skip_matk
+    //Skip Differential Peak Calling Tools Setting
+    skip_metdiff = params.skip_metdiff
+    skip_diffmatk = params.skip_diffmatk
+    
     """
+    #Annotation Peaks
     ln ${annotated_script_dir}/intersec.pl ./
     ln ${annotated_script_dir}/m6A_annotate.v2.R ./
     ln ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
     bash $baseDir/bin/annotation.sh $fasta $gtf ${task.cpus}
+
+    #Count Peaks for different Peak Calling Tools and different Aligners Tools
+    if [ $skip_aligners == "false" ];
+    then
+        if [ $skip_tophat2 == "false" ]; 
+            then
+                bash $baseDir/bin/count_bed.sh tophat2 merged_tools $formatted_designfile ${task.cpus}
+                if [ $skip_macs2 == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh tophat2 macs2 $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_metpeak == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh tophat2 metpeak $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_matk == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh tophat2 matk $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_metdiff == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh tophat2 metdiff $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_diffmatk == "false" ]; 
+                then 
+                   bash $baseDir/bin/count_bed.sh tophat2 diffmatk $formatted_designfile ${task.cpus} ;
+                fi
+            fi
+        if [ $skip_hisat2 == "false" ]; 
+            then 
+                bash $baseDir/bin/count_bed.sh hisat2 merged_tools $formatted_designfile ${task.cpus}
+                if [ $skip_macs2 == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh hisat2 macs2 $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_metpeak == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh hisat2 metpeak $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_matk == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh hisat2 matk $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_metdiff == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh hisat2 metdiff $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_diffmatk == "false" ]; 
+                then 
+                   bash $baseDir/bin/count_bed.sh hisat2 diffmatk $formatted_designfile ${task.cpus} ;
+                fi
+            fi
+        if [ $skip_bwa == "false" ]; 
+            then 
+                bash $baseDir/bin/count_bed.sh bwa merged_tools $formatted_designfile ${task.cpus}
+                if [ $skip_macs2 == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh bwa macs2 $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_metpeak == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh bwa metpeak $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_matk == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh bwa matk $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_metdiff == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh bwa metdiff $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_diffmatk == "false" ]; 
+                then 
+                   bash $baseDir/bin/count_bed.sh bwa diffmatk $formatted_designfile ${task.cpus} ;
+                fi
+            fi
+        if [ $skip_star == "false" ]; 
+            then 
+                bash $baseDir/bin/count_bed.sh star merged_tools $formatted_designfile ${task.cpus}
+                if [ $skip_macs2 == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh star macs2 $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_metpeak == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh star metpeak $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_matk == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh star matk $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_metdiff == "false" ]; 
+                then 
+                    bash $baseDir/bin/count_bed.sh star metdiff $formatted_designfile ${task.cpus} ;
+                fi
+                if [ $skip_diffmatk == "false" ]; 
+                then 
+                   bash $baseDir/bin/count_bed.sh star diffmatk $formatted_designfile ${task.cpus} ;
+                fi
+            fi
+    else    
+        bash $baseDir/bin/count_bed.sh aligners merged_tools $formatted_designfile ${task.cpus}
+        if [ $skip_macs2 == "false" ]; 
+        then 
+            bash $baseDir/bin/count_bed.sh aligners macs2 $formatted_designfile ${task.cpus} ;
+        fi
+        if [ $skip_metpeak == "false" ]; 
+        then 
+            bash $baseDir/bin/count_bed.sh aligners metpeak $formatted_designfile ${task.cpus} ;
+        fi
+        if [ $skip_matk == "false" ]; 
+        then 
+            bash $baseDir/bin/count_bed.sh aligners matk $formatted_designfile ${task.cpus} ;
+        fi
+        if [ $skip_metdiff == "false" ]; 
+        then 
+            bash $baseDir/bin/count_bed.sh aligners metdiff $formatted_designfile ${task.cpus} ;
+        fi
+        if [ $skip_diffmatk == "false" ]; 
+        then 
+           bash $baseDir/bin/count_bed.sh aligners diffmatk $formatted_designfile ${task.cpus} ;
+        fi
+    fi
     """ 
+}
+
+Channel
+    .from()
+    .concat( xy_annotated, motif_results, htseq_count_ip_to_arrange ,htseq_count_input_to_arrange, peaks_count_for_arranged )
+    .set{ results_arrange }
+process AggrangeForM6Aviewer {
+    publishDir "${params.outdir}/merge/", mode: 'link', overwrite: true
+    
+    input:
+    file results from results_arrange.collect()
+    file formatted_designfile from formatted_designfile.collect()
+
+    output:
+    file "m6APipe_results.RDate" into final_results
+
+    script:
+    """
+    Rscrpit $baseDir/bin/arranged_results.R formatted_designfile
+    """
 }

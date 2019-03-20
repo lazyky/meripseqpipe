@@ -64,5 +64,3 @@ for (i in TREATED_SITUATION){
   file.rename( treated_bed_name , output_treated_bed_name )
 }
 
-
-

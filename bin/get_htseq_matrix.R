@@ -9,15 +9,17 @@ aligner_tools_name <- args[2]
 designfile <- args[3]
 TREATED_SITUATION_STARTPOINT <- as.numeric(TREATED_SITUATION_STARTPOINT)
 
-#setting CONTROL_SITUATION and TREATED_SITUATION 
-#default 0 is CONTROL_SITUATION else are TREATED_SITUATION
+# setting CONTROL_SITUATION and TREATED_SITUATION 
+## default 1 is CONTROL_SITUATION else are TREATED_SITUATION
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 CONTROL_SITUATION <- c()
 TREATED_SITUATION <- c()
-for (i in c(0:(TREATED_SITUATION_STARTPOINT-1))){
+if (TREATED_SITUATION_STARTPOINT-1 >= 1){
+  for (i in c(1:(TREATED_SITUATION_STARTPOINT-1))){
   CONTROL_SITUATION <- c(CONTROL_SITUATION,str_c("_",i,"_"))
+  }
 }
-for (i in c(TREATED_SITUATION_STARTPOINT:max(designtable$situation))){
+for (i in c(TREATED_SITUATION_STARTPOINT:max(as.numeric(designtable$situation)))){
   TREATED_SITUATION <- c(TREATED_SITUATION,str_c("_",i,"_"))
 }
 
@@ -27,7 +29,7 @@ for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
   trans.htseq.input.count <- c()
   pc.names <- c()
   pc.samples <- c()
-  for(pc in grep(str_c("input",i),htseq.files,value = TRUE)){
+  for(pc in grep(str_c("input",i,aligner_tools_name),htseq.files,value = TRUE)){
     pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
     trans.htseq.input.count <- cbind(trans.htseq.input.count,pc.exp[,1])
     pc.names <- rownames(pc.exp) #genes name
@@ -39,7 +41,7 @@ for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
   trans.htseq.ip.count <- c()
   pc.names <- c()
   pc.samples <- c()
-  for(pc in grep(str_c("ip",i),htseq.files,value = TRUE)){
+  for(pc in grep(str_c("ip",i,aligner_tools_name),htseq.files,value = TRUE)){
     pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
     trans.htseq.ip.count <- cbind(trans.htseq.ip.count,pc.exp[,1])
     pc.names <- rownames(pc.exp) #genes name
