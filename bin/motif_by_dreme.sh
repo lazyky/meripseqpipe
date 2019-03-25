@@ -2,7 +2,7 @@
 #$1 argv 1 : fasta file
 #$2 argv 2 : gtf file
 #$3 argv 3 : THREAD_NUM
-Aligner_name=$1
+fasta_file=$1
 gtf_file=$2
 THREAD_NUM=$3
 mkfifo tmp
@@ -14,16 +14,15 @@ do
     echo >&9
 done
 
-for macs2_bed in macs2_situation*.bed
+for macs2_summits in macs2_situation*.summits
 do
 read -u 9
 {
-    do
-        sort -k5,5 -n -r ${macs2_bed} | head -1000 |awk '{summit=$3; print $1"\t"summit-51"\t"summit+50}' > ${macs2_bed/.bed/.location}
-        intersectBed -wo -a ${macs2_bed/.bed/.location} -b !{gtf} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${macs2_bed/.bed/_bestpeaks.bed}
-        bedtools getfasta -s -fi !{fasta} -bed ${macs2_bed/.bed/_bestpeaks.bed} -fo ${macs2_bed/.bed/_bestpeaks.fa}
-        dreme -oc ${macs2_bed/.bed/_dreme} -p ${macs2_bed/.bed/_bestpeaks.fa} -rna
-    done
+    sort -k5,5 -n -r ${macs2_summits} | head -1000 |awk '{summit=$3; print $1"\t"summit-51"\t"summit+50}' > ${macs2_summits/.summits/.location}
+    intersectBed -wo -a ${macs2_summits/.summits/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${macs2_summits/.summits/_bestpeaks.bed}
+    bedtools getfasta -s -fi ${fasta_file} -bed ${macs2_summits/.summits/_bestpeaks.bed} -fo ${macs2_summits/.summits/_bestpeaks.fa}
+    dreme -oc ${macs2_summits/.summits/_dreme} -p ${macs2_summits/.summits/_bestpeaks.fa} -rna
+    echo >&9
 }& 
 done
 
@@ -31,12 +30,11 @@ for metpeak_bed in metpeak_situation*.bed
 do
 read -u 9
 {
-    do
-        sort -k5,5 -n -r ${metpeak_bed} | head -1000 |awk '{ print $1"\t"$2"\t"$3}' > ${metpeak_bed/.bed/.location}
-        intersectBed -wo -a ${metpeak_bed/.bed/.location} -b !{gtf} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${macs2_bed/.bed/_bestpeaks.bed}
-        bedtools getfasta -s -fi !{fasta} -bed ${metpeak_bed/.bed/_bestpeaks.bed} -fo ${metpeak_bed/.bed/_bestpeaks.fa}
-        dreme -oc ${metpeak_bed/.bed/_dreme} -p ${metpeak_bed/.bed/_bestpeaks.fa} -rna
-    done
+    sort -k5,5 -n -r ${metpeak_bed} | head -1000 |awk '{ print $1"\t"$2"\t"$3}' > ${metpeak_bed/.bed/.location}
+    intersectBed -wo -a ${metpeak_bed/.bed/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${metpeak_bed/.bed/_bestpeaks.bed}
+    bedtools getfasta -s -fi ${fasta_file} -bed ${metpeak_bed/.bed/_bestpeaks.bed} -fo ${metpeak_bed/.bed/_bestpeaks.fa}
+    dreme -oc ${metpeak_bed/.bed/_dreme} -p ${metpeak_bed/.bed/_bestpeaks.fa} -rna
+    echo >&9
 }& 
 done
 

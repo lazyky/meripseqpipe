@@ -13,7 +13,7 @@ for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
     echo >&9
 done
-
+mkdir -p annotatedbyxy
 for bed_file in *.bed
 do
 read -u 9

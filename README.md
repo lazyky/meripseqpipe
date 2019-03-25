@@ -26,8 +26,8 @@ You can skip the tools by using `--skip_ToolsName` or not(default).
 | Reads Mapping                           | star, bwa, tophat, hisat2       |----  --skip_aligners true  -----|
 | Sort BAM file AND Post-alignment QC     | samtools, RSeQC                 |---------------------------------|
 | Reads counting                          | htseq-count                     |---------------------------------|
-| Peak Calling                            | MeTPeak, exomePeak, macs2, MATK |---  --skip_peakCalling true  ---|
-| Differential methylation analysis       | MeTDiff, exomePeak, QNB, MATK   |-  --skip_diffpeakCalling true  -|
+| Peak Calling                            | MeTPeak, macs2, MATK            |---  --skip_peakCalling true  ---|
+| Differential methylation analysis       | MeTDiff, QNB, MATK              |-  --skip_diffpeakCalling true  -|
 | Differential expression analysis        | deseq2, edgeR, cufflinks        |---  --skip_expressiion true  ---|
 | Combines Peaks information              | MSPC                            |------  --skip_mspc true  -------|
 
@@ -44,7 +44,6 @@ You can skip the tools by using `--skip_ToolsName` or not(default).
     * [deseq2](http://bioconductor.org/packages/DESeq2/)
     * [edgeR](http://bioconductor.org/packages/edgeR/)
     * [MeTPeak](https://github.com/compgenomics/MeTPeak)
-    * [exomePeak](http://bioconductor.org/packages/exomePeak/)
     * [macs](https://github.com/taoliu/MACS)
     * [MeTDiff](https://github.com/compgenomics/MeTDiff)
     * [QNB](https://cran.r-project.org/src/contrib/Archive/QNB/)

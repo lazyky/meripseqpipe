@@ -38,10 +38,10 @@ do
                         -control_input "${control_input_bam_file_array}" \
                         -treated_ip "${treated_ip_bam_file_array}" \
                         -treated_input "${treated_input_bam_file_array}" \
-                        -control_bed MATK_peakCalling_situation_${i}_${Aligner_name}.bed \
-                        -treated_bed MATK_peakCalling_situation_${j}_${Aligner_name}.bed \
+                        -control_bed MATK_situation_${i}_${Aligner_name}.bed \
+                        -treated_bed MATK_situation_${j}_${Aligner_name}.bed \
                         -gtf ${gtf_file} \
-                        -out MATK_diffpeakCalling_situation_${i}_${j}_${Aligner_name}.bed
+                        -out diffMATK_situation_${i}__${j}_${Aligner_name}.bed
         echo >&9
     } &
    done

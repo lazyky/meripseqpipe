@@ -25,7 +25,7 @@ read -u 9
 {
     ip_bam_file_array=$(echo *ip_${i}_${Aligner_name}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
     input_bam_file_array=$(echo *input_${i}_${Aligner_name}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
-    java -jar $matk_jar -peakCalling -ip "$ip_bam_file_array" -input "$input_bam_file_array" -out MATK_peakCalling_situation_${i}_${Aligner_name}.bed
+    java -jar $matk_jar -peakCalling -ip "$ip_bam_file_array" -input "$input_bam_file_array" -out MATK_situation_${i}_${Aligner_name}.bed
     echo >&9
 }&
 done 

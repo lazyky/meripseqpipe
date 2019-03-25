@@ -44,7 +44,7 @@ for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
 ##Running MeTDiff and rename the output name
 for(i in CONTROL_SITUATION){
   for(j in TREATED_SITUATION){
-    output_pattern <- str_c("diffmetdiff_situation",i,j,aligner_tools_name,"/")
+    output_pattern <- str_c("metdiff_situation",i,j,aligner_tools_name,"/")
     metdiff(GENE_ANNO_GTF=gtf,
             IP_BAM = bamlist[[i]][,2],
             INPUT_BAM = bamlist[[i]][,1],
