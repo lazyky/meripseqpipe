@@ -39,6 +39,15 @@ read -u 9
 done
 
 wait
-echo "done"
+echo "DREME done"
 exec 9<&-
 exec 9>&-
+java -jar /data2/yeying_by_zky/EBV_pipe/bin/MATK-1.0.jar -diff
+                         -control_ip RE-C2E-IP.read1_Clean_control_ip_1_star_sort.bam                         
+                         -control_input RE-C2E-input.read1_Clean_control_input_1_star_sort.bam                        
+                          -treated_ip RE-C2EN-IP.read1_Clean_treated_ip_2_star_sort.bam                        
+                           -treated_input RE-C2EN-input.read1_Clean_treated_input_2_star_sort.bam                         
+                           -control_bed MATK_situation_1_star.bed                         
+                           -treated_bed MATK_situation_2_star.bed                         
+                           -gtf EBV_Akata.gtf                         
+                           -out diffMATK_situation_1__2_star.bed

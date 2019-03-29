@@ -7,7 +7,7 @@ Aligner_name=$1
 designfile=$2
 gtf_file=$3
 THREAD_NUM=$4
-MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -1)
+MAX_SITUATION=$(awk -F, '{if(NR>1)print int($3)}' $designfile | sort -r | head -1)
 tag=$(for ((i=1;i<=$MAX_SITUATION;i++))
         do 
                 if [ $i -lt $MAX_SITUATION ] 

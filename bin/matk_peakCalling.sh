@@ -18,7 +18,7 @@ do
     echo >&9                   #&9代表引用文件描述符9，这条命令代表往管道里面放入了一个"令牌"
 done
 
-MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -1)
+MAX_SITUATION=$(awk -F, '{if(NR>1)print int($3)}' $designfile | sort -r | head -1)
 for ((i=1;i<=$MAX_SITUATION;i++))
 do 
 read -u 9
@@ -29,3 +29,5 @@ read -u 9
     echo >&9
 }&
 done 
+wait
+echo "MATK done"

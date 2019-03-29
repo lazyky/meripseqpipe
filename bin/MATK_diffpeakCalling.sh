@@ -22,7 +22,7 @@ do
     echo >&9                   #&9代表引用文件描述符9，这条命令代表往管道里面放入了一个"令牌"
 done
 
-MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -1)
+MAX_SITUATION=$(awk -F, '{if(NR>1)print int($3)}' $designfile | sort -r | head -1)
 for i in $(seq 1 $(expr ${TREATED_SITUATION_STARTPOINT} - 1));
 do
     for j in $(seq ${TREATED_SITUATION_STARTPOINT} ${MAX_SITUATION} )
@@ -46,3 +46,5 @@ do
     } &
    done
 done
+wait
+echo "diffMATK done"

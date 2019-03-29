@@ -15,18 +15,18 @@ do
     echo >&9                   #&9代表引用文件描述符9，这条命令代表往管道里面放入了一个"令牌"
 done
 
-MAX_SITUATION=$(awk -F, '{if(NR>1)print int($4)}' $designfile | sort -r | head -1)
+MAX_SITUATION=$(awk -F, '{if(NR>1)print int($3)}' $designfile | sort -r | head -1)
 for ((i=1;i<=$MAX_SITUATION;i++))
 do
 read -u 9
 {
     count=$(ls *input_${i}_${Aligner_name}*.bam| wc -w)
     if [ $count -gt 1 ]; then
-        ls *ip_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print $0}'|xargs samtools merge -f macs2_situation_${i}_ip_${Aligner_name}.bam
+        llesss *ip_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print $0}'|xargs samtools merge -f macs2_situation_${i}_ip_${Aligner_name}.bam
         ls *input_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print $0}'|xargs samtools merge -f macs2_situation_${i}_input_${Aligner_name}.bam
     else 
-        ls *ip_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print "mv "$0," macs2_situation_'${i}'_ip_'${Aligner_name}'.bam"}' | bash
-        ls *input_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print "mv "$0," macs2_situation_'${i}'_input_'${Aligner_name}'.bam"}' | bash
+        ls *ip_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print "ln "$0," macs2_situation_'${i}'_ip_'${Aligner_name}'.bam"}' | bash
+        ls *input_${i}_${Aligner_name}*.bam | awk 'BEGIN{ORS=" "}{print "ln "$0," macs2_situation_'${i}'_input_'${Aligner_name}'.bam"}' | bash
     fi
     macs2 callpeak -t macs2_situation_${i}_ip_${Aligner_name}.bam -c macs2_situation_${i}_input_${Aligner_name}.bam -g hs -n macs2_situation_${i}_${Aligner_name} -p 1e-6 -f BAM --nomodel
     awk '{print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6}' macs2_situation_${i}_${Aligner_name}_peaks.narrowPeak > macs2_situation_${i}_${Aligner_name}.bed
@@ -34,3 +34,5 @@ read -u 9
     echo >&9
 }&
 done
+wait
+echo "Macs2 done"
