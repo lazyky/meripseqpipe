@@ -19,9 +19,8 @@
 
 //pre-defined functions for render command
 //=======================================================================================
-
 def helpMessage() {
-    LikelikeUtils.sysucc_ascii()
+    println LikeletUtils.sysucc_ascii()
     log.info"""
     =========================================
      nf-core/m6Apipe v${workflow.manifest.version}
@@ -123,52 +122,68 @@ if (params.pico){
 
 if ( params.fasta ){
     fasta = file(params.fasta)
-    if( !fasta.exists() ) exit 1, LikelikeUtils.print_red("Fasta file not found: ${params.fasta}")
+    if( !fasta.exists() ) exit 1, LikeletUtils.print_red("Fasta file not found: ${params.fasta}")
 }else {
-    exit 1, LikelikeUtils.print_red("No reference genome specified!")
+    exit 1, LikeletUtils.print_red("No reference genome specified!")
 }
 if( params.gtf ){
     gtf = file ( params.gtf )
-    if( !gtf.exists() ) exit 1, LikelikeUtils.print_red("gtf not found: ${params.gtf}")
+    if( !gtf.exists() ) exit 1, LikeletUtils.print_red("gtf not found: ${params.gtf}")
 } else {
-    exit 1, LikelikeUtils.print_red("No GTF annotation specified!")
+    exit 1, LikeletUtils.print_red("No GTF annotation specified!")
 }
 if( params.designfile ) {
     designfile = file(params.designfile)
-    if( !designfile.exists() ) exit 1, LikelikeUtils.print_red("Design file not found: ${params.designfile}")
+    if( !designfile.exists() ) exit 1, LikeletUtils.print_red("Design file not found: ${params.designfile}")
 }else{
-    exit 1, LikelikeUtils.print_red("No Design file specified!")
-}
-if( params.TREATED_SITUATION_STARTPOINT ){
-    TREATED_SITUATION_STARTPOINT = params.TREATED_SITUATION_STARTPOINT
-}else{
-    exit 1, LikelikeUtils.print_red("TREATED_SITUATION_STARTPOINT must greater than or equal to 1!")
+    exit 1, LikeletUtils.print_red("No Design file specified!")
 }
 
 // Validate the params of skipping Aligners Tools Setting
-if( params.skip_aligners ){
-    skip_aligners = params.skip_aligners
+if( params.aligners == "none" ){
+    skip_aligners = true
     skip_bwa = true
     skip_tophat2 = true
     skip_hisat2 = true
     skip_star = true
-}else{
-    skip_aligners = params.skip_aligners
-    skip_bwa = params.skip_bwa
-    skip_tophat2 = params.skip_tophat2
-    skip_hisat2 = params.skip_hisat2
-    skip_star = params.skip_star
+}else if(  params.aligners == "star" ){
+    skip_aligners = false
+    skip_bwa = true
+    skip_tophat2 = true
+    skip_hisat2 = true
+    skip_star = false
+}else if(  params.aligners == "hisat2" ){
+    skip_aligners = false
+    skip_bwa = true
+    skip_tophat2 = true
+    skip_hisat2 = false
+    skip_star = true
+}else if(  params.aligners == "tophat2" ){
+    skip_aligners = false
+    skip_bwa = true
+    skip_tophat2 = false
+    skip_hisat2 = true
+    skip_star = true
+}else if(  params.aligners == "bwa" ){
+    skip_aligners = false
+    skip_bwa = false
+    skip_tophat2 = true
+    skip_hisat2 = true
+    skip_star = true
+}
+else{
+    println LikeletUtils.print_red("There is something wrong")
 }
 
 /*
  * Create a channel for input read files
  */
-if( params.readPaths && !params.skip_aligners ){
+if( params.readPaths && !skip_aligners ){
     if( params.singleEnd ){
         Channel
             .fromFilePairs( "${params.readPaths}/*.fastq", size: 1 ) 
             //.map { row -> [ row[0], [file(row[1][0])]] }
-            .ifEmpty { exit 1, LikelikeUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
+            .ifEmpty { exit 1, println LikeletUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
             //.subscribe { println it }
             .into{ raw_data; raw_bam }
     }
@@ -176,23 +191,23 @@ if( params.readPaths && !params.skip_aligners ){
         Channel
             .fromFilePairs( "${params.readPaths}/*{1,2}.fastq", size: 2 ) 
             //.map { row -> [ row[0], [file(row[1][0])]] }
-            .ifEmpty { exit 1, LikelikeUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
+            .ifEmpty { exit 1, println LikeletUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
             //.subscribe { println it }
             .into{ raw_data; raw_bam }
     }
     else {
-        exit 1, LikelikeUtils.print_red("The param 'singleEnd' was not defined!")
+        exit 1, println LikeletUtils.print_red("The param 'singleEnd' was not defined!")
     }
-}else if( params.readPaths && params.skip_aligners ){
+}else if( params.readPaths && skip_aligners ){
     Channel
         .fromPath( "$params.readPaths/*.bam") 
         //.map { row -> [ row[0], [file(row[1][0])]] }
-        .ifEmpty { exit 1, LikelikeUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
+        .ifEmpty { exit 1, LikeletUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
         //.subscribe { println it }
         .into{ raw_data; raw_bam }
 } 
 else{
-    LikelikeUtils.print_red( "readPaths was empty: ${params.readPaths}")
+    println LikeletUtils.print_red( "readPaths was empty: ${params.readPaths}")
 }
 /*
 ========================================================================================
@@ -226,7 +241,7 @@ if(params.gtf && !params.bed12){
  * PREPROCESSING - Build TOPHAT2 index
  * NEED genome.fa
  */
-if( params.tophat2_index && !params.skip_aligners){
+if( params.tophat2_index && !skip_aligners){
     tophat2_index = Channel
         .fromPath(params.tophat2_index)
         .ifEmpty { exit 1, "Tophat2 index not found: ${params.tophat2_index}" }
@@ -242,7 +257,7 @@ if( params.tophat2_index && !params.skip_aligners){
         file "Tophat2Index/*" into tophat2_index
 
         when:
-        !params.skip_tophat2 && !params.skip_aligners
+        !skip_tophat2 && !skip_aligners
 
         script:
         tophat2_index = "Tophat2Index/" + fasta.baseName.toString()
@@ -252,14 +267,14 @@ if( params.tophat2_index && !params.skip_aligners){
         """
     }
 }else {
-    exit 1, LikelikeUtils.print_red("There is no Tophat2 Index")
+    exit 1, println LikeletUtils.print_red("There is no Tophat2 Index")
 }
 
 /*
  * PREPROCESSING - Build HISAT2 index
  * NEED genome.fa genes.gtf snp.txt/vcf
  */
-if( params.hisat2_index && !params.skip_aligners ){
+if( params.hisat2_index && !skip_aligners ){
     hisat2_index = Channel
         .fromPath(params.hisat2_index)
         .ifEmpty { exit 1, "hisat2 index not found: ${params.hisat2_index}" }
@@ -277,7 +292,7 @@ if( params.hisat2_index && !params.skip_aligners ){
         file "Hisat2Index/*" into hisat2_index
 
         when:
-        !params.skip_hisat2 && !params.skip_aligners
+        !skip_hisat2 && !skip_aligners
         
         script:
         """
@@ -289,14 +304,14 @@ if( params.hisat2_index && !params.skip_aligners ){
         """
     }
 }else {
-    exit 1, LikelikeUtils.print_red("There is no Hisat2 Index")
+    exit 1, println LikeletUtils.print_red("There is no Hisat2 Index")
 }
 
 /*
  * PREPROCESSING - Build BWA index
  * NEED genome.fa
  */
-if( params.bwa_index && !params.skip_aligners){
+if( params.bwa_index && !skip_aligners){
     bwa_index = Channel
         .fromPath( params.bwa_index )
         .ifEmpty { exit 1, "bwa index not found: ${params.bwa_index}" }
@@ -313,7 +328,7 @@ if( params.bwa_index && !params.skip_aligners){
         file "BWAIndex/*" into bwa_index
 
         when:
-        !params.skip_bwa && !params.skip_aligners
+        !skip_bwa && !skip_aligners
      
         script:
         """
@@ -324,14 +339,14 @@ if( params.bwa_index && !params.skip_aligners){
         """
     }
 }else {
-    exit 1, LikelikeUtils.print_red("There is no BWA Index")
+    exit 1, println LikeletUtils.print_red("There is no BWA Index")
 }
 
 /*
  * PREPROCESSING - Build STAR index
  * NEED genome.fa genes.gtf
  */
-if( params.star_index && !params.skip_aligners){
+if( params.star_index && !skip_aligners){
     star_index = Channel
         .fromPath(params.star_index)
         .ifEmpty { exit 1, "STAR index not found: ${params.star_index}" }
@@ -348,7 +363,7 @@ if( params.star_index && !params.skip_aligners){
         file "StarIndex" into star_index
 
         when:
-        !params.skip_star && !params.skip_aligners 
+        !skip_star && !skip_aligners 
 
         script:
         readLength = 50
@@ -364,7 +379,7 @@ if( params.star_index && !params.skip_aligners){
         """
     }
 }else {
-   exit 1, LikelikeUtils.print_red("There is no STAR Index")
+   exit 1, println LikeletUtils.print_red("There is no STAR Index")
 }
 /*
 ========================================================================================
@@ -373,7 +388,8 @@ if( params.star_index && !params.skip_aligners){
 */ 
 process Fastqc{
     tag "$sample_name"
-    publishDir "${params.outdir}/fastqc", mode: 'link', overwrite: true
+    publishDir path: { params.skip_fastqc ? params.outdir : "${params.outdir}/fastqc" },
+             saveAs: { params.skip_fastqc ? null : it }, mode: 'link'
 
     input:
     set sample_name, file(reads) from raw_data
@@ -384,12 +400,14 @@ process Fastqc{
     file "*" into fastqc_results
 
     when:
-    !params.skip_aligners
+    !skip_aligners
 
     shell:
     skip_fastqc = params.skip_fastqc
-    if (params.singleEnd) {
-        filename = reads.toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+    if ( skip_fastqc )  println LikeletUtils.print_purple("Fastqc is skipped")
+    if ( params.singleEnd ){
+        println LikeletUtils.print_purple("Fastqc is on going for single-end data")
+        filename = reads.toString() - ~/(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners = reads.toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
         """
@@ -400,7 +418,8 @@ process Fastqc{
         mv ${reads} ${add_aligners}
         """       
     } else {
-        filename = reads[0].toString() - ~/(_trimmed)?(_val_1)?(_Clean)?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        println LikeletUtils.print_purple("Fastqc is on going for pair-end data")
+        filename = reads[0].toString() - ~/(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners_1 = reads[0].toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
         add_aligners_2 = reads[1].toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
@@ -434,12 +453,13 @@ process Tophat2Align {
     file "*_tophat2.bam" into tophat2_bam
     
     when:
-    !params.skip_tophat2 && !params.skip_aligners
+    !skip_tophat2 && !skip_aligners
 
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.fa)?(\.bt2)?$/
     strand_str = unstranded ? "fr-unstranded" : "fr-firststrand"
     if (params.singleEnd) {
+        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Tophat2 in single-end mode")
         """
         tophat  -p ${task.cpus} \
                 -G $gtf \
@@ -448,9 +468,10 @@ process Tophat2Align {
                 --library-type $strand_str \
                 $index_base \
                 $reads &> ${sample_name}_log.txt
-        mv $sample_name/accepted_hits.bam ${reads.baseName}_tophat2.bam
+        mv $sample_name/accepted_hits.bam ${sample_name}_tophat2.bam
         """
     } else {
+        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Tophat2 in paired-end mode")
         """
         tophat -p ${task.cpus} \
                 -G $gtf \
@@ -477,20 +498,22 @@ process Hisat2Align {
     file "*_hisat2.bam" into hisat2_bam
 
     when:
-    !params.skip_hisat2 && !params.skip_aligners
+    !skip_hisat2 && !skip_aligners
 
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
     if (params.singleEnd) {
+        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Hisat2 in single-end mode")
         """
         hisat2  -p ${task.cpus} --dta \
                 -x $index_base \
                 -U $reads \
-                -S ${reads.baseName}_hisat2.sam 2> ${reads.baseName}_hisat2_summary.txt
-        samtools view -@ ${task.cpus} -h -bS ${reads.baseName}_hisat2.sam > ${reads.baseName}_hisat2.bam
+                -S ${sample_name}_hisat2.sam 2> ${sample_name}_hisat2_summary.txt
+        samtools view -@ ${task.cpus} -h -bS ${sample_name}_hisat2.sam >${sample_name}_hisat2.bam
         rm *.sam
         """
     } else {
+        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Hisat2 in paired-end mode")
         """
         hisat2  -p ${task.cpus} --dta \
                 -x $index_base \
@@ -499,7 +522,7 @@ process Hisat2Align {
         samtools view -@ ${task.cpus} -h -bS ${sample_name}_hisat2.sam > ${sample_name}_hisat2.bam
         rm *.sam
         """
-        }
+    }
 }
 
 process BWAAlign{
@@ -515,24 +538,26 @@ process BWAAlign{
     file "*_bwa.bam" into bwa_bam
 
     when:
-    !params.skip_bwa && !params.skip_aligners
+    !skip_bwa && !skip_aligners
 
     script:
     index_base = index[0].toString() - ~/(\.pac)?(\.bwt)?(\.ann)?(\.amb)?(\.sa)?(\.fa)?$/
     if (params.singleEnd) {
+        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by BWA in single-end mode")
         """
         bwa aln -t ${task.cpus} \
                 -f ${reads.baseName}.sai \
                 $index_base \
                 $reads
-        bwa samse -f ${reads.baseName}_bwa.sam \
+        bwa samse -f ${sample_name}_bwa.sam \
                 $index_base \
                 ${reads.baseName}.sai \
                 $reads &> ${sample_name}_log.txt
-        samtools view -@ ${task.cpus} -h -bS ${reads.baseName}_bwa.sam > ${reads.baseName}_bwa.bam
+        samtools view -@ ${task.cpus} -h -bS ${sample_name}_bwa.sam > ${sample_name}_bwa.bam
         rm *.sam
         """
     } else {
+        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by BWA in paired-end mode")
         """
         bwa aln -t ${task.cpus} \
                 -f ${reads[1].baseName}.sai \
@@ -565,10 +590,11 @@ process StarAlign {
     file "*_star.bam" into star_bam
 
     when:
-    !params.skip_star && !params.skip_aligners
+    !skip_star && !skip_aligners
 
     script:
     if (params.singleEnd) {
+        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by STAR in single-end mode")
         """
         STAR --runThreadN ${task.cpus} \
             --twopassMode Basic \
@@ -581,10 +607,11 @@ process StarAlign {
             --alignIntronMin 20 \
             --alignIntronMax 1000000 \
             --alignMatesGapMax 1000000 \
-            --outFileNamePrefix ${reads.baseName}  &> ${sample_name}_log.txt
-        mv ${reads.baseName}Aligned.out.bam ${reads.baseName}_star.bam
+            --outFileNamePrefix ${sample_name}  &> ${sample_name}_log.txt
+        mv ${sample_name}Aligned.out.bam ${sample_name}_star.bam
         """
     } else {
+        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by STAR in paired-end mode")
         """
         STAR --runThreadN ${task.cpus} \
             --twopassMode Basic \
@@ -630,29 +657,15 @@ process RenameByDesignfile{
     true
 
     script:
-    if ( params.singleEnd == true ) {
-        """
-        #Windows and linux newline ^M conversion
-        cat $designfile > formatted_designfile.txt 
-        dos2unix formatted_designfile.txt  
-        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rename.sh tophat2 formatted_designfile.txt; fi
-        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rename.sh hisat2 formatted_designfile.txt; fi
-        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/rename.sh bwa formatted_designfile.txt; fi
-        if [ $skip_star == "false" ]; then bash $baseDir/bin/rename.sh star formatted_designfile.txt; fi
-        if [ $skip_aligners == "true" ]; then bash $baseDir/bin/rename.sh aligners formatted_designfile.txt; fi     
-        """
-    } else {
-        """
-        #Windows and linux newline ^M conversion
-        cat $designfile > formatted_designfile.txt 
-        dos2unix formatted_designfile.txt  
-        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rename.sh tophat2 formatted_designfile.txt; fi
-        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rename.sh hisat2 formatted_designfile.txt; fi
-        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/rename.sh bwa formatted_designfile.txt; fi
-        if [ $skip_star == "false" ]; then bash $baseDir/bin/rename.sh star formatted_designfile.txt; fi
-        if [ $skip_aligners == "true" ]; then bash $baseDir/bin/rename.sh aligners formatted_designfile.txt; fi     
-        """
-    }
+    println LikeletUtils.print_purple("Rename the files for downstream analysis")
+    aligners_name = params.aligners
+    """
+    #Windows and linux newline ^M conversion
+    cat $designfile > formatted_designfile.txt 
+    dos2unix formatted_designfile.txt  
+    bash $baseDir/bin/rename.sh $aligners_name formatted_designfile.txt   
+    """
+
 }
 process Sort {
     publishDir "${params.outdir}/samtools_sort/", mode: 'link', overwrite: true
@@ -668,14 +681,12 @@ process Sort {
 
     script:
     if (!params.skip_sort){
+        println LikeletUtils.print_purple("Samtools sorting the bam files now")
         """    
-        if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh tophat2 ${task.cpus}; fi
-        if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/samtools_sort.sh hisat2 ${task.cpus}; fi
-        if [ $skip_bwa == "false" ]; then bash $baseDir/bin/samtools_sort.sh bwa ${task.cpus}; fi
-        if [ $skip_star == "false" ]; then bash $baseDir/bin/samtools_sort.sh star ${task.cpus}; fi
-        if [ $skip_aligners == "true" ]; then bash $baseDir/bin/samtools_sort.sh aligners ${task.cpus}; fi
+        bash $baseDir/bin/samtools_sort.sh ${task.cpus}
         """
     } else {
+        println LikeletUtils.print_purple("The step of samtools sort is skipped")
         '''
         for bam_file in *.bam
         do
@@ -736,11 +747,7 @@ process RSeQC {
     }
     */
     """    
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/rseqc.sh tophat2 $bed12 ; fi &
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/rseqc.sh hisat2 $bed12; fi &
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/rseqc.sh bwa $bed12 ; fi &
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/rseqc.sh star $bed12 ; fi &
-    if [ $skip_aligners == "true" ]; then bash $baseDir/bin/rseqc.sh aligners $bed12 ; fi &
+    bash $baseDir/bin/rseqc.sh $bed12;
     """
 }
 
@@ -811,22 +818,14 @@ process Metpeak {
     !params.skip_metpeak && !params.skip_peakCalling
 
     script: 
+    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    if( flag_peakCallingbygroup ){
+        println LikeletUtils.print_purple("Peak Calling performed by MeTPeak in group mode")
+    }else{
+        println LikeletUtils.print_purple("Peak Calling performed by MeTPeak in independent mode")
+    }
     """
-    if [ $skip_tophat2 == "false" ]; then
-        Rscript $baseDir/bin/MeTPeak.R tophat2 $formatted_designfile $gtf;
-        fi
-    if [ $skip_hisat2 == "false" ]; then
-        Rscript $baseDir/bin/MeTPeak.R hisat2 $formatted_designfile $gtf;
-        fi
-    if [ $skip_bwa == "false" ]; then
-        Rscript $baseDir/bin/MeTPeak.R bwa $formatted_designfile $gtf;
-        fi
-    if [ $skip_star == "false" ]; then
-        Rscript $baseDir/bin/MeTPeak.R star $formatted_designfile $gtf;
-        fi
-    if [ $skip_aligners == "true" ]; then
-        Rscript $baseDir/bin/MeTPeak.R aligners $formatted_designfile $gtf ;
-        fi
+    Rscript $baseDir/bin/MeTPeak.R $formatted_designfile $gtf ${task.cpus} $flag_peakCallingbygroup;
     """
 }
 
@@ -838,31 +837,22 @@ process Macs2{
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "macs2*.xls" into macs2_results
+    file "macs2*.{xls,narrowPeak}" into macs2_results
     file "macs2*.summits" into macs2_summits
-    file "macs2*.bed" into macs2_for_annotate
-    file "macs2*.narrowPeak" into macs2_narrowPeak
+    file "macs2*.bed" into macs2_bed, macs2_for_annotate
 
     when:
     !params.skip_macs2 && !params.skip_peakCalling
 
     script:
+    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    if( flag_peakCallingbygroup ){
+        println LikeletUtils.print_purple("Peak Calling performed by Macs2 in group mode")
+    }else{
+        println LikeletUtils.print_purple("Peak Calling performed by Macs2 in independent mode")
+    }
     """
-    if [ $skip_tophat2 == "false" ]; then
-        bash $baseDir/bin/macs2.sh tophat2 $formatted_designfile ${task.cpus};
-        fi 
-    if [ $skip_hisat2 == "false" ]; then 
-        bash $baseDir/bin/macs2.sh hisat2 $formatted_designfile ${task.cpus};
-        fi 
-    if [ $skip_bwa == "false" ]; then
-        bash $baseDir/bin/macs2.sh bwa $formatted_designfile ${task.cpus};
-        fi 
-    if [ $skip_star == "false" ]; then
-        bash $baseDir/bin/macs2.sh star $formatted_designfile ${task.cpus};
-        fi 
-    if [ $skip_aligners == "true" ]; then
-        bash $baseDir/bin/macs2.sh aligners $formatted_designfile ${task.cpus};
-        fi
+    bash $baseDir/bin/macs2.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup;
     """ 
 }
 process MATKpeakCalling {
@@ -882,19 +872,20 @@ process MATKpeakCalling {
 
     script:
     matk_jar = baseDir + "/bin/MATK-1.0.jar"
-
+    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    if( flag_peakCallingbygroup ){
+        println LikeletUtils.print_purple("Peak Calling performed by MATK in group mode")
+    }else{
+        println LikeletUtils.print_purple("Peak Calling performed by MATK in independent mode")
+    }
     """
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh tophat2 $matk_jar $formatted_designfile ${task.cpus};fi 
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh hisat2 $matk_jar $formatted_designfile ${task.cpus}; fi 
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh bwa $matk_jar $formatted_designfile ${task.cpus}; fi 
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/MATK_peakCalling.sh star $matk_jar $formatted_designfile ${task.cpus}; fi     
-    if [ $skip_aligners == "true" ]; then bash $baseDir/bin/MATK_peakCalling.sh aligners $matk_jar $formatted_designfile ${task.cpus}; fi
+    bash $baseDir/bin/MATK_peakCalling.sh $matk_jar $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
     """    
 }
+
 /*
  * STEP 4 - 2 Differential methylation analysis------MetDiff, QNB, MATK
 */
-
 process Metdiff {
     publishDir "${params.outdir}/diff_peak_calling/metdiff", mode: 'link', overwrite: true
 
@@ -911,23 +902,9 @@ process Metdiff {
     !params.skip_metdiff && !params.skip_diffpeakCalling
 
     script:
-    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
+    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
     """
-    if [ $skip_tophat2 == "false" ]; then
-        Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint tophat2 $formatted_designfile $gtf;
-        fi
-    if [ $skip_hisat2 == "false" ]; then
-        Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint hisat2 $formatted_designfile $gtf;
-        fi
-    if [ $skip_bwa == "false" ]; then
-        Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint bwa $formatted_designfile $gtf;
-        fi
-    if [ $skip_star == "false" ]; then
-        Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint star $formatted_designfile $gtf;
-        fi
-    if [ $skip_aligners == "true" ]; then    
-        Rscript $baseDir/bin/MeTDiff.R $treated_situation_startpoint aligners $formatted_designfile $gtf ;
-        fi
+    Rscript $baseDir/bin/MeTDiff.R $formatted_designfile $gtf $flag_peakCallingbygroup
     """ 
 }
 process MATKdiffpeakCalling {
@@ -948,13 +925,8 @@ process MATKdiffpeakCalling {
 
     script:
     matk_jar = baseDir + "/bin/MATK-1.0.jar"
-    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     """
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint tophat2 $matk_jar $formatted_designfile $gtf ${task.cpus};fi 
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint hisat2 $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint bwa $matk_jar $formatted_designfile $gtf ${task.cpus}; fi 
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint star $matk_jar $formatted_designfile $gtf ${task.cpus}; fi   
-    if [ $skip_aligners == "true" ]; then bash $baseDir/bin/MATK_diffpeakCalling.sh $treated_situation_startpoint  aligners $matk_jar $formatted_designfile $gtf ${task.cpus}; fi
+    $baseDir/bin/MATK_diffpeakCalling.sh $matk_jar $formatted_designfile $gtf ${task.cpus}
     """     
 }
 
@@ -971,31 +943,13 @@ process Htseq_count{
     file "*ip*.count" into htseq_count_ip_to_QNB, htseq_count_ip_to_arrange
 
     when:
-    !params.skip_QNB && !params.skip_diffpeakCalling
+    !params.skip_QNB || !params.skip_diffpeakCalling || !params.skip_expression
 
     script:
     """
-    if [ $skip_tophat2 == "false" ]; then
-        bash $baseDir/bin/htseq_count.sh tophat2 $gtf ${task.cpus} ; 
-        Rscript $baseDir/bin/get_htseq_matrix.R tophat2 $formatted_designfile ;
-        fi
-    if [ $skip_hisat2 == "false" ]; then
-        bash $baseDir/bin/htseq_count.sh hisat2 $gtf ${task.cpus} ; 
-        Rscript $baseDir/bin/get_htseq_matrix.R hisat2 $formatted_designfile ;
-        fi
-    if [ $skip_bwa == "false" ]; then
-        bash $baseDir/bin/htseq_count.sh bwa $gtf ${task.cpus} ; 
-        Rscript $baseDir/bin/get_htseq_matrix.R bwa $formatted_designfile ;
-        fi
-    if [ $skip_star == "false" ]; then
-        bash $baseDir/bin/htseq_count.sh star $gtf ${task.cpus} ; 
-        Rscript $baseDir/bin/get_htseq_matrix.R star $formatted_designfile ;
-        fi
-    if [ $skip_aligners == "true" ]; then   
-        bash $baseDir/bin/htseq_count.sh aligners $gtf ${task.cpus}  
-        Rscript $baseDir/bin/get_htseq_matrix.R aligners $formatted_designfile ;
-        fi
-        """ 
+    bash $baseDir/bin/htseq_count.sh $gtf ${task.cpus} 
+    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile 
+    """ 
 }
 
 process QNB {
@@ -1012,24 +966,9 @@ process QNB {
     when:
     !params.skip_QNB && !params.skip_diffpeakCalling
 
-    script:  
-    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT    
+    script:      
     """
-    if [ $skip_tophat2 == "false" ]; then
-        Rscript $baseDir/bin/QNB.R $treated_situation_startpoint tophat2 $formatted_designfile ;
-        fi
-    if [ $skip_hisat2 == "false" ]; then
-        Rscript $baseDir/bin/QNB.R $treated_situation_startpoint hisat2 $formatted_designfile ;
-        fi
-    if [ $skip_bwa == "false" ]; then
-        Rscript $baseDir/bin/QNB.R $treated_situation_startpoint bwa $formatted_designfile ;
-        fi
-    if [ $skip_star == "false" ]; then
-        Rscript $baseDir/bin/QNB.R $treated_situation_startpoint star $formatted_designfile ;
-        fi
-    if [ $skip_aligners == "true" ]; then
-        Rscript $baseDir/bin/QNB.R $treated_situation_startpoint aligners $formatted_designfile ;
-        fi
+    Rscript $baseDir/bin/QNB.R $formatted_designfile 
     """ 
 }
 /*
@@ -1051,23 +990,8 @@ process Deseq2{
     !params.skip_deseq2 && !params.skip_expression
 
     script:
-    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     """
-    if [ $skip_tophat2 == "false" ]; then
-        Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint tophat2 $formatted_designfile ;
-        fi
-    if [ $skip_hisat2 == "false" ]; then
-        Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint hisat2 $formatted_designfile ;
-        fi
-    if [ $skip_bwa == "false" ]; then
-        Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint bwa $formatted_designfile ;
-        fi
-    if [ $skip_star == "false" ]; then
-        Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint star $formatted_designfile ;
-        fi
-    if [ $skip_aligners == "true" ]; then  
-        Rscript $baseDir/bin/DESeq2.R $treated_situation_startpoint aligners $formatted_designfile ;
-        fi
+    Rscript $baseDir/bin/DESeq2.R $formatted_designfile 
     """ 
 
 }
@@ -1086,23 +1010,8 @@ process EdgeR{
     !params.skip_edger && !params.skip_expression
 
     script:
-    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     """
-    if [ $skip_tophat2 == "false" ]; then
-        Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint tophat2 $formatted_designfile ;
-        fi
-    if [ $skip_hisat2 == "false" ]; then
-        Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint hisat2 $formatted_designfile ;
-        fi
-    if [ $skip_bwa == "false" ]; then
-        Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint bwa $formatted_designfile ;
-        fi
-    if [ $skip_star == "false" ]; then
-        Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint star $formatted_designfile ;
-        fi
-    if [ $skip_aligners == "true" ]; then     
-        Rscript $baseDir/bin/edgeR.R $treated_situation_startpoint aligners $formatted_designfile ;
-        fi
+    Rscript $baseDir/bin/edgeR.R $formatted_designfile 
     """ 
 }
 
@@ -1122,11 +1031,7 @@ process Cufflinks{
 
     script:
     """
-    if [ $skip_tophat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh tophat2 $formatted_designfile $gtf ${task.cpus}; fi
-    if [ $skip_hisat2 == "false" ]; then bash $baseDir/bin/cufflinks.sh hisat2 $formatted_designfile $gtf ${task.cpus}; fi
-    if [ $skip_bwa == "false" ]; then bash $baseDir/bin/cufflinks.sh bwa $formatted_designfile $gtf ${task.cpus}; fi
-    if [ $skip_star == "false" ]; then bash $baseDir/bin/cufflinks.sh star $formatted_designfile $gtf ${task.cpus}; fi   
-    if [ $skip_aligners == "true" ]; then bash $baseDir/bin/cufflinks.sh aligners $formatted_designfile $gtf ${task.cpus}; fi
+    bash $baseDir/bin/cufflinks.sh $formatted_designfile $gtf ${task.cpus}
     """ 
 }
 
@@ -1140,7 +1045,7 @@ process Cufflinks{
 */
 Channel
     .from()
-    .concat(metpeak_bed, macs2_narrowPeak, matk_bed)
+    .concat(metpeak_bed, macs2_bed, matk_bed)
     .into {mspc_merge_peak_bed; bedtools_merge_peak_bed; bed_for_motif_searching; }
 
 Channel
@@ -1203,11 +1108,10 @@ process DiffPeakMergeBYMspc {
     file "diffmspc*.bed" into mspc_diffmerge_bed_for_annotate
 
     when:
-    !params.skip_mspc && !params.skip_diffpeakCalling
+    false//!params.skip_mspc && !params.skip_diffpeakCalling
 
     shell:
     mspc_directory = baseDir + "/bin/mspc_v3.3"
-    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
     '''
     for bed_file in *.bed
     do
@@ -1253,26 +1157,11 @@ process PeakMergeBYbedtools {
     when:
     !params.skip_bedtools && !params.skip_peakCalling
 
-    shell:
-    //Skip Peak Calling Tools Setting
-    skip_macs2 = params.skip_macs2
-    skip_metpeak = params.skip_metpeak
-    skip_matk = params.skip_matk
-    '''
-    if [ !{skip_macs2} == "false" ]; then 
-        cat macs2*peaks.narrowPeak |awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > macs2_all_peaks.bed
-        sortBed -i macs2_all_peaks.bed |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > macs2_merged_peaks.bed
-        fi
-    if [ !{skip_metpeak} == "false" ]; then 
-        cat metpeak*.bed | bed12ToBed6 -i |awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > metpeak_all_peaks.bed
-        sortBed -i metpeak_all_peaks.bed |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > metpeak_merged_peaks.bed
-        fi    
-    if [ !{skip_matk} == "false" ]; then 
-        cat MATK*.bed| awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > MATK_all_peaks.bed
-        sortBed -i MATK_all_peaks.bed |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > MATK_merged_peaks.bed
-        fi   
-    cat *_all_peaks.bed | sortBed -i - |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > bedtools_merged_peaks.bed
-    '''
+    script:
+    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    """
+    bash $baseDir/bin/merge_peaks_by_bedtools.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
+    """
 }
 process DiffPeakMergeBYbedtools {
     publishDir "${params.outdir}/peak_calling/merge_peak/bedtools", mode: 'link', overwrite: true
@@ -1285,7 +1174,7 @@ process DiffPeakMergeBYbedtools {
     file "*merged_peaks.bed" into bedtools_diffmerge_bed_for_annotate
 
     when:
-    !params.skip_bedtools && !params.skip_peakCalling
+    false//!params.skip_bedtools && !params.skip_peakCalling
 
     shell:
     //Skip Differential Peak Calling Tools Setting
@@ -1321,8 +1210,7 @@ process MotifSearching {
     when:
     !params.skip_dreme
 
-    script:
-    treated_situation_startpoint = TREATED_SITUATION_STARTPOINT
+    script:T
     """
     bash $baseDir/bin/motif_by_dreme.sh $fasta $gtf ${task.cpus}
     """
@@ -1352,8 +1240,9 @@ process BedAnnotatedAndCounted{
     file "annotatedbyxy/*.anno.txt" into xy_annotated_for_arranging
     file "*.count" into peaks_count_for_arranged
     file "annotatedbyxy/*" into  xy_annotated_results
+
     when:
-    true
+    false
 
     shell:
     annotated_script_dir = baseDir + "/bin"
@@ -1421,15 +1310,15 @@ process AggrangeForM6Aviewer {
     file "m6APipe_results.RDate" into final_results
 
     when:
-    true 
+    false 
 
     shell:
     '''
     echo "Unique_Reads" > bam_stat_summary.txt
-    for bam_stat in *.bam_stat.txt ;
+    for bam_stat in *.bam_stat.txt
     do 
-        printf ${bam_stat/.bam_stat.txt/_sort.bam}" " >> bam_stat_summary.txt;
-        cat ${bam_stat} |grep \(unique\) | awk '{FS=" "}{print $NF}' >> bam_stat_summary.txt ;
+        printf ${bam_stat/.bam_stat.txt/_sort.bam}" " >> bam_stat_summary.txt
+        cat ${bam_stat} |grep (unique | awk '{FS=" "}{print $NF}' >> bam_stat_summary.txt
     done
     # Count Peaks for different Peak Calling Tools and different Aligners Tools
     ## Define the list of used aligner tools
@@ -1457,8 +1346,44 @@ process AggrangeForM6Aviewer {
         for peak_call_name in ${Peak_calling_tools_list};
         do
             echo ${aligners_name} ${peak_call_name}  >>3.log;
-           Rscript $baseDir/bin/arranged_results.R ${aligners_name} ${peak_call_name} !{formatted_designfile} !{task.cpus};
+           Rscript $baseDir/bin/get_m6A_peak_matrix.R ${aligners_name} ${peak_call_name} !{formatted_designfile} !{task.cpus};
         done ;
     done
+    echo "Type" >  m6A_group.file
+    echo "Type" >  expression_group.file
+    awk 'BEGIN{FS=",";OFS=" "}NR>1{print $1"_"$2"_"$3"_aligners.txt""\tgroup_"$3}' designfile_ESC_linux.txt | grep "input_" >> expression_group.file
+    awk 'BEGIN{FS=",";OFS=" "}NR>1{print $1"_"$2"_"$3"_aligners.bam""\tgroup_"$3}' designfile_ESC_linux.txt | grep "ip_" >> m6A_group.file
     '''
+}
+
+/*
+Working completed message
+ */
+workflow.onComplete {
+    LikeletUtils.print_green("=================================================")
+    LikeletUtils.print_green("Cheers! m6APipe from SYSUCC run Complete!")
+    LikeletUtils.print_green("=================================================")
+    //email information
+    if (params.mail) {
+        recipient = params.mail
+        def subject = 'My m6Aseq-SYSUCC execution'
+
+       def  msg = """\
+            RNAseq-SYSUCC execution summary
+            ---------------------------
+            Your command line: ${workflow.commandLine}
+            Completed at: ${workflow.complete}
+            Duration    : ${workflow.duration}
+            Success     : ${workflow.success}
+            workDir     : ${workflow.workDir}
+            exit status : ${workflow.exitStatus}
+            Error report: ${workflow.errorReport ?: '-'}
+        
+            """.stripIndent()
+
+        sendMail(to: recipient, subject: subject, body: msg)
+    }
+}
+workflow.onError {
+    println LikeletUtils.print_yellow("Oops... Pipeline execution stopped with the following message: ")+print_red(workflow.errorMessage)
 }

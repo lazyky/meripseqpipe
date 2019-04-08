@@ -1,23 +1,21 @@
 ## Rscript get_htseq_matrix.R aligner_tools designfile gtf eg. Rscript get_htseq_matrix.R tophat2 designfile_single.txt
-## designfile: filename, control_or_treated, input_or_ip, situation(default 0 is CONTROL_SITUATION else are TREATED_SITUATION)
-## TREATED_SITUATION_STARTPOINT is the default situation check point
+## designfile: filename, control_or_treated, input_or_ip, group(default 0 is CONTROL_SITUATION else are TREATED_SITUATION)
+## TREATED_SITUATION_STARTPOINT is the default group check point
 #!/bin/Rscript
-library(stringr)
 args<-commandArgs(T)
-aligner_tools_name <- args[1]
-designfile <- args[2]
+designfile <- "formatted_designfile.txt"#args[1]
 
 # setting CONTROL_SITUATION and TREATED_SITUATION 
 ## default 1 is CONTROL_SITUATION else are TREATED_SITUATION
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 
 #Gene expression matrix for control_input_bwa(aligner)
-htseq.files <- list.files("./",pattern = str_c(aligner_tools_name,".txt"))
-for(i in c(1:max(as.numeric(designtable$situation)))){
+htseq.files <- list.files("./",pattern = ".txt")
+for(group_id in designtable$Group){
   trans.htseq.input.count <- c()
   pc.names <- c()
   pc.samples <- c()
-  for(pc in grep(str_c("input_",i,"_",aligner_tools_name),htseq.files,value = TRUE)){
+  for(pc in grep(paste0(".input_",group_id),htseq.files,value = TRUE)){
     pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
     trans.htseq.input.count <- cbind(trans.htseq.input.count,pc.exp[,1])
     pc.names <- rownames(pc.exp) #genes name
@@ -28,7 +26,7 @@ for(i in c(1:max(as.numeric(designtable$situation)))){
   trans.htseq.ip.count <- c()
   pc.names <- c()
   pc.samples <- c()
-  for(pc in grep(str_c("ip_",i,"_",aligner_tools_name),htseq.files,value = TRUE)){
+  for(pc in grep(paste0(".ip_",group_id),htseq.files,value = TRUE)){
     pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
     trans.htseq.ip.count <- cbind(trans.htseq.ip.count,pc.exp[,1])
     pc.names <- rownames(pc.exp) #genes name
@@ -38,8 +36,7 @@ for(i in c(1:max(as.numeric(designtable$situation)))){
   rownames(trans.htseq.ip.count) <- pc.names  
   
   #parsing samplenames
-  output_pattern = str_c("htseq_situation_",i,"_",aligner_tools_name)  #添加aligner
-  write.table(trans.htseq.input.count, file = str_c(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
-  write.table(trans.htseq.ip.count, file = str_c(output_pattern,"_ip.count") , sep ="\t", row.names =T,col.names =T)
+  output_pattern = paste0("htseq_group_",group_id)  #添加aligner
+  write.table(trans.htseq.input.count, file = paste0(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
+  write.table(trans.htseq.ip.count, file = paste0(output_pattern,"_ip.count") , sep ="\t", row.names =T,col.names =T)
 }
-

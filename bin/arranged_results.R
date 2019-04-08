@@ -1,25 +1,38 @@
-## Rscript arranged_results.R aligners_tools_name peak_calling_tools_name 
-aligner_tools_name <- "aligners"#args[1]
-peak_calling_tools_name <- "MATK" #args[2]
-bam_stat_summary <- "bam_stat_summary.txt"
 getwd()
-setwd("/data2/yeying_by_zky/EBV_pipe/work/cf/8346833244f3b36ed0c12ba0a38809")
-bam_stat_table <- read.table(bam_stat_summary,row.names = 1)
-filelist = grep(paste0(aligner_tools_name,"_",peak_calling_tools_name),list.files(path = "./",pattern = "input.count"),value = TRUE)
-rpkm_peaks_list <- NULL
-rpkm_peaks_list_index <- 0
-class(rpkm_peaks_list)
+setwd("/disk/zky/m6apipe/")
+## get expression matrix
+filelist = grep("htseq_group",list.files(path = "./",pattern = "aligners_input.count"),value = TRUE)
+expression_matrix <- NULL
 for (file in filelist){
-  count_table <- read.table(file = file, sep = "\t", row.names = NULL)
-  colnames(count_table) <- as.vector(as.matrix(count_table[1,]))
-  count_table <- count_table[-1,]
-  for (count_table_index in c(5:length(count_table[1,]))){
-    bam_stat_index <- as.numeric(which( row.names(bam_stat_table) == colnames(count_table)[count_table_index] ))
-    rpkm =  apply(count_table,1,function(x) (as.numeric(x[count_table_index])/(as.numeric(x[3])-as.numeric(x[2]))/bam_stat_table[bam_stat_index,]*1000))
-    rpkm <- as.matrix(rpkm)
-    colnames(rpkm) <- colnames(count_table)[count_table_index]
-    rpkm_peaks_list_index = rpkm_peaks_list_index + 1
-      rpkm_peaks_list <- cbind(rpkm_peaks_list,rpkm)
-  }
+  part_matrix <- as.matrix(read.table(file, header = TRUE, row.names = 1))
+  expression_matrix <- cbind(expression_matrix,part_matrix)
 }
-write.table(rpkm_peaks_list,file = paste0(aligner_tools_name,"_",peak_calling_tools_name))
+expression_matrix_final <- as.data.frame(expression_matrix)
+
+## get m6A matrix
+m6A_matrix_final <- read.table("final_merged.matrix", header = TRUE, row.names = 1)
+m6A_diff_result <- NULL
+
+## get information for m6A QC
+QC_for_m6A <- read.table("bedtools_merged_peaks.anno.txt", header = F, sep = "\t", quote = "")[,c(1,2,3,15,11,12,13,14,17)]
+colnames(QC_for_m6A) <- c("Chr","ChrStart","ChrEnd","ENSG_ID","Gene_name","Coding","Location","Count","RNA_type")
+
+## get peaks information
+merged_bed <- read.table("bedtools_merged_peaks.bed", header = F, sep = "\t", quote = "")
+
+## sample_group_info
+expression_group_info <-  read.table("expression_group.file", header = TRUE, row.names = 1)
+m6A_group_info <-  read.table("m6A_group.file", header = TRUE, row.names = 1)
+
+## group_compare_info
+group_compare_info <- read.table("group_compare_info.file", header = F, sep = ",")
+length(rownames(group_compare_info))
+matrix_list <- NULL
+for (i in c(1:length(rownames(group_compare_info)))){
+  colnames(m6A_matrix_final)
+  tmp <- m6A_matrix_final[,c(1,3)]
+}
+## save variable for m6Aviewer
+save(expression_matrix_final, m6A_matrix_final, QC_for_m6A, merged_bed, 
+     m6A_diff_result, expression_group_info, m6A_group_info, 
+     file ="arranged_results.m6APipe")

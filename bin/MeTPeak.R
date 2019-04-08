@@ -3,32 +3,51 @@
 #!/bin/Rscript
 library(stringr)
 library(MeTPeak)
+library(parallel)
 args <- commandArgs(T) 
-aligner_tools_name <- args[1]
-designfile <- args[2]
-gtf <- args[3]
-
+designfile <- args[1]
+gtf <- args[2]
+THREAD_NUM <- as.numeric(args[3])
+flag_peakCallingbygroup <- as.numeric(args[4])
 ##setting CONTROL_SITUATION and TREATED_SITUATION 
 #default 1 is CONTROL_SITUATION else are TREATED_SITUATION
-designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
+designtable <- read.csv(designfile,header = TRUE ,stringsAsFactors=FALSE, colClasses = c("character"))
 ##Traversing all situations
-filelist = grep(aligner_tools_name,grep(".bai",list.files(path = "./",pattern = ".bam"),value = TRUE,invert = TRUE),value = TRUE)
-bamlist <- NULL
-for(i in c(1:max(as.numeric(designtable$situation)))){
-  a = grep(str_c("input_",i,"_"),filelist,value = TRUE)
-  b = grep(str_c("ip_",i,"_"),filelist,value = TRUE)
-  bamlist[[i]] <- cbind(a,b)
+filelist = grep(".bai",list.files(path = "./",pattern = ".bam"),value = TRUE,invert = TRUE)
+if(flag_peakCallingbygroup){
+  bamlist <- NULL
+  for(group_id in unique(designtable$Group)){
+    input = grep(str_c("input_",group_id),filelist,value = TRUE)
+    ip = grep(str_c("ip_",group_id),filelist,value = TRUE)
+    bamlist[[group_id]] <- cbind(input,ip)
+  }
+  ##Running MeTPeak and rename the output name
+  mclapply(unique(designtable$Group),function(x){
+      group_id = x
+      metpeak(GENE_ANNO_GTF = gtf,
+              IP_BAM = bamlist[[group_id]][,2],
+              INPUT_BAM = bamlist[[group_id]][,1],
+              EXPERIMENT_NAME = str_c( "metpeak_",group_id )
+      )
+      control_bed_name <- str_c( "metpeak_",group_id ,"/peak.bed")
+      output_control_bed_name <- str_c("metpeak_group_",group_id,".bed") #peak.bed
+      file.rename( control_bed_name , output_control_bed_name )
+    },
+    mc.cores = THREAD_NUM)
+}else{
+  if(length(designtable$Sample_ID) > length(unique(designtable$Sample_ID))) stop("Sample_id is repeat")
+  mclapply(unique(designtable$Sample_ID),function(x){
+    sample_id=x
+    sample_vector <- grep(sample_id,filelist,value = TRUE)
+    metpeak(GENE_ANNO_GTF = gtf,
+            IP_BAM = sample_vector[2],
+            INPUT_BAM = sample_vector[1],
+            EXPERIMENT_NAME = str_c( "metpeak_",sample_id )
+    )
+    control_bed_name <- str_c( "metpeak_",sample_id ,"/peak.bed")
+    output_control_bed_name <- str_c("metpeak_",sample_id,".bed") #peak.bed
+    file.rename( control_bed_name , output_control_bed_name )
+  },
+  mc.cores = THREAD_NUM)
 }
 
-##Running MeTPeak and rename the output name
-output_pattern <- str_c("metpeak_",aligner_tools_name,"_")
-for (i in c(1:max(as.numeric(designtable$situation)))){
-  metpeak(GENE_ANNO_GTF=gtf,
-          IP_BAM = bamlist[[i]][,2],
-          INPUT_BAM = bamlist[[i]][,1],
-          EXPERIMENT_NAME = str_c( output_pattern,i )
-  ) 
-  control_bed_name <- str_c(output_pattern,i,"/peak.bed")
-  output_control_bed_name <- str_c("metpeak_situation_",i,"_",aligner_tools_name,".bed") #peak.bed
-  file.rename( control_bed_name , output_control_bed_name )
-}

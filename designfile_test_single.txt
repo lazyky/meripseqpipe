@@ -1,9 +1,0 @@
-Sample_name(_1/2),ip_or_input,situation
-WT2input,input,1
-WT2ip,ip,1
-Mut2input,input,2
-Mut2ip,ip,2
-WT1input,input,1
-WT1ip,ip,1
-Mut1input,input,2
-Mut1ip,ip,2

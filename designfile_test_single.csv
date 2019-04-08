@@ -1,0 +1,5 @@
+Sample_ID,input_FileName,ip_FileName,Group
+WT1,WT1input,WT1ip,Control
+Mut1,Mut1input,Mut1ip,Treated
+WT2,WT2input,WT2ip,Control
+Mut2,Mut2input,Mut2ip,Treated
