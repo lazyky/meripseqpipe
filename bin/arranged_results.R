@@ -1,5 +1,4 @@
-getwd()
-setwd("/disk/zky/m6apipe/")
+
 ## get expression matrix
 filelist = grep("htseq_group",list.files(path = "./",pattern = "aligners_input.count"),value = TRUE)
 expression_matrix <- NULL

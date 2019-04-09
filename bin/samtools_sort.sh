@@ -1,10 +1,8 @@
 #!/bin/bash
-#$1 argv 1 : uesd Aligner
-#$2 argv 2 : THREAD_NUM
-Aligner_name=$1
-THREAD_NUM=$2
+#$1 argv 1 : THREAD_NUM
+THREAD_NUM=$1
 
-for bam_file in *${Aligner_name}.bam
+for bam_file in *.bam
 do
 {
     samtools sort -@ ${THREAD_NUM:=1} $bam_file ${bam_file/.bam/_sort}
@@ -12,4 +10,4 @@ do
 }
 done
 wait
-    echo $Aligner_name" bam files sort done"
+echo " Bam files are sorted"

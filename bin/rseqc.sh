@@ -1,9 +1,7 @@
 #!/bin/bash
-#$1 argv 1 : uesd Aligner
 #$2 argv 2 : bed12
-Aligner_name=$1
-bed12_file=$2
-for bam_rseqc in *${Aligner_name}*.bam
+bed12_file=$1
+for bam_rseqc in *.bam
 do 
     infer_experiment.py -i $bam_rseqc -r ${bed12_file} > ${bam_rseqc/_sort.bam/}.infer_experiment.txt
     junction_annotation.py -i $bam_rseqc -o ${bam_rseqc/_sort.bam/}.rseqc -r ${bed12_file}

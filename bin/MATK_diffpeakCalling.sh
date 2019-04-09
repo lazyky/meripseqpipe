@@ -2,65 +2,59 @@
 ## MATK_diffpeakCalling.sh tophat2 $matk_jar $designfile $gtf
 ## $1 argv 1 : matk_jar
 ## $2 argv 2 : designfile
-## $3 argv 3 : comparefile
-## $4 argv 4 : gtf file
-## $5 argv 6 : THREAD_NUM
+## $3 argv 3 : gtf file
+## $4 argv 4 : comparefile
 matk_jar=$1
 designfile=$2
-comparefile=$3
-gtf_file=$4
-THREAD_NUM=$5
+gtf_file=$3
+comparefile=$4
 
-
-#定义描述符为9的管道
-mkfifo tmp
-exec 9<>tmp
-#rm -rf /tmp                   #关联后的文件描述符拥有管道文件的所有特性,所以这时候管道文件可以删除，我们留下文件描述符来用就可以了
-for ((i=1;i<=${THREAD_NUM:=1};i++))
-do
-    echo >&9                   #&9代表引用文件描述符9，这条命令代表往管道里面放入了一个"令牌"
-done
-if [ ${comparefile:=0} ]; then
+if [ -f ${comparefile:0} ]; then
     compare_list=$(cat $comparefile)
     for compare_group in $compare_list;
     do
-    read -u 9
     {
         group_id_1=$(echo $compare_group | awk 'BEGIN{FS="_vs_"}{print $1}')
-        group_id_2=$(echo $compare_group | awk 'BEGIN{FS="_vs_"}{print $2}')    
+        group_id_2=$(echo $compare_group | awk 'BEGIN{FS="_vs_"}{print $2}')
+        echo $group_id_1    
         control_ip_bam_file_array=$(echo *ip_${group_id_1}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
         control_input_bam_file_array=$(echo *input_${group_id_1}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
-        treated_ip_bam_file_array=$(echo *ip_${group_id_1}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
-        treated_input_bam_file_array=$(echo *input_${group_id_1}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
+        treated_ip_bam_file_array=$(echo *ip_${group_id_2}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
+        treated_input_bam_file_array=$(echo *input_${group_id_2}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
+        echo $compare_group
         java -jar ${matk_jar} -diff \
                         -control_ip "${control_ip_bam_file_array}" \
                         -control_input "${control_input_bam_file_array}" \
                         -treated_ip "${treated_ip_bam_file_array}" \
                         -treated_input "${treated_input_bam_file_array}" \
-                        -control_bed MATK_group_${group_id_1}.bed \
-                        -treated_bed MATK_group_${group_id_1}.bed \
+                        -control_bed *group_${group_id_1}.bed \
+                        -treated_bed *group_${group_id_2}.bed \
                         -gtf ${gtf_file} \
-                        -out diffMATK_group_${i}__${group_id_1}.bed
-        echo >&9
-    } &
+                        -out MATK_diffm6A_${group_id_1}_${group_id_2}.txt
+        echo $compare_group"  end "
+    }
     done
 else
+    echo "no compare file"
     group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS="\t"}{print $0}')
     group_id_1=$(echo $group_list | awk 'BEGIN{FS="\t"}{print $1}')
     group_id_2=$(echo $group_list | awk 'BEGIN{FS="\t"}{print $2}')  
+    echo $group_id_1   
     control_ip_bam_file_array=$(echo *ip_${group_id_1}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
     control_input_bam_file_array=$(echo *input_${group_id_1}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
-    treated_ip_bam_file_array=$(echo *ip_${group_id_1}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
-    treated_input_bam_file_array=$(echo *input_${group_id_1}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
+    treated_ip_bam_file_array=$(echo *ip_${group_id_2}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
+    treated_input_bam_file_array=$(echo *input_${group_id_2}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
+     echo "group_list"
     java -jar ${matk_jar} -diff \
                     -control_ip "${control_ip_bam_file_array}" \
                     -control_input "${control_input_bam_file_array}" \
                     -treated_ip "${treated_ip_bam_file_array}" \
                     -treated_input "${treated_input_bam_file_array}" \
-                    -control_bed MATK_group_${group_id_1}.bed \
-                    -treated_bed MATK_group_${group_id_1}.bed \
+                    -control_bed *group_${group_id_1}.bed \
+                    -treated_bed *group_${group_id_2}.bed \
                     -gtf ${gtf_file} \
-                    -out diffMATK_group_${i}__${group_id_1}.bed
+                    -out MATK_diffm6A_${group_id_1}_${group_id_2}.txt
+    echo $group_list"  end "
 fi
 wait
 echo "diffMATK done"

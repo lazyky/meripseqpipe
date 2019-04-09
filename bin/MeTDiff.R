@@ -5,42 +5,32 @@
 library(stringr)
 library(MeTDiff)
 args <- commandArgs(T)
-TREATED_SITUATION_STARTPOINT <- args[1]
-aligner_tools_name <- args[2]
-designfile <- args[3]
-gtf <- args[4]
-TREATED_SITUATION_STARTPOINT <- as.numeric(TREATED_SITUATION_STARTPOINT)
+designfile <- args[1]
+gtf <- args[2]
+comparefile <- args[3]
 
 #setting CONTROL_SITUATION and TREATED_SITUATION 
 #default 1 is CONTROL_SITUATION else are TREATED_SITUATION
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
-CONTROL_SITUATION <- c()
-TREATED_SITUATION <- c()
-if (TREATED_SITUATION_STARTPOINT-1 >= 1){
-  for (i in c(1:(TREATED_SITUATION_STARTPOINT-1))){
-  CONTROL_SITUATION <- c(CONTROL_SITUATION,str_c("_",i,"_"))
+filelist = grep(".bai",list.files(path = "./",pattern = ".bam"),value = TRUE,invert = TRUE)
+  bamlist <- NULL
+  for(group_id in designtable$Group){
+    input = grep(str_c("input_",group_id),filelist,value = TRUE)
+    ip = grep(str_c("ip_",group_id),filelist,value = TRUE)
+    bamlist[[group_id]] <- cbind(input,ip)
+  }
+  ##Running MeTPeak and rename the output name
+  for (group_id in designtable$Group){
+    metpeak(GENE_ANNO_GTF = gtf,
+            IP_BAM = bamlist[[group_id]][,2],
+            INPUT_BAM = bamlist[[group_id]][,1],
+            EXPERIMENT_NAME = str_c( "metpeak_",group_id )
+    )
+    control_bed_name <- str_c( "metpeak_",group_id ,"/peak.bed")
+    output_control_bed_name <- str_c("metpeak_group_",group_id,".bed") #peak.bed
+    file.rename( control_bed_name , output_control_bed_name )
   }
 }
-for (i in c(TREATED_SITUATION_STARTPOINT:max(as.numeric(designtable$situation)))){
-  TREATED_SITUATION <- c(TREATED_SITUATION,str_c("_",i,"_"))
-}
-
-##Traversing all situations
-filelist = grep(aligner_tools_name,grep(".bai",list.files(path = "./",pattern = ".bam"),value = TRUE,invert = TRUE),value = TRUE)
-bamlist <- NULL
-for(i in c(CONTROL_SITUATION,TREATED_SITUATION)){
-  if (i %in% CONTROL_SITUATION){
-    a = grep(str_c("input",i),filelist,value = TRUE)
-    b = grep(str_c("ip",i),filelist,value = TRUE)
-    bamlist[[i]] <- cbind(a,b)
-  }
-  if (i %in% TREATED_SITUATION){
-    a = grep(str_c("input",i),filelist,value = TRUE)
-    b = grep(str_c("ip",i),filelist,value = TRUE)
-    bamlist[[i]] <- cbind(a,b)
-  }
-}
-
 ##Running MeTDiff and rename the output name
 for(i in CONTROL_SITUATION){
   for(j in TREATED_SITUATION){

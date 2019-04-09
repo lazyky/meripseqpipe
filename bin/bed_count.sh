@@ -1,12 +1,13 @@
 #!/bin/bash
-#$1 argv 1 : aligners_tools_name
-#$2 argv 2 : peak_calling_tools_name
-#$3 argv 3 : designfile
-#$4 argv 4 : THREAD_NUM
-aligners_tools_name=$1
-peak_calling_tools_name=$2
-designfile=$3
-THREAD_NUM=$4
+#$1 argv 1 : designfile
+#$2 argv 2 : THREAD_NUM
+#$3 argv 3 : merge_bed_file
+#$4 argv 4 : output_bam_stat_file
+designfile=$1
+THREAD_NUM=$2
+merge_bed_file=$3
+output_bam_stat_file=$4
+
 mkfifo tmp
 exec 9<>tmp
 #rm -rf /tmp
@@ -15,30 +16,37 @@ for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
     echo >&9
 done
-
-MAX_GROUP=$(awk -F, '{if(NR>1)print int($3)}' $designfile | sort -r | head -1)
-peak_calling_merged_bed_file=${peak_calling_tools_name}_merged_peaks.bed
-for ((i=1;i<=$MAX_GROUP;i++))
-do 
+sampleinfo_list=$(awk 'BEGIN{FS=","}NR>1{print $1","$4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
+echo "Total_Reads" > $output_bam_stat_file
+for sample_group_id in ${sampleinfo_list}
+do
 read -u 9
-{   
-    input_bam_file_array=$(ls *input_${i}_${aligners_tools_name}*.bam | awk '{ORS=" "}{print $0}')
-    #Setting colnames of peaks input count
-    echo *input_${i}_${aligners_tools_name}*.bam \
-    | awk 'BEGIN{ORS=""}{print "chrom\tchromStart\tchromEND\tPeakName\t"}{for(x=1;x<NF;x++) print $x"\t" }END{print $x"\n"}' \
-    > ${aligners_tools_name}_${peak_calling_tools_name}_group_${i}_input.count
-    #Count input peaks
-    bedtools multicov -bams ${input_bam_file_array} -bed ${peak_calling_merged_bed_file} >> ${aligners_tools_name}_${peak_calling_tools_name}_group_${i}_input.count
+{
+    sample_id=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $1}')
+    group_id=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $2}')
     
-    ip_bam_file_array=$(ls *ip_${i}_${aligners_tools_name}*.bam | awk '{ORS=" "}{print $0}')
-    #Setting colnames of peaks ip count
-    echo *ip_${i}_${aligners_tools_name}*.bam \
+    input_bam_file=$(ls ${sample_id}.input*.bam | awk '{ORS=" "}{print $0}')
+    echo -e ${input_bam_file}"\t" | awk 'BEGIN{ORS=""}{print $0}' > ${sample_id}.bam_stat.txt
+    samtools view -c ${input_bam_file} >> ${sample_id}.bam_stat.txt
+
+    #Setting colnames of peaks input count
+    echo ${sample_id}.input*.bam \
     | awk 'BEGIN{ORS=""}{print "chrom\tchromStart\tchromEND\tPeakName\t"}{for(x=1;x<NF;x++) print $x"\t" }END{print $x"\n"}' \
-    > ${aligners_tools_name}_${peak_calling_tools_name}_group_${i}_ip.count
+    > ${merge_bed_file}.${group_id}.${sample_id}.input.count
+    #Count input peaks
+    bedtools multicov -bams ${input_bam_file} -bed ${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.input.count
+    
+    ip_bam_file=$(ls ${sample_id}.ip*.bam | awk '{ORS=" "}{print $0}')
+    echo -e ${ip_bam_file}"\t" | awk 'BEGIN{ORS=""}{print $0}' >> ${sample_id}.bam_stat.txt
+    samtools view -c ${ip_bam_file} >> ${sample_id}.bam_stat.txt
+    #Setting colnames of peaks ip count
+    echo ${sample_id}.ip*.bam \
+    | awk 'BEGIN{ORS=""}{print "chrom\tchromStart\tchromEND\tPeakName\t"}{for(x=1;x<NF;x++) print $x"\t" }END{print $x"\n"}' \
+    > ${merge_bed_file}.${group_id}.${sample_id}.ip.count
     #Count ip peaks
-    bedtools multicov -bams ${ip_bam_file_array} -bed ${peak_calling_merged_bed_file} >> ${aligners_tools_name}_${peak_calling_tools_name}_group_${i}_ip.count
-    echo >&9
+    bedtools multicov -bams ${ip_bam_file} -bed ${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.ip.count
 }&
 done
 wait
-echo "done"
+cat *.bam_stat.txt >> $output_bam_stat_file
+echo "bedtools count done"

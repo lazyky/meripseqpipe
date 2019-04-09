@@ -1,10 +1,8 @@
 #!/bin/bash
-#$1 argv 1 : uesd Aligner
-#$2 argv 2 : gtf file
-#$3 argv 3 : THREAD_NUM
-Aligner_name=$1
-gtf_file=$2
-THREAD_NUM=$3
+#$1 argv 1 : gtf file
+#$2 argv 2 : THREAD_NUM
+gtf_file=$1
+THREAD_NUM=$2
 mkfifo tmp
 exec 9<>tmp
 #rm -rf /tmp
@@ -14,11 +12,11 @@ do
     echo >&9
 done
 
-for bam_file in *${Aligner_name}*.bam
+for bam_file in *.bam
 do
 read -u 9
 {
-    htseq-count -f bam --stranded=no ${bam_file} ${gtf_file} > ${bam_file/%_${Aligner_name}_*/_${Aligner_name}}.txt
+    htseq-count -f bam --stranded=no ${bam_file} ${gtf_file} > ${bam_file/%_sort*/}.txt
     echo >&9
 }& 
 done

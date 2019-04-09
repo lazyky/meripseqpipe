@@ -53,3 +53,14 @@ test_bam/WT1ip.bam
 test_bam/WT2input.bam
 test_bam/WT2ip.bam
 grozhik2018.pdf
+test_human/H1B_ES_cell_no_IP_input_RNA.fastq
+test_human/H1A_ES_cell_RNA_IP_against_m6A.fastq
+test_human/H1A_ES_cell_no_IP_input_RNA.fastq
+test_human/H1A_Endoderm_cells_RNA_IP_against_m6A.fastq
+test_human/H1A_Endoderm_cells_no_IP_input_RNA.fastq
+test_human/H1B_ES_cell_RNA_IP_against_m6A.fastq
+test_human/H1B_Endoderm_cells_RNA_IP_against_m6A.fastq
+test_human/H1B_Endoderm_cells_no_IP_input_RNA.fastq
+bin/meyer_m6A_peak_call.sh
+bin/meyer_m6A_peak_call(2).sh
+test_human/designfile_ESC.txt

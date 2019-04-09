@@ -138,7 +138,12 @@ if( params.designfile ) {
 }else{
     exit 1, LikeletUtils.print_red("No Design file specified!")
 }
-
+if( params.comparefile ){
+    comparefile = file(params.comparefile)
+    if( !designfile.exists() ) exit 1, LikeletUtils.print_red("Compare file not found: ${params.designfile}")
+}else{
+    exit 1, LikeletUtils.print_red("No Compare file specified!")
+}
 // Validate the params of skipping Aligners Tools Setting
 if( params.aligners == "none" ){
     skip_aligners = true
@@ -451,6 +456,7 @@ process Tophat2Align {
 
     output:
     file "*_tophat2.bam" into tophat2_bam
+    file "*" into tophat2_result
     
     when:
     !skip_tophat2 && !skip_aligners
@@ -496,6 +502,7 @@ process Hisat2Align {
 
     output:
     file "*_hisat2.bam" into hisat2_bam
+    file "*" into hisat2_result
 
     when:
     !skip_hisat2 && !skip_aligners
@@ -536,6 +543,7 @@ process BWAAlign{
 
     output:
     file "*_bwa.bam" into bwa_bam
+    file "*" into bwa_result
 
     when:
     !skip_bwa && !skip_aligners
@@ -588,6 +596,7 @@ process StarAlign {
 
     output:
     file "*_star.bam" into star_bam
+    file "*" into star_result
 
     when:
     !skip_star && !skip_aligners
@@ -674,10 +683,7 @@ process Sort {
     file( bam_query_file ) from rename_bam_file.collect()
 
     output:
-    file "*_sort*" into macs2_bam, metpeak_bam, metdiff_bam, 
-                        htseq_count_bam, rseqc_bam, genebody_bam,
-                        cufflinks_bam, matk_bam, diffmatk_bam, 
-                        bam_for_counting_peaks
+    file "*_sort*" into sort_bam
 
     script:
     if (!params.skip_sort){
@@ -731,7 +737,7 @@ process RSeQC {
     !params.skip_qc && !params.skip_rseqc
 
     input:
-    file bam_rseqc from rseqc_bam
+    file bam_rseqc from sort_bam.collect()
     file bed12 from bed_rseqc.collect()
 
     output:
@@ -755,7 +761,7 @@ process CreateBigWig {
     publishDir "${params.outdir}/rseqc/bigwig", mode: 'link', overwrite: true 
 
     input:
-    file bam from genebody_bam
+    file bam from sort_bam.collect()
 
     output:
     file "*.bigwig" into bigwig_for_genebody
@@ -806,13 +812,13 @@ process Metpeak {
     publishDir "${params.outdir}/peak_calling/metpeak", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from metpeak_bam
+    file bam_bai_file from sort_bam.collect()
     file gtf
     file formatted_designfile from formatted_designfile.collect()
 
     output:
     file "*" into metpeak_results
-    file "metpeak*.bed" into metpeak_bed, metpeak_for_annotate
+    file "metpeak*.bed" into metpeak_bed
 
     when:
     !params.skip_metpeak && !params.skip_peakCalling
@@ -833,13 +839,13 @@ process Macs2{
     publishDir "${params.outdir}/peak_calling/macs2", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from macs2_bam
+    file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
 
     output:
     file "macs2*.{xls,narrowPeak}" into macs2_results
     file "macs2*.summits" into macs2_summits
-    file "macs2*.bed" into macs2_bed, macs2_for_annotate
+    file "macs2*.bed" into macs2_bed
 
     when:
     !params.skip_macs2 && !params.skip_peakCalling
@@ -855,18 +861,19 @@ process Macs2{
     bash $baseDir/bin/macs2.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup;
     """ 
 }
+
 process MATKpeakCalling {
     publishDir "${params.outdir}/peak_calling/MATK", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from matk_bam
+    file bam_bai_file from sort_bam.collect()
     file gtf
     file formatted_designfile from formatted_designfile.collect()
 
     output:
     file "*" into matk_results
-    file "MATK*.bed" into matk_bed, matk_bed_for_diffmatk, matk_for_annotate
-    
+    file "MATK*.bed" into matk_bed
+
     when:
     !params.skip_matk && !params.skip_peakCalling
 
@@ -883,115 +890,102 @@ process MATKpeakCalling {
     """    
 }
 
-/*
- * STEP 4 - 2 Differential methylation analysis------MetDiff, QNB, MATK
-*/
-process Metdiff {
-    publishDir "${params.outdir}/diff_peak_calling/metdiff", mode: 'link', overwrite: true
+process Meyer{
+    publishDir "${params.outdir}/peak_calling/meyer", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from metdiff_bam
-    file gtf
+    file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "*" into metdiff_results
-    file "metdiff*.bed" into metdiff_bed, metdiff_for_annotate
+    file "meyer*.{txt}" into meyer_bed
 
     when:
-    !params.skip_metdiff && !params.skip_diffpeakCalling
+    false//!params.skip_meyer && !params.skip_peakCalling
 
     script:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    if( flag_peakCallingbygroup ){
+        println LikeletUtils.print_purple("Peak Calling performed by Meyer in group mode")
+    }else{
+        println LikeletUtils.print_purple("Peak Calling performed by Meyer in independent mode")
+    }
     """
-    Rscript $baseDir/bin/MeTDiff.R $formatted_designfile $gtf $flag_peakCallingbygroup
-    """ 
-}
-process MATKdiffpeakCalling {
-    publishDir "${params.outdir}/diff_peak_calling/MATK", mode: 'link', overwrite: true
-
-    input:
-    file bam_bai_file from diffmatk_bam
-    file gtf
-    file bed from matk_bed_for_diffmatk.collect()
-    file formatted_designfile from formatted_designfile.collect()
-
-    output:
-    file "*" into diffmatk_results
-    file "diffMATK*.bed" into diffmatk_bed, diffmatk_for_annotate
-    
-    when:
-    !params.skip_diffmatk && !params.skip_diffpeakCalling
-
-    script:
-    matk_jar = baseDir + "/bin/MATK-1.0.jar"
-    """
-    $baseDir/bin/MATK_diffpeakCalling.sh $matk_jar $formatted_designfile $gtf ${task.cpus}
-    """     
-}
-
-process Htseq_count{
-    publishDir "${params.outdir}/diff_expression/htseq_count", mode: 'link', overwrite: true
-
-    input:
-    file bam_bai_file from htseq_count_bam
-    file formatted_designfile from formatted_designfile.collect()
-    file gtf
-
-    output:
-    file "*input*.count" into htseq_count_input_to_QNB, htseq_count_input_to_deseq2, htseq_count_input_to_edgeR, htseq_count_input_to_arrange
-    file "*ip*.count" into htseq_count_ip_to_QNB, htseq_count_ip_to_arrange
-
-    when:
-    !params.skip_QNB || !params.skip_diffpeakCalling || !params.skip_expression
-
-    script:
-    """
-    bash $baseDir/bin/htseq_count.sh $gtf ${task.cpus} 
-    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile 
+    echo -e "chr1\nchr2\nchr3\nchr4\nchr5\nchr6\nchr7\nchr8\nchr9\nchr10\nchr11\nchr12\nchr13\nchr14\nchr15\nchr16\nchr17\nchr18\nchr19\nchr20\nchr21\nchr22\nchrX\nchrY\nchrM" > chrName.txt
+    bash $baseDir/bin/meyer.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup;
     """ 
 }
 
-process QNB {
-    publishDir "${params.outdir}/diff_peak_calling/QNB", mode: 'link', overwrite: true
+/*
+ * STEP 4 - 2 Differential methylation analysis------MetDiff, QNB, MATK
+*/
+// process Metdiff {
+//     publishDir "${params.outdir}/diff_peak_calling/metdiff", mode: 'link', overwrite: true
 
-    input:
-    file reads_count_input from htseq_count_input_to_QNB
-    file reads_count_ip from htseq_count_ip_to_QNB
-    file formatted_designfile from formatted_designfile.collect()
+//     input:
+//     file bam_bai_file from sort_bam.collect()
+//     file gtf
+//     file formatted_designfile from formatted_designfile.collect()
 
-    output:
-    file "*" into qnb_results
-    
-    when:
-    !params.skip_QNB && !params.skip_diffpeakCalling
+//     output:
+//     file "*" into metdiff_results
+//     file "metdiff*.bed" into metdiff_bed, metdiff_for_annotate
 
-    script:      
-    """
-    Rscript $baseDir/bin/QNB.R $formatted_designfile 
-    """ 
-}
+//     when:
+//     !params.skip_metdiff && !params.skip_diffpeakCalling
+
+//     script:
+//     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+//     """
+//     Rscript $baseDir/bin/MeTDiff.R $formatted_designfile $gtf $flag_peakCallingbygroup
+//     """ 
+// }
+
 /*
 ========================================================================================
                         Step 5 Differential expression analysis
 ========================================================================================
 */
+process Htseq_count{
+    publishDir "${params.outdir}/diff_expression/htseq_count", mode: 'link', overwrite: true
+
+    input:
+    file bam_bai_file from sort_bam.collect()
+    file formatted_designfile from formatted_designfile.collect()
+    file gtf
+
+    output:
+    file "*input*.count" into htseq_count_input_to_deseq2, htseq_count_input_to_edgeR, htseq_count_input_to_arrange
+    file "*ip*.count" into htseq_count_ip_to_arrange
+
+    when:
+    !params.skip_QNB || !params.skip_diffpeakCalling || !params.skip_expression
+
+    script:
+    
+    """
+    bash $baseDir/bin/htseq_count.sh $gtf ${task.cpus} 
+    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile 
+    """ 
+}
 process Deseq2{
     publishDir "${params.outdir}/diff_expression/deseq2", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_deseq2
     file formatted_designfile from formatted_designfile.collect()
+    file comparefile
 
     output:
     file "Deseq2*.csv" into deseq2_results
     
     when:
     !params.skip_deseq2 && !params.skip_expression
-
+    
     script:
+    println LikeletUtils.print_purple("Differential expression analysis performed by Deseq2")
     """
-    Rscript $baseDir/bin/DESeq2.R $formatted_designfile 
+    Rscript $baseDir/bin/DESeq2.R $formatted_designfile $comparefile
     """ 
 
 }
@@ -1002,6 +996,7 @@ process EdgeR{
     input:
     file reads_count_input from htseq_count_input_to_edgeR
     file formatted_designfile from formatted_designfile.collect()
+    file comparefile
 
     output:
     file "edgeR*.csv" into edgeR_results
@@ -1010,8 +1005,9 @@ process EdgeR{
     !params.skip_edger && !params.skip_expression
 
     script:
+    println LikeletUtils.print_purple("Differential expression analysis performed by EdgeR")
     """
-    Rscript $baseDir/bin/edgeR.R $formatted_designfile 
+    Rscript $baseDir/bin/edgeR.R $formatted_designfile $comparefile
     """ 
 }
 
@@ -1019,8 +1015,9 @@ process Cufflinks{
     publishDir "${params.outdir}/diff_expression/cufflinks", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from cufflinks_bam
+    file bam_bai_file from sort_bam.collect()
     file gtf
+    file comparefile
     file formatted_designfile from formatted_designfile.collect()
 
     output:
@@ -1030,8 +1027,9 @@ process Cufflinks{
     !params.skip_cufflinks && !params.skip_expression
 
     script:
+    println LikeletUtils.print_purple("Differential expression analysis performed by Cufflinks")
     """
-    bash $baseDir/bin/cufflinks.sh $formatted_designfile $gtf ${task.cpus}
+    bash $baseDir/bin/cufflinks.sh $formatted_designfile $gtf ${task.cpus} $comparefile
     """ 
 }
 
@@ -1045,26 +1043,22 @@ process Cufflinks{
 */
 Channel
     .from()
-    .concat(metpeak_bed, macs2_bed, matk_bed)
-    .into {mspc_merge_peak_bed; bedtools_merge_peak_bed; bed_for_motif_searching; }
-
-Channel
-    .from()
-    .concat(metdiff_bed, diffmatk_bed)
-    .into {mspc_merge_diffpeak_bed; bedtools_merge_diffpeak_bed; diffbed_for_motif_searching }
+    .concat(metpeak_bed, macs2_bed, matk_bed, meyer_bed)
+    .into {mspc_merge_peak_bed; bedtools_merge_peak_bed; bed_for_motif_searching; bed_for_annotation}
 
 process PeakMergeBYMspc {
-    publishDir "${params.outdir}/peak_calling/merge_peak/mspc", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/result_arranged/mspc", mode: 'link', overwrite: true
     
     input:
     file peak_bed from mspc_merge_peak_bed.collect()
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "mspc_situation*.bed" into mspc_merge_bed_for_annotate
+    file "mspc_group*.bed" into mspc_group_merged_bed
+    file "mspc_merged_peaks.bed" into mspc_merged_bed
 
     when:
-    !params.skip_mspc && !params.skip_peakCalling
+    false//!params.skip_mspc && !params.skip_peakCalling
 
     shell:
     mspc_directory = baseDir + "/bin/mspc_v3.3"
@@ -1097,62 +1091,16 @@ process PeakMergeBYMspc {
     '''
 }
 
-process DiffPeakMergeBYMspc {
-    publishDir "${params.outdir}/diff_peak_calling/merge_peak/mspc", mode: 'link', overwrite: true
-    
-    input:
-    file peak_bed from mspc_merge_diffpeak_bed.collect()
-    file formatted_designfile from formatted_designfile.collect()
-
-    output:
-    file "diffmspc*.bed" into mspc_diffmerge_bed_for_annotate
-
-    when:
-    false//!params.skip_mspc && !params.skip_diffpeakCalling
-
-    shell:
-    mspc_directory = baseDir + "/bin/mspc_v3.3"
-    '''
-    for bed_file in *.bed
-    do
-        #Scientific notation converted to numbers
-        cat $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$1":"$2"-"$3,-log($5)/log(10)}' | sortBed -i - >  ${bed_file/.bed/_sort.bed} 
-    done
-
-    ln -s !{mspc_directory}/* ./
-    MAX_SITUATION=$(awk -F, '{if(NR>1)print int($3)}' !{formatted_designfile} | sort -r | head -1)
-    for ((i=1;i<!{treated_situation_startpoint};i++))
-    do
-        for ((j=i+1;j<=$MAX_SITUATION;j++))
-        do
-            count=$(ls *situation_${i}__${j}*sort.bed | wc -w)
-            if [ $count -gt 1 ]; then
-                ls *situation_${i}__${j}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}'_'${j}'.log"}' | bash
-                mv */ConsensusPeaks.bed diffmspc_situation_${i}_${j}.bed
-            else
-                ln *situation_${i}__${j}*sort.bed diffmspc_situation_${i}_${j}.bed
-            fi
-        done
-    done
-    count=$( ls diffmspc*.bed | wc -w)
-    if [ $count -gt 1 ]; then
-        ls diffmspc*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_diffmerged.log "}' | bash
-        mv */ConsensusPeaks.bed diffmspc_merged_peaks.bed
-    else
-        ln diffmspc*.bed diffmspc_merged_peaks.bed
-    fi
-
-    '''
-}
 process PeakMergeBYbedtools {
-    publishDir "${params.outdir}/peak_calling/merge_peak/bedtools", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/result_arranged/bedtools", mode: 'link', overwrite: true
     
     input:
     file peak_bed from bedtools_merge_peak_bed.collect()
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "*merged_peaks.bed" into bedtools_merge_bed_for_annotate
+    file "bedtools_group*.bed" into bedtools_group_merged_bed
+    file "bedtools_merged_peaks.bed" into bedtools_merged_bed
 
     when:
     !params.skip_bedtools && !params.skip_peakCalling
@@ -1163,42 +1111,97 @@ process PeakMergeBYbedtools {
     bash $baseDir/bin/merge_peaks_by_bedtools.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
     """
 }
-process DiffPeakMergeBYbedtools {
-    publishDir "${params.outdir}/peak_calling/merge_peak/bedtools", mode: 'link', overwrite: true
+Channel
+    .from()
+    .concat( mspc_merged_bed, bedtools_merged_bed )
+    .into{ merged_bed_all_merged; merged_bed_part_one }
+Channel
+    .from()
+    .concat( mspc_group_merged_bed, bedtools_group_merged_bed )
+    .into{ merged_bed_group_merged_for_diffm6A; merged_bed_group_merged_for_motif; merged_bed_part_two }
+    
+process PeaksQuantification{
+    publishDir "${params.outdir}/result_arranged/quantification", mode: 'link', overwrite: true
     
     input:
-    file peak_bed from bedtools_merge_diffpeak_bed.collect()
+    file peak_bed from merged_bed_all_merged.collect()
+    file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
+    file gtf
 
     output:
-    file "*merged_peaks.bed" into bedtools_diffmerge_bed_for_annotate
+    file "*.{matrix,count}" into quantification_results, quantification_matrix
 
     when:
-    false//!params.skip_bedtools && !params.skip_peakCalling
+    !params.skip_peakCalling
 
-    shell:
-    //Skip Differential Peak Calling Tools Setting
-    skip_metdiff = params.skip_metdiff
-    skip_diffmatk = params.skip_diffmatk
-    '''
-    if [ !{skip_metdiff} == "false" ]; then 
-        cat metdiff*.bed |awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > metdiff_all_peaks.bed
-        sortBed -i metdiff_all_peaks.bed |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > metdiff_merged_peaks.bed
-        fi
-    if [ !{skip_diffmatk} == "false" ]; then 
-        cat diffMATK*.bed | bed12ToBed6 -i |awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > diffMATK_all_peaks.bed
-        sortBed -i diffMATK_all_peaks.bed |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > diffMATK_merged_peaks.bed
-        fi
-    cat *_all_peaks.bed | sortBed -i - |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > diffbedtools_merged_peaks.bed
-    '''
+    script:
+    matk_jar = baseDir + "/bin/MATK-1.0.jar"
+    quantification_mode = params.quantification_mode
+    """
+    # PeaksQuantification by bedtools
+    if [ ${quantification_mode} == "bedtools" ]; then 
+        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
+        Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
+    fi
+
+    # PeaksQuantification by QNB
+    if [ ${quantification_mode} == "QNB" ]; then 
+        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
+        Rscript $baseDir/bin/QNB_quantification.R $formatted_designfile bam_stat_summary.txt
+    fi
+
+    # PeaksQuantification by MATK
+    if [ ${quantification_mode} == "MATK" ]; then 
+        bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${task.cpus} ${peak_bed}
+    fi
+    """
+}
+
+process diffm6APeak{
+    publishDir "${params.outdir}/result_arranged/diffm6A", mode: 'link', overwrite: true
+    
+    input:
+    file peak_bed from merged_bed_group_merged_for_diffm6A.collect()
+    file bam_bai_file from sort_bam.collect()
+    file formatted_designfile from formatted_designfile.collect()
+    file count_matrix from quantification_matrix.collect()
+    file gtf
+    file comparefile
+
+    output:
+    file "*diffm6A*.txt" into diffm6A_results
+
+    when:
+    !params.skip_diffpeakCalling && !params.comparefile
+
+    script:
+    matk_jar = baseDir + "/bin/MATK-1.0.jar"
+    quantification_mode = params.quantification_mode
+    """
+    # PeaksQuantification by bedtools
+    if [ ${quantification_mode} == "bedtools" ]; then 
+        Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile $comparefile
+    fi
+
+    # PeaksQuantification by QNB
+    if [ ${quantification_mode} == "QNB" ]; then 
+        Rscript $baseDir/bin/QNB_diffm6A.R $formatted_designfile $comparefile 
+    fi
+
+    # PeaksQuantification by MATK
+    if [ ${quantification_mode} == "MATK" ]; then 
+        bash $baseDir/bin/MATK_diffpeakCalling.sh  $matk_jar $gtf $formatted_designfile $gtf $comparefile 
+    fi
+    """
 }
 
 process MotifSearching {
-    publishDir "${params.outdir}/merge/motif", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/result_arranged/motif", mode: 'link', overwrite: true
     
     input:
     file peak_bed from bed_for_motif_searching.collect()
-    file diffpeak_bed from diffbed_for_motif_searching.collect()
+    file group_bed from merged_bed_group_merged_for_motif.collect()
     file macs2_summit from macs2_summits.collect()
     file formatted_designfile from formatted_designfile.collect()
     file fasta
@@ -1210,7 +1213,7 @@ process MotifSearching {
     when:
     !params.skip_dreme
 
-    script:T
+    script:
     """
     bash $baseDir/bin/motif_by_dreme.sh $fasta $gtf ${task.cpus}
     """
@@ -1218,16 +1221,11 @@ process MotifSearching {
 
 Channel
     .from()
-    .concat(
-            bam_for_counting_peaks, metpeak_for_annotate, macs2_for_annotate, matk_for_annotate,
-            metdiff_for_annotate, diffmatk_for_annotate,
-            mspc_merge_bed_for_annotate, mspc_diffmerge_bed_for_annotate,
-            bedtools_merge_bed_for_annotate, bedtools_diffmerge_bed_for_annotate
-        )
+    .concat( bed_for_annotation, merged_bed_part_one, merged_bed_part_two )
     .set { annotate_collection }
 
-process BedAnnotatedAndCounted{
-    publishDir "${params.outdir}/merge/annotation", mode: 'link', overwrite: true
+process BedAnnotated{
+    publishDir "${params.outdir}/result_arranged/annotation", mode: 'link', overwrite: true
     
     input:
     file annotate_file from annotate_collection.collect()
@@ -1236,124 +1234,46 @@ process BedAnnotatedAndCounted{
     file gtf
 
     output:
-    //file "*annotatedbyhomer.bed" into homer_annotated
-    file "annotatedbyxy/*.anno.txt" into xy_annotated_for_arranging
-    file "*.count" into peaks_count_for_arranged
-    file "annotatedbyxy/*" into  xy_annotated_results
+    file "annotatedbyxy/*.anno.txt" into xy_annotation_results
+    file "*group*.bed" into all_annotation_results
 
-    when:
-    false
-
-    shell:
+    script:
     annotated_script_dir = baseDir + "/bin"
     //Skip Peak Calling Tools Setting
-    skip_macs2 = params.skip_macs2
-    skip_metpeak = params.skip_metpeak
-    skip_matk = params.skip_matk
-    //Skip Differential Peak Calling Tools Setting
-    skip_metdiff = params.skip_metdiff
-    skip_diffmatk = params.skip_diffmatk
-    skip_bedtools = params.skip_bedtools
-    skip_mspc = params.skip_mspc
-    '''
+    """
     # Annotation Peaks
-    ln !{annotated_script_dir}/intersec.pl ./
-    ln !{annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
-    bash !{baseDir}/bin/annotation.sh !{fasta} !{gtf} !{task.cpus}
-
-    # Count Peaks for different Peak Calling Tools and different Aligners Tools
-    ## Define the list of used aligner tools
-    flag_tophat2=$(if [ !{skip_tophat2} == "false" ]; then echo "tophat2" ; fi)
-    flag_hisat2=$(if [ !{skip_hisat2} == "false" ]; then echo "hisat2" ; fi)
-    flag_bwa=$(if [ !{skip_bwa} == "false" ]; then echo "bwa" ; fi)
-    flag_star=$(if [ !{skip_star} == "false" ]; then echo "star" ; fi)
-    flag_aligners=$(if [ !{skip_aligners} == "true" ]; then echo "aligners" ; fi)
-    Aligner_tools_list=$(echo $flag_tophat2 $flag_hisat2 $flag_bwa $flag_star $flag_aligners)
-    
-    ## Define the list of peak calling tools
-    flag_macs2=$(if [ !{skip_macs2} == "false" ]; then echo "macs2" ; fi)
-    flag_metpeak=$(if [ !{skip_metpeak} == "false" ]; then echo "metpeak" ; fi)
-    flag_MATK=$(if [ !{skip_matk} == "false" ]; then echo "MATK" ; fi)
-    flag_metdiff=$(if [ !{skip_metdiff} == "false" ]; then echo "metdiff" ; fi)
-    flag_diffMATK=$(if [ !{skip_diffmatk} == "false" ]; then echo "diffMATK" ; fi)
-    flag_bedtools=$(if [ !{skip_bedtools} == "false" ]; then echo "bedtools" ; fi)
-    flag_mspc=$(if [ !{skip_mspc} == "false" ]; then echo "mspc diffmspc" ; fi)
-    Peak_calling_tools_list=$(echo $flag_macs2 $flag_metpeak $flag_MATK $flag_metdiff $flag_diffMATK $flag_bedtools $flag_mspc)
-    
-    echo ${Aligner_tools_list} > 1.log
-    echo ${Peak_calling_tools_list} > 2.log
-    for aligners_name in ${Aligner_tools_list};
-    do
-        for peak_call_name in ${Peak_calling_tools_list};
-        do
-            echo ${aligners_name} ${peak_call_name}  >>3.log;
-            bash !{baseDir}/bin/bed_count.sh ${aligners_name} ${peak_call_name} !{formatted_designfile} !{task.cpus};
-        done ;
-    done
-    '''
+    ln ${annotated_script_dir}/intersec.pl ./
+    ln ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
+    bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}
+    """
 }
 
 Channel
     .from()
-    .concat( xy_annotated_for_arranging, motif_results, bam_stat_for_normlization, 
-        htseq_count_ip_to_arrange ,htseq_count_input_to_arrange, peaks_count_for_arranged 
+    .concat( quantification_results, motif_results, diffm6A_results, 
+        htseq_count_ip_to_arrange, htseq_count_input_to_arrange, xy_annotation_results
     )
     .set{ results_arrange }
+
 process AggrangeForM6Aviewer {
-    publishDir "${params.outdir}/merge/", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/result_arranged/final_results", mode: 'link', overwrite: true
     
     input:
     file results from results_arrange.collect()
     file formatted_designfile from formatted_designfile.collect()
+    file comparefile
 
     output:
     file "m6APipe_results.RDate" into final_results
 
     when:
-    false 
+    true
 
-    shell:
-    '''
-    echo "Unique_Reads" > bam_stat_summary.txt
-    for bam_stat in *.bam_stat.txt
-    do 
-        printf ${bam_stat/.bam_stat.txt/_sort.bam}" " >> bam_stat_summary.txt
-        cat ${bam_stat} |grep (unique | awk '{FS=" "}{print $NF}' >> bam_stat_summary.txt
-    done
+    script:
+    """
     # Count Peaks for different Peak Calling Tools and different Aligners Tools
-    ## Define the list of used aligner tools
-    flag_tophat2=$(if [ !{skip_tophat2} == "false" ]; then echo "tophat2" ; fi)
-    flag_hisat2=$(if [ !{skip_hisat2} == "false" ]; then echo "hisat2" ; fi)
-    flag_bwa=$(if [ !{skip_bwa} == "false" ]; then echo "bwa" ; fi)
-    flag_star=$(if [ !{skip_star} == "false" ]; then echo "star" ; fi)
-    flag_aligners=$(if [ !{skip_aligners} == "true" ]; then echo "aligners" ; fi)
-    Aligner_tools_list=$(echo $flag_tophat2 $flag_hisat2 $flag_bwa $flag_star $flag_aligners)
-    
-    ## Define the list of peak calling tools
-    flag_macs2=$(if [ !{skip_macs2} == "false" ]; then echo "macs2" ; fi)
-    flag_metpeak=$(if [ !{skip_metpeak} == "false" ]; then echo "metpeak" ; fi)
-    flag_MATK=$(if [ !{skip_matk} == "false" ]; then echo "MATK" ; fi)
-    flag_metdiff=$(if [ !{skip_metdiff} == "false" ]; then echo "metdiff" ; fi)
-    flag_diffMATK=$(if [ !{skip_diffmatk} == "false" ]; then echo "diffMATK" ; fi)
-    flag_bedtools=$(if [ !{skip_bedtools} == "false" ]; then echo "bedtools" ; fi)
-    flag_mspc=$(if [ !{skip_mspc} == "false" ]; then echo "mspc diffmspc" ; fi)
-    Peak_calling_tools_list=$(echo $flag_macs2 $flag_metpeak $flag_MATK $flag_metdiff $flag_diffMATK $flag_bedtools $flag_mspc)
-    
-    echo ${Aligner_tools_list} > 1.log
-    echo ${Peak_calling_tools_list} > 2.log
-    for aligners_name in ${Aligner_tools_list};
-    do
-        for peak_call_name in ${Peak_calling_tools_list};
-        do
-            echo ${aligners_name} ${peak_call_name}  >>3.log;
-           Rscript $baseDir/bin/get_m6A_peak_matrix.R ${aligners_name} ${peak_call_name} !{formatted_designfile} !{task.cpus};
-        done ;
-    done
-    echo "Type" >  m6A_group.file
-    echo "Type" >  expression_group.file
-    awk 'BEGIN{FS=",";OFS=" "}NR>1{print $1"_"$2"_"$3"_aligners.txt""\tgroup_"$3}' designfile_ESC_linux.txt | grep "input_" >> expression_group.file
-    awk 'BEGIN{FS=",";OFS=" "}NR>1{print $1"_"$2"_"$3"_aligners.bam""\tgroup_"$3}' designfile_ESC_linux.txt | grep "ip_" >> m6A_group.file
-    '''
+    Rscript $baseDir/bin/arranged_results.R $formatted_designfile $comparefile
+    """
 }
 
 /*
