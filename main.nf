@@ -139,11 +139,14 @@ if( params.designfile ) {
     exit 1, LikeletUtils.print_red("No Design file specified!")
 }
 if( params.comparefile ){
-    comparefile = file(params.comparefile)
-    if( !designfile.exists() ) exit 1, LikeletUtils.print_red("Compare file not found: ${params.designfile}")
+    File comparefile = new File(params.comparefile)
+    if( !comparefile.exists() ) exit 1, print_red("Compare file not found: ${params.comparefile}")
+    compareLines = Channel.from(comparefile.readLines())
 }else{
-    exit 1, LikeletUtils.print_red("No Compare file specified!")
+    compareLines=""
 }
+compareLines.into{compareLines_for_Deseq2; compareLines_for_edgeR;compareLines_for_diffm6A}
+
 // Validate the params of skipping Aligners Tools Setting
 if( params.aligners == "none" ){
     skip_aligners = true
@@ -188,7 +191,7 @@ if( params.readPaths && !skip_aligners ){
         Channel
             .fromFilePairs( "${params.readPaths}/*.fastq", size: 1 ) 
             //.map { row -> [ row[0], [file(row[1][0])]] }
-            .ifEmpty { exit 1, println LikeletUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
+            .ifEmpty { exit 1, println LikeletUtils.print_red( "readPaths was empty - no fastq files supplied: ${params.readPaths}" )}
             //.subscribe { println it }
             .into{ raw_data; raw_bam }
     }
@@ -196,7 +199,7 @@ if( params.readPaths && !skip_aligners ){
         Channel
             .fromFilePairs( "${params.readPaths}/*{1,2}.fastq", size: 2 ) 
             //.map { row -> [ row[0], [file(row[1][0])]] }
-            .ifEmpty { exit 1, println LikeletUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
+            .ifEmpty { exit 1, println LikeletUtils.print_red( "readPaths was empty - no fastq files supplied: ${params.readPaths}" )}
             //.subscribe { println it }
             .into{ raw_data; raw_bam }
     }
@@ -205,9 +208,9 @@ if( params.readPaths && !skip_aligners ){
     }
 }else if( params.readPaths && skip_aligners ){
     Channel
-        .fromPath( "$params.readPaths/*.bam") 
+        .fromPath( "${params.readPaths}/*.bam") 
         //.map { row -> [ row[0], [file(row[1][0])]] }
-        .ifEmpty { exit 1, LikeletUtils.print_red( "readPaths was empty - no input files supplied: ${params.readPaths}" )}
+        .ifEmpty { exit 1, LikeletUtils.print_red( "readPaths was empty - no bam files supplied: ${params.readPaths}" )}
         //.subscribe { println it }
         .into{ raw_data; raw_bam }
 } 
@@ -409,9 +412,9 @@ process Fastqc{
 
     shell:
     skip_fastqc = params.skip_fastqc
-    if ( skip_fastqc )  println LikeletUtils.print_purple("Fastqc is skipped")
     if ( params.singleEnd ){
-        println LikeletUtils.print_purple("Fastqc is on going for single-end data")
+        if ( skip_fastqc )  println LikeletUtils.print_purple("Fastqc is skipped")
+        else println LikeletUtils.print_purple("Fastqc is on going for single-end data")
         filename = reads.toString() - ~/(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners = reads.toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
@@ -423,8 +426,9 @@ process Fastqc{
         mv ${reads} ${add_aligners}
         """       
     } else {
-        println LikeletUtils.print_purple("Fastqc is on going for pair-end data")
-        filename = reads[0].toString() - ~/(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        if ( skip_fastqc )  println LikeletUtils.print_purple("Fastqc is skipped")
+        else println LikeletUtils.print_purple("Fastqc is on going for pair-end data")
+        filename = reads[0].toString() - ~/(_R[0-9])(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners_1 = reads[0].toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
         add_aligners_2 = reads[1].toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
@@ -596,7 +600,7 @@ process StarAlign {
 
     output:
     file "*_star.bam" into star_bam
-    file "*" into star_result
+    file "*.final.out" into star_result
 
     when:
     !skip_star && !skip_aligners
@@ -886,7 +890,8 @@ process MATKpeakCalling {
         println LikeletUtils.print_purple("Peak Calling performed by MATK in independent mode")
     }
     """
-    bash $baseDir/bin/MATK_peakCalling.sh $matk_jar $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
+    export OMP_NUM_THREADS=${task.cpus}
+    bash $baseDir/bin/MATK_peakCalling.sh $matk_jar $formatted_designfile $flag_peakCallingbygroup
     """    
 }
 
@@ -959,7 +964,7 @@ process Htseq_count{
     file "*ip*.count" into htseq_count_ip_to_arrange
 
     when:
-    !params.skip_QNB || !params.skip_diffpeakCalling || !params.skip_expression
+    !params.skip_expression
 
     script:
     
@@ -1058,37 +1063,14 @@ process PeakMergeBYMspc {
     file "mspc_merged_peaks.bed" into mspc_merged_bed
 
     when:
-    false//!params.skip_mspc && !params.skip_peakCalling
+    params.mergepeak_mode == "mspc"
 
-    shell:
+    script:
     mspc_directory = baseDir + "/bin/mspc_v3.3"
-    '''
-    for bed_file in *.bed
-    do
-        #Scientific notation converted to numbers
-        cat $bed_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$1":"$2"-"$3,-log($5)/log(10)}' | sortBed -i - >  ${bed_file/.bed/_sort.bed} 
-    done
-    for macs2_file in macs2*.narrowPeak
-    do
-        #Scientific notation converted to numbers
-        cat $macs2_file | awk 'BEGIN{FS="\t";OFS="\t"}NR>1{print $1,$2*1,$3*1,$1":"$2"-"$3,$8}' | sortBed -i - >  ${macs2_file/_peaks.narrowPeak/_sort.bed} 
-    done
-
-    ln -s !{mspc_directory}/* ./
-    MAX_SITUATION=$(awk -F, '{if(NR>1)print int($3)}' !{formatted_designfile} | sort -r | head -1)
-    for ((i=1;i<=$MAX_SITUATION;i++))
-    do
-        count=$(ls *situation_${i}*sort.bed | wc -w)
-        if [ $count -gt 1 ]; then
-            ls *situation_${i}*sort.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_'${i}'.log "}' | bash
-            mv */ConsensusPeaks.bed mspc_situation_${i}.bed
-        else 
-            ln *situation_${i}*sort.bed mspc_situation_${i}.bed
-        fi
-    done
-    ls mspc*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r Tec -w 1E-4 -s 1E-8 > situation_merged.log"}' | bash
-    mv */ConsensusPeaks.bed mspc_merged_peaks.bed
-    '''
+    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    """
+    bash $baseDir/bin/merge_peaks_by_mspc.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
+    """
 }
 
 process PeakMergeBYbedtools {
@@ -1103,7 +1085,7 @@ process PeakMergeBYbedtools {
     file "bedtools_merged_peaks.bed" into bedtools_merged_bed
 
     when:
-    !params.skip_bedtools && !params.skip_peakCalling
+    params.mergepeak_mode == "bedtools"
 
     script:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
@@ -1148,12 +1130,13 @@ process PeaksQuantification{
     # PeaksQuantification by QNB
     if [ ${quantification_mode} == "QNB" ]; then 
         bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
-        Rscript $baseDir/bin/QNB_quantification.R $formatted_designfile bam_stat_summary.txt
+        Rscript $baseDir/bin/QNB_quantification.R $formatted_designfile ${task.cpus}
     fi
 
     # PeaksQuantification by MATK
     if [ ${quantification_mode} == "MATK" ]; then 
-        bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${task.cpus} ${peak_bed}
+        export OMP_NUM_THREADS=${task.cpus}
+        bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${peak_bed}
     fi
     """
 }
@@ -1191,6 +1174,7 @@ process diffm6APeak{
 
     # PeaksQuantification by MATK
     if [ ${quantification_mode} == "MATK" ]; then 
+        export OMP_NUM_THREADS=${task.cpus}
         bash $baseDir/bin/MATK_diffpeakCalling.sh  $matk_jar $gtf $formatted_designfile $gtf $comparefile 
     fi
     """
@@ -1235,16 +1219,19 @@ process BedAnnotated{
 
     output:
     file "annotatedbyxy/*.anno.txt" into xy_annotation_results
-    file "*group*.bed" into all_annotation_results
+    file "annotatedbyhomer/*" into all_annotation_results
 
     script:
     annotated_script_dir = baseDir + "/bin"
     //Skip Peak Calling Tools Setting
     """
     # Annotation Peaks
+    mkdir -p annotatedbyxy
+    mkdir -p annotatedbyhomer
     ln ${annotated_script_dir}/intersec.pl ./
     ln ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
-    bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}
+    bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}  
+    mv *annotatedbyhomer.bed annotatedbyhomer/
     """
 }
 
@@ -1267,7 +1254,7 @@ process AggrangeForM6Aviewer {
     file "m6APipe_results.RDate" into final_results
 
     when:
-    true
+    false
 
     script:
     """

@@ -5,8 +5,10 @@
 designfile=$1
 gtf_file=$2
 THREAD_NUM=$3
+
 group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
 tag=$(echo $group_list | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x"," }END{print $x" "}')
+
 bam_file_array=$(for group_id in $group_list 
         do
                echo *input_${group_id}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x"," }END{print $x" "}'

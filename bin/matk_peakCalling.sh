@@ -2,12 +2,10 @@
 ## MATK_peakCalling.sh $matk_jar $designfile
 ## $1 argv 1 : matk_jar
 ## $2 argv 2 : designfile
-## $3 argv 3 : THREAD_NUM
-## $4 argv 4 : flag_peakCallingbygroup
+## $3 argv 3 : flag_peakCallingbygroup
 matk_jar=$1
 designfile=$2
-THREAD_NUM=$3
-flag_peakCallingbygroup=$4
+flag_peakCallingbygroup=$3
 
 if [ $flag_peakCallingbygroup -gt 0 ]; then
     group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')

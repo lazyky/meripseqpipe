@@ -22,7 +22,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
     read -u 9
     {
         cat *${group_id}*.bed | awk '{print $1"\t"$2*1"\t"$3*1"\t"$1":"$2"-"$3}' > bedtools_group_${group_id}_all_peaks #"_group_" for devive
-        sortBed -i bedtools_group_${group_id}_all_peaks |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > bedtools_group_${group_id}.bed
+        sortBed -i bedtools_group_${group_id}_all_peaks |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"$5}' > bedtools_group_${group_id}.bed
         echo >&9
     }&
     done
@@ -35,22 +35,22 @@ else
     {
         sample_id=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $1}')
         group_id=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $2}')
-        cat *${sample_id}*.bed | awk '{print $1"\t"$2*1"\t"$3*1"\t"$1":"$2"-"$3}' > bedtools_${sample_id}_all_peaks
-        sortBed -i bedtools_${sample_id}_all_peaks |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > bedtools_${group_id}_${sample_id}.bed
+        cat *${sample_id}*.bed | awk '{print $1"\t"$2*1"\t"$3*1"\t"$1":"$2"-"$3}' > bedtools_${group_id}_${sample_id}_all_peaks
+        sortBed -i bedtools_${group_id}_${sample_id}_all_peaks |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"$5}' > bedtools_${group_id}_${sample_id}.bed
         echo >&9
     }&
     done
+    wait
     group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for group_id in $group_list
     do
     read -u 9
     {
-        cat *${group_id}*.bed | awk '{print $1"\t"$2*1"\t"$3*1"\t"$1":"$2"-"$3}' > bedtools_group_${group_id}_all_peaks #"_group_" for devive
-        sortBed -i bedtools_group_${group_id}_all_peaks |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > bedtools_group_${group_id}.bed
+        cat bedtools_*${group_id}*_all_peaks | sortBed -i - |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"$5}' > bedtools_group_${group_id}.bed
         echo >&9
     }&
     done
 fi
-cat bedtools_group*all_peaks | sortBed -i - |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > bedtools_merged_peaks.bed
 wait
+cat *all_peaks | sortBed -i - |mergeBed -i - -c 4,4 -o collapse,count | awk '$5>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3}' > bedtools_merged_peaks.bed
 echo "bedtools merged peaks done"

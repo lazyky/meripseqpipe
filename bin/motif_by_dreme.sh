@@ -14,8 +14,9 @@ do
     echo >&9
 done
 
+#check if the output file of Macs2 exists
 macs2_count=$(ls macs2_group*.summits| wc -w)
-if [ $macs2_count -gt 1 ]; then
+if [ $macs2_count -gt 0 ]; then
     for macs2_summits in macs2_group*.summits
     do
     read -u 9
@@ -29,8 +30,9 @@ if [ $macs2_count -gt 1 ]; then
     done
 fi
 
+#check if the output file of Metpeak exists
 metpeak_count=$(ls metpeak_group*.bed| wc -w)
-if [ $metpeak_count -gt 1 ]; then
+if [ $metpeak_count -gt 0 ]; then
     for metpeak_bed in metpeak_group*.bed
     do
     read -u 9
@@ -44,8 +46,9 @@ if [ $metpeak_count -gt 1 ]; then
     done
 fi
 
+#check if the output file of MATK exists
 matk_count=$(ls MATK_group*.bed| wc -w)
-if [ $matk_count -gt 1 ]; then
+if [ $matk_count -gt 0 ]; then
     for matk_bed in MATK_group*.bed
     do
     read -u 9
@@ -59,8 +62,9 @@ if [ $matk_count -gt 1 ]; then
     done
 fi
 
+#check if the output file of Bedtools Merge exists
 bedtools_count=$(ls bedtools_group*.bed| wc -w)
-if [ $bedtools_count -gt 1 ]; then
+if [ $bedtools_count -gt 0 ]; then
     for bedtools_bed in bedtools_group*.bed
     do
     read -u 9
@@ -74,8 +78,9 @@ if [ $bedtools_count -gt 1 ]; then
     done
 fi
 
+#check if the output file of MSPC Merge exists
 mspc_count=$(ls mspc_group*.bed| wc -w)
-if [ $mspc_count -gt 1 ]; then
+if [ $mspc_count -gt 0 ]; then
     for mspc_bed in mspc_group*.bed
     do
     read -u 9
