@@ -2,10 +2,12 @@
 library("QNB")
 args <- commandArgs(T)
 designfile <- args[1]
-comparefile <- args[2]
+compare_str <- as.character(args[2])
+
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 filelist =list.files(path = "./",pattern = ".count")
 countlist <- NULL
+#combine the matrix by groups
 for(group_id in designtable$Group){
   input.count <- c()
   input.names <- c()
@@ -33,7 +35,12 @@ for(group_id in designtable$Group){
   rownames(ip.count) <- ip.names
   countlist[[paste0(group_id,"_ip")]] <- ip.count
 }
-if(length(unique(designtable$Group)) == 2){
+
+# Running QNB quantification
+if(length(unique(designtable$Group)) < 2){
+  stop( "The count of Group is less than two, please check your designfile.")
+}else if( compare_str == "two_group" ){
+  # Running QNB quantification without compare_str beacause of only two groups
   group_id_1 <- unique(designtable$Group)[1]
   group_id_2 <- unique(designtable$Group)[2]
   meth1 = countlist[[paste0(group_id_1,"_ip")]]
@@ -44,9 +51,16 @@ if(length(unique(designtable$Group)) == 2){
   dir.create(output_name)
   result <- qnbtest(meth1, meth2, unmeth1, unmeth2, mode="auto", output.dir = output_name)
   write.table(result,file = paste0(output_name,".txt"))
-}else if(length(unique(designtable$Group)) < 2){
-  stop( "The count of Group is less than two, please check your designfile.")
 }else{
-  comparetable <- read.csv(comparefile,head = FALSE, stringsAsFactors=FALSE, colClasses = c("character"))
-  print("multi-groups compare will coming soon")
+  # Running QNB quantification with compare_str
+  group_id_1 <- strsplit(as.character(compare_str), "_vs_")[[1]][1]
+  group_id_2 <- strsplit(as.character(compare_str), "_vs_")[[1]][2]
+  meth1 = countlist[[paste0(group_id_1,"_ip")]]
+  meth2 = countlist[[paste0(group_id_2,"_ip")]]
+  unmeth1 = countlist[[paste0(group_id_1,"_input")]]
+  unmeth2 = countlist[[paste0(group_id_2,"_input")]]
+  output_name <- paste0("QNB_diffm6A_",group_id_1, "_",group_id_2)
+  dir.create(output_name)
+  result <- qnbtest(meth1, meth2, unmeth1, unmeth2, mode="auto", output.dir = output_name)
+  write.table(result,file = paste0(output_name,".txt"))
 }

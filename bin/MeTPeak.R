@@ -1,7 +1,6 @@
 ## Rscript MeTPeak.R aligner_tools designfile gtf eg. Rscript MeTPeak.R tophat2 designfile_single.txt genes.gtf
 ## designfile: filename, input_or_ip, situation(default 1 is CONTROL_SITUATION else are TREATED_SITUATION)
 #!/bin/Rscript
-library(stringr)
 library(MeTPeak)
 library(parallel)
 args <- commandArgs(T) 
@@ -17,8 +16,8 @@ filelist = grep(".bai",list.files(path = "./",pattern = ".bam"),value = TRUE,inv
 if(flag_peakCallingbygroup){
   bamlist <- NULL
   for(group_id in unique(designtable$Group)){
-    input = grep(str_c("input_",group_id),filelist,value = TRUE)
-    ip = grep(str_c("ip_",group_id),filelist,value = TRUE)
+    input = grep(paste0("input_",group_id),filelist,value = TRUE)
+    ip = grep(paste0("ip_",group_id),filelist,value = TRUE)
     bamlist[[group_id]] <- cbind(input,ip)
   }
   ##Running MeTPeak and rename the output name
@@ -27,10 +26,10 @@ if(flag_peakCallingbygroup){
       metpeak(GENE_ANNO_GTF = gtf,
               IP_BAM = bamlist[[group_id]][,2],
               INPUT_BAM = bamlist[[group_id]][,1],
-              EXPERIMENT_NAME = str_c( "metpeak_",group_id )
+              EXPERIMENT_NAME = paste0( "metpeak_",group_id )
       )
-      control_bed_name <- str_c( "metpeak_",group_id ,"/peak.bed")
-      output_control_bed_name <- str_c("metpeak_group_",group_id,".bed") #peak.bed
+      control_bed_name <- paste0( "metpeak_",group_id ,"/peak.bed")
+      output_control_bed_name <- paste0("metpeak_group_",group_id,".bed") #peak.bed
       file.rename( control_bed_name , output_control_bed_name )
     },
     mc.cores = THREAD_NUM)
@@ -42,10 +41,10 @@ if(flag_peakCallingbygroup){
     metpeak(GENE_ANNO_GTF = gtf,
             IP_BAM = sample_vector[2],
             INPUT_BAM = sample_vector[1],
-            EXPERIMENT_NAME = str_c( "metpeak_",sample_id )
+            EXPERIMENT_NAME = paste0( "metpeak_",sample_id )
     )
-    control_bed_name <- str_c( "metpeak_",sample_id ,"/peak.bed")
-    output_control_bed_name <- str_c("metpeak_",sample_id,".bed") #peak.bed
+    control_bed_name <- paste0( "metpeak_",sample_id ,"/peak.bed")
+    output_control_bed_name <- paste0("metpeak_",sample_id,".bed") #peak.bed
     file.rename( control_bed_name , output_control_bed_name )
   },
   mc.cores = THREAD_NUM)

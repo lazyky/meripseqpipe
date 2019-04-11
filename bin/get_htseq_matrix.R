@@ -2,16 +2,18 @@
 ## designfile: filename, control_or_treated, input_or_ip, group(default 0 is CONTROL_SITUATION else are TREATED_SITUATION)
 ## TREATED_SITUATION_STARTPOINT is the default group check point
 #!/bin/Rscript
+library(parallel)
 args<-commandArgs(T)
-designfile <- "formatted_designfile.txt"#args[1]
-
+designfile <- args[1]
+THREAD_NUM <- as.numeric(args[2])
 # setting CONTROL_SITUATION and TREATED_SITUATION 
 ## default 1 is CONTROL_SITUATION else are TREATED_SITUATION
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 
 #Gene expression matrix for control_input_bwa(aligner)
 htseq.files <- list.files("./",pattern = ".txt")
-for(group_id in designtable$Group){
+mclapply(unique(designtable$Group),function(x){
+  group_id <- x
   trans.htseq.input.count <- c()
   pc.names <- c()
   pc.samples <- c()
@@ -39,4 +41,6 @@ for(group_id in designtable$Group){
   output_pattern = paste0("htseq_group_",group_id)  #添加aligner
   write.table(trans.htseq.input.count, file = paste0(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
   write.table(trans.htseq.ip.count, file = paste0(output_pattern,"_ip.count") , sep ="\t", row.names =T,col.names =T)
-}
+  },
+  mc.cores = THREAD_NUM
+)

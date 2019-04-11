@@ -35,7 +35,6 @@ dependencies:
   - numpy=1.16.0
   - MATK=1.0.0
   - bioconductor-genogam=1.8.0
-  - pepr=1.1.24
   - deeptools=3.1.3
   - picard=2.18.27
-  - r-stringr=1.3.1
+  - igvtools=2.3.93

@@ -45,12 +45,12 @@ def helpMessage() {
     Options:
       --inputformat                 fastq.gz;fastq default = fastq
       --singleEnd                   Specifies that the input is single end reads
+      
       --tophat2_index               Path to tophat2 index, eg. "path/to/Tophat2Index/*"
       --hisat2_index                Path to hisat2 index, eg. "path/to/Hisat2Index/*"
       --bwa_index                   Path to bwa index, eg. "path/to/BwaIndex/*"
       --star_index                  Path to star index, eg. "path/to/StarIndex/"
       --skip_qc                     Skip all QC steps                        
-      --skip_aligners               Skip all Reads Mapping steps including Star, bwa, tophat2, hisat2
       --skip_expression             Skip all differential expression analysis steps
       --skip_peakCalling            Skip all Peak Calling steps
       --skip_diffpeakCalling        Skip all Differential methylation analysis
@@ -63,10 +63,6 @@ def helpMessage() {
       --skip_fastqc                 Skip FastQC
       --skip_rseqc                  Skip RSeQC
       --skip_genebody_coverage      Skip calculating genebody coverage  
-      --skip_tophat2                Skip the Tophat2 process of Reads MappingR steps
-      --skip_hisat2                 Skip the Hisat2 process of Reads MappingR steps
-      --skip_bwa                    Skip the Bwa process of Reads MappingR steps
-      --skip_star                   Skip the Star process of Reads MappingR steps
       --skip_cufflinks              Skip the cufflinks process of differential expression analysis steps
       --skip_edger                  Skip the EdgeR process of differential expression analysis steps
       --skip_deseq2                 Skip the deseq2 process of differential expression analysis steps
@@ -138,14 +134,16 @@ if( params.designfile ) {
 }else{
     exit 1, LikeletUtils.print_red("No Design file specified!")
 }
-if( params.comparefile ){
+if( params.comparefile == "two_group" ){
+    compareLines = Channel.from("two_group")
+}else if( params.comparefile){
     File comparefile = new File(params.comparefile)
     if( !comparefile.exists() ) exit 1, print_red("Compare file not found: ${params.comparefile}")
     compareLines = Channel.from(comparefile.readLines())
-}else{
-    compareLines=""
+}else {
+    compareLines = Channel.from("")
 }
-compareLines.into{compareLines_for_Deseq2; compareLines_for_edgeR;compareLines_for_diffm6A}
+compareLines.into{compareLines_for_Deseq2; compareLines_for_edgeR; compareLines_for_diffm6A}
 
 // Validate the params of skipping Aligners Tools Setting
 if( params.aligners == "none" ){
@@ -967,19 +965,21 @@ process Htseq_count{
     !params.skip_expression
 
     script:
-    
+    println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
     """
     bash $baseDir/bin/htseq_count.sh $gtf ${task.cpus} 
-    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile 
+    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile ${task.cpus} 
     """ 
 }
 process Deseq2{
+    tag "$compare_str"
+
     publishDir "${params.outdir}/diff_expression/deseq2", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_deseq2
     file formatted_designfile from formatted_designfile.collect()
-    file comparefile
+    val compare_str from compareLines_for_Deseq2
 
     output:
     file "Deseq2*.csv" into deseq2_results
@@ -988,20 +988,21 @@ process Deseq2{
     !params.skip_deseq2 && !params.skip_expression
     
     script:
-    println LikeletUtils.print_purple("Differential expression analysis performed by Deseq2")
+    println LikeletUtils.print_purple("Differential expression analysis performed by Deseq2 ($compare_str)")
     """
-    Rscript $baseDir/bin/DESeq2.R $formatted_designfile $comparefile
+    Rscript $baseDir/bin/DESeq2.R $formatted_designfile $compare_str
     """ 
 
 }
 
 process EdgeR{
+    tag "$compare_str"
     publishDir "${params.outdir}/diff_expression/edgeR", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_edgeR
     file formatted_designfile from formatted_designfile.collect()
-    file comparefile
+    val compare_str from compareLines_for_edgeR
 
     output:
     file "edgeR*.csv" into edgeR_results
@@ -1010,9 +1011,9 @@ process EdgeR{
     !params.skip_edger && !params.skip_expression
 
     script:
-    println LikeletUtils.print_purple("Differential expression analysis performed by EdgeR")
+    println LikeletUtils.print_purple("Differential expression analysis performed by EdgeR ($compare_str)")
     """
-    Rscript $baseDir/bin/edgeR.R $formatted_designfile $comparefile
+    Rscript $baseDir/bin/edgeR.R $formatted_designfile $compare_str
     """ 
 }
 
@@ -1022,7 +1023,6 @@ process Cufflinks{
     input:
     file bam_bai_file from sort_bam.collect()
     file gtf
-    file comparefile
     file formatted_designfile from formatted_designfile.collect()
 
     output:
@@ -1034,7 +1034,7 @@ process Cufflinks{
     script:
     println LikeletUtils.print_purple("Differential expression analysis performed by Cufflinks")
     """
-    bash $baseDir/bin/cufflinks.sh $formatted_designfile $gtf ${task.cpus} $comparefile
+    bash $baseDir/bin/cufflinks.sh $formatted_designfile $gtf ${task.cpus}
     """ 
 }
 
@@ -1068,6 +1068,7 @@ process PeakMergeBYMspc {
     script:
     mspc_directory = baseDir + "/bin/mspc_v3.3"
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    println LikeletUtils.print_purple("Start merge peaks by MSPC")
     """
     bash $baseDir/bin/merge_peaks_by_mspc.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
     """
@@ -1089,6 +1090,7 @@ process PeakMergeBYbedtools {
 
     script:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    println LikeletUtils.print_purple("Start merge peaks by bedtools")
     """
     bash $baseDir/bin/merge_peaks_by_bedtools.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
     """
@@ -1120,6 +1122,12 @@ process PeaksQuantification{
     script:
     matk_jar = baseDir + "/bin/MATK-1.0.jar"
     quantification_mode = params.quantification_mode
+    if ( quantification_mode == "bedtools" )  
+        println LikeletUtils.print_purple("Generate m6A quantification matrix by bedtools")
+    else if ( quantification_mode == "QNB" )  
+        println LikeletUtils.print_purple("Generate m6A quantification matrix by QNB")
+    else if ( quantification_mode == "MATK" )
+        println LikeletUtils.print_purple("Generate m6A quantification matrix by MATK")
     """
     # PeaksQuantification by bedtools
     if [ ${quantification_mode} == "bedtools" ]; then 
@@ -1142,6 +1150,7 @@ process PeaksQuantification{
 }
 
 process diffm6APeak{
+    tag "$compare_str"
     publishDir "${params.outdir}/result_arranged/diffm6A", mode: 'link', overwrite: true
     
     input:
@@ -1150,32 +1159,38 @@ process diffm6APeak{
     file formatted_designfile from formatted_designfile.collect()
     file count_matrix from quantification_matrix.collect()
     file gtf
-    file comparefile
+    val compare_str from compareLines_for_diffm6A
 
     output:
     file "*diffm6A*.txt" into diffm6A_results
 
     when:
-    !params.skip_diffpeakCalling && !params.comparefile
+    !params.skip_diffpeakCalling && params.comparefile
 
     script:
     matk_jar = baseDir + "/bin/MATK-1.0.jar"
     quantification_mode = params.quantification_mode
+    if ( quantification_mode == "bedtools" )  
+        println LikeletUtils.print_purple("Differential m6A analysis is going on by bedtools")
+    else if ( quantification_mode == "QNB" )  
+        println LikeletUtils.print_purple("Differential m6A analysis is going on by QNB")
+    else if ( quantification_mode == "MATK" )
+        println LikeletUtils.print_purple("Differential m6A analysis is going on by MATK")
     """
     # PeaksQuantification by bedtools
     if [ ${quantification_mode} == "bedtools" ]; then 
-        Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile $comparefile
+        Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile $compare_str
     fi
 
     # PeaksQuantification by QNB
     if [ ${quantification_mode} == "QNB" ]; then 
-        Rscript $baseDir/bin/QNB_diffm6A.R $formatted_designfile $comparefile 
+        Rscript $baseDir/bin/QNB_diffm6A.R $formatted_designfile $compare_str 
     fi
 
     # PeaksQuantification by MATK
     if [ ${quantification_mode} == "MATK" ]; then 
         export OMP_NUM_THREADS=${task.cpus}
-        bash $baseDir/bin/MATK_diffpeakCalling.sh  $matk_jar $gtf $formatted_designfile $gtf $comparefile 
+        bash $baseDir/bin/MATK_diffpeakCalling.sh  $matk_jar $gtf $formatted_designfile $gtf $compare_str 
     fi
     """
 }
@@ -1198,6 +1213,7 @@ process MotifSearching {
     !params.skip_dreme
 
     script:
+    println LikeletUtils.print_purple("Motif analysis is going on by DREME")
     """
     bash $baseDir/bin/motif_by_dreme.sh $fasta $gtf ${task.cpus}
     """
@@ -1220,6 +1236,9 @@ process BedAnnotated{
     output:
     file "annotatedbyxy/*.anno.txt" into xy_annotation_results
     file "annotatedbyhomer/*" into all_annotation_results
+
+    when:
+    !params.skip_annotation
 
     script:
     annotated_script_dir = baseDir + "/bin"
@@ -1248,7 +1267,6 @@ process AggrangeForM6Aviewer {
     input:
     file results from results_arrange.collect()
     file formatted_designfile from formatted_designfile.collect()
-    file comparefile
 
     output:
     file "m6APipe_results.RDate" into final_results
@@ -1259,7 +1277,7 @@ process AggrangeForM6Aviewer {
     script:
     """
     # Count Peaks for different Peak Calling Tools and different Aligners Tools
-    Rscript $baseDir/bin/arranged_results.R $formatted_designfile $comparefile
+    Rscript $baseDir/bin/arranged_results.R $formatted_designfile 
     """
 }
 
