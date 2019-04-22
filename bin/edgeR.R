@@ -17,53 +17,31 @@ if(length(unique(designtable$Group)) < 2){
   ## Combine expression matrix
   group_id_1 <- unique(designtable$Group)[1]
   group_id_2 <- unique(designtable$Group)[2]
-  control_database = read.table(paste0("htseq_group_", group_id_1, "_input.count"), header = TRUE, row.names = 1)
-  treated_database = read.table(paste0("htseq_group_", group_id_2, "_input.count"), header = TRUE, row.names = 1)
-  combined_database <- cbind(control_database,treated_database)
-  group <- factor(c(rep(group_id_1,ncol(control_database)), rep(group_id_2,ncol(treated_database)))) #setting factors
-  y <- DGEList(counts=combined_database,group=group)
-  rownames(y) <- rownames(combined_database)
-  y <- calcNormFactors(y)
-  design <- model.matrix(~group)
-  y <- estimateDisp(y,design)
-  #To perform quasi-likelihood F-tests:
-  fit <- glmQLFit(y,design)
-  qlf <- glmQLFTest(fit,coef=2)
-  topTags(qlf)
-  #To perform likelihood ratio tests:
-  fit <- glmFit(y,design)
-  lrt <- glmLRT(fit,coef=2)
-  topTags(lrt)
-  ### set output_name
-  output_name <- paste0("edgeR_group_",group_id_1, "_",group_id_2)
-  write.csv(combined_database, file = paste0(output_name,".matirx") )
-  write.csv(qlf$table, file = paste0(output_name, "_qlf.csv"))
-  write.csv(lrt$table, file = paste0(output_name, "_lrt.csv"))
 }else{
   # Running edgeR with compare_str 
   ## Combine expression matrix
   group_id_1 <- strsplit(as.character(compare_str), "_vs_")[[1]][1]
   group_id_2 <- strsplit(as.character(compare_str), "_vs_")[[1]][2]
-  control_database = read.table(paste0("htseq_group_", group_id_1, "_input.count"), header = TRUE, row.names = 1)
-  treated_database = read.table(paste0("htseq_group_", group_id_2, "_input.count"), header = TRUE, row.names = 1)
-  combined_database <- cbind(control_database,treated_database)
-  group <- factor(c(rep(group_id_1,ncol(control_database)), rep(group_id_2,ncol(treated_database)))) #setting factors
-  y <- DGEList(counts=combined_database,group=group)
-  rownames(y) <- rownames(combined_database)
-  y <- calcNormFactors(y)
-  design <- model.matrix(~group)
-  y <- estimateDisp(y,design)
-  #To perform quasi-likelihood F-tests:
-  fit <- glmQLFit(y,design)
-  qlf <- glmQLFTest(fit,coef=2)
-  topTags(qlf)
-  #To perform likelihood ratio tests:
-  fit <- glmFit(y,design)
-  lrt <- glmLRT(fit,coef=2)
-  topTags(lrt)
-  ### set output_name
-  output_name <- paste0("edgeR_group_",group_id_1, "_",group_id_2)
-  write.csv(combined_database, file = paste0(output_name,".matirx") )
-  write.csv(qlf$table, file = paste0(output_name, "_qlf.csv"))
-  write.csv(lrt$table, file = paste0(output_name, "_lrt.csv"))
 }
+control_database = read.table(paste0("htseq_group_", group_id_1, "_input.count"), header = TRUE, row.names = 1)
+treated_database = read.table(paste0("htseq_group_", group_id_2, "_input.count"), header = TRUE, row.names = 1)
+combined_database <- cbind(control_database,treated_database)
+group <- factor(c(rep(group_id_1,ncol(control_database)), rep(group_id_2,ncol(treated_database)))) #setting factors
+y <- DGEList(counts=combined_database,group=group)
+rownames(y) <- rownames(combined_database)
+y <- calcNormFactors(y)
+design <- model.matrix(~group)
+y <- estimateDisp(y,design)
+#To perform quasi-likelihood F-tests:
+fit <- glmQLFit(y,design)
+qlf <- glmQLFTest(fit,coef=2)
+topTags(qlf)
+#To perform likelihood ratio tests:
+fit <- glmFit(y,design)
+lrt <- glmLRT(fit,coef=2)
+topTags(lrt)
+### set output_name
+output_name <- paste0("edgeR_group_",group_id_1, "_",group_id_2)
+write.csv(combined_database, file = paste0(output_name,".matirx") )
+write.csv(qlf$table, file = paste0(output_name, "_qlf.csv"))
+write.csv(lrt$table, file = paste0(output_name, "_lrt.csv"))

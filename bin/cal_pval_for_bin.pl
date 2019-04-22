@@ -27,8 +27,3 @@ while(<FH>){
 	print $tmp[0]."\t".$tmp[1]."\t".$tmp[2]."\t".$ip_pval."\t".$input_pval."\n";
 }
 
-
-
-
-
-

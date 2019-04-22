@@ -15,7 +15,7 @@ for sample_id in $sample_list
 do
 {
     ip_bam_file=$(ls ${sample_id}.ip*.bam)
-    input_bam_file=$(ls ${sample_id}.ip*.bam)
+    input_bam_file=$(ls ${sample_id}.input*.bam)
     java -jar $matk_jar -quantification \
                 -ip "$ip_bam_file" \
                 -input "$input_bam_file" \

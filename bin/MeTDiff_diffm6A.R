@@ -6,7 +6,8 @@ library(stringr)
 library(MeTDiff)
 args <- commandArgs(T)
 designfile <- args[1]
-compare_str <- as.character(args[2])
+annotation_file <- args[2]
+compare_str <- as.character(args[3])
 
 # Running MeTDiff quantification
 if(length(unique(designtable$Group)) < 2){

@@ -5,23 +5,10 @@ designfile <- args[1]
 compare_str <- as.character(args[2])
 
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
-# Running QNB quantification
-if(length(unique(designtable$Group)) < 2){
-  stop( "The count of Group is less than two, please check your designfile.")
-}else if( compare_str == "two_group" ){
-  # Running QNB quantification without compare_str beacause of only two groups
-  group_id_1 <- unique(designtable$Group)[1]
-  group_id_2 <- unique(designtable$Group)[2]
-}else{
-  # Running QNB quantification with compare_str
-  group_id_1 <- strsplit(as.character(compare_str), "_vs_")[[1]][1]
-  group_id_2 <- strsplit(as.character(compare_str), "_vs_")[[1]][2]
-}
-
-#combine the matrix by groups
 filelist =list.files(path = "./",pattern = ".count")
 countlist <- NULL
-for(group_id in c(group_id_1,group_id_2)){
+#combine the matrix by groups
+for(group_id in designtable$Group){
   input.count <- c()
   input.names <- c()
   input.samples <- c()
@@ -47,6 +34,19 @@ for(group_id in c(group_id_1,group_id_2)){
   colnames(ip.count) <- ip.samples
   rownames(ip.count) <- ip.names
   countlist[[paste0(group_id,"_ip")]] <- ip.count
+}
+
+# Running QNB quantification
+if(length(unique(designtable$Group)) < 2){
+  stop( "The count of Group is less than two, please check your designfile.")
+}else if( compare_str == "two_group" ){
+  # Running QNB quantification without compare_str beacause of only two groups
+  group_id_1 <- unique(designtable$Group)[1]
+  group_id_2 <- unique(designtable$Group)[2]
+}else{
+  # Running QNB quantification with compare_str
+  group_id_1 <- strsplit(as.character(compare_str), "_vs_")[[1]][1]
+  group_id_2 <- strsplit(as.character(compare_str), "_vs_")[[1]][2]
 }
 meth1 = countlist[[paste0(group_id_1,"_ip")]]
 meth2 = countlist[[paste0(group_id_2,"_ip")]]

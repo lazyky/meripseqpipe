@@ -15,48 +15,17 @@ do
 done
 
 #check if the output file of Macs2 exists
-macs2_count=$(ls macs2_group*.summits| wc -w)
-if [ $macs2_count -gt 0 ]; then
-    for macs2_summits in macs2_group*.summits
+bed_count=$(ls *.bed| grep -v bedtools |wc -w)
+if [ $bed_count -gt 0 ]; then
+    for bedfile in $(ls *.bed| grep -v bedtools| grep -v mspc)
     do
     read -u 9
     {
-        sort -k5,5 -n -r ${macs2_summits} | head -1000 |awk '{summit=$3; print $1"\t"summit-51"\t"summit+50}' > ${macs2_summits/.summits/.location}
-        intersectBed -wo -a ${macs2_summits/.summits/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${macs2_summits/.summits/_bestpeaks.bed}
-        bedtools getfasta -s -fi ${fasta_file} -bed ${macs2_summits/.summits/_bestpeaks.bed} -fo ${macs2_summits/.summits/_bestpeaks.fa}
-        dreme -oc ${macs2_summits/.summits/_dreme} -p ${macs2_summits/.summits/_bestpeaks.fa} -rna
-        echo >&9
-    }& 
-    done
-fi
-
-#check if the output file of Metpeak exists
-metpeak_count=$(ls metpeak_group*.bed| wc -w)
-if [ $metpeak_count -gt 0 ]; then
-    for metpeak_bed in metpeak_group*.bed
-    do
-    read -u 9
-    {
-        sort -k5,5 -n -r ${metpeak_bed} | head -1000 |awk '{ print $1"\t"$2"\t"$3}' > ${metpeak_bed/.bed/.location}
-        intersectBed -wo -a ${metpeak_bed/.bed/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${metpeak_bed/.bed/_bestpeaks.bed}
-        bedtools getfasta -s -fi ${fasta_file} -bed ${metpeak_bed/.bed/_bestpeaks.bed} -fo ${metpeak_bed/.bed/_bestpeaks.fa}
-        dreme -oc ${metpeak_bed/.bed/_dreme} -p ${metpeak_bed/.bed/_bestpeaks.fa} -rna
-        echo >&9
-    }& 
-    done
-fi
-
-#check if the output file of MATK exists
-matk_count=$(ls MATK_group*.bed| wc -w)
-if [ $matk_count -gt 0 ]; then
-    for matk_bed in MATK_group*.bed
-    do
-    read -u 9
-    {
-        sort -k5,5 -n ${matk_bed} | head -1000 |awk '{ print $1"\t"$2"\t"$3}' > ${matk_bed/.bed/.location}
-        intersectBed -wo -a ${matk_bed/.bed/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${matk_bed/.bed/_bestpeaks.bed}
-        bedtools getfasta -s -fi ${fasta_file} -bed ${matk_bed/.bed/_bestpeaks.bed} -fo ${matk_bed/.bed/_bestpeaks.fa}
-        dreme -oc ${matk_bed/.bed/_dreme} -p ${matk_bed/.bed/_bestpeaks.fa} -rna
+        sort -k5,5 -n -r ${bedfile} | head -1000 |awk '{ print $1"\t"$2"\t"$3}' > ${bedfile/.bed/.location}
+        intersectBed -wo -a ${bedfile/.bed/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${bedfile/.bed/_bestpeaks.bed}
+        bedtools getfasta -s -fi ${fasta_file} -bed ${bedfile/.bed/_bestpeaks.bed} -fo ${bedfile/.bed/_bestpeaks.fa}
+        dreme -k 6 -oc ${bedfile/.bed/_dreme} -p ${bedfile/.bed/_bestpeaks.fa} -rna
+        findMotifsGenome.pl ${bedfile/.bed/_bestpeaks.bed} ${fasta_file} ${bedfile/.bed/_homer} -len 6 -rna
         echo >&9
     }& 
     done
@@ -69,10 +38,11 @@ if [ $bedtools_count -gt 0 ]; then
     do
     read -u 9
     {
-        awk '{ print $1"\t"$2"\t"$3}' ${bedtools_bed} > ${bedtools_bed/.bed/.location}
+        sort -k5,5 -n -r ${bedtools_bed}| head -1000 | awk '{ print $1"\t"$2"\t"$3}' > ${bedtools_bed/.bed/.location}
         intersectBed -wo -a ${bedtools_bed/.bed/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${bedtools_bed/.bed/_bestpeaks.bed}
         bedtools getfasta -s -fi ${fasta_file} -bed ${bedtools_bed/.bed/_bestpeaks.bed} -fo ${bedtools_bed/.bed/_bestpeaks.fa}
-        dreme -oc ${bedtools_bed/.bed/_dreme} -p ${bedtools_bed/.bed/_bestpeaks.fa} -rna
+        dreme -k 6 -oc ${bedtools_bed/.bed/_dreme} -p ${bedtools_bed/.bed/_bestpeaks.fa} -rna
+        findMotifsGenome.pl ${bedtools_bed/.bed/_bestpeaks.bed} ${fasta_file} ${bedtools_bed/.bed/_homer} -len 6 -rna
         echo >&9
     }& 
     done
@@ -85,10 +55,11 @@ if [ $mspc_count -gt 0 ]; then
     do
     read -u 9
     {
-        awk '{ print $1"\t"$2"\t"$3}' ${mspc_bed} > ${mspc_bed/.bed/.location}
+        sort -k5,5 -n -r ${mspc_bed} | head -1000 | awk '{ print $1"\t"$2"\t"$3}' > ${mspc_bed/.bed/.location}
         intersectBed -wo -a ${mspc_bed/.bed/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${mspc_bed/.bed/_bestpeaks.bed}
         mspc getfasta -s -fi ${fasta_file} -bed ${mspc_bed/.bed/_bestpeaks.bed} -fo ${mspc_bed/.bed/_bestpeaks.fa}
-        dreme -oc ${mspc_bed/.bed/_dreme} -p ${mspc_bed/.bed/_bestpeaks.fa} -rna
+        dreme -k 6 -oc ${mspc_bed/.bed/_dreme} -p ${mspc_bed/.bed/_bestpeaks.fa} -rna
+        findMotifsGenome.pl ${mspc_bed/.bed/_bestpeaks.bed} ${fasta_file} ${mspc_bed/.bed/_homer} -len 6 -rna
         echo >&9
     }& 
     done

@@ -46,8 +46,10 @@ read -u 9
     > ${merge_bed_file}.${group_id}.${sample_id}.ip.count
 
     #Count input/ip peaks
-    bedtools multicov -bams ${input_bam_file} -bed ${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.input.count
-    bedtools multicov -bams ${ip_bam_file} -bed ${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.ip.count
+    awk '{ print $1"\t"$2"\t"$3"\t"$4}' ${merge_bed_file} > tmp.${merge_bed_file}
+    bedtools multicov -bams ${input_bam_file} -bed tmp.${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.input.count
+    bedtools multicov -bams ${ip_bam_file} -bed tmp.${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.ip.count
+    echo >&9
 }&
 done
 wait

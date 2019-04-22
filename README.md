@@ -22,14 +22,14 @@ You can skip the tools by using `--skip_ToolsName` or not(default).
 
 | Step                                    | Pipeline                        | Pipeline(skip_mode)             |
 |-----------------------------------------|---------------------------------|---------------------------------|
-| Raw Data QC                             | FastQC                          |----  --skip_aligners true  -----|
-| Reads Mapping                           | star, bwa, tophat, hisat2       |----  --skip_aligners true  -----|
+| Raw Data QC                             | FastQC                          |---------------------------------|
+| Reads Mapping                           | star, bwa, tophat, hisat2       |------  --aligners "star"  ------|
 | Sort BAM file AND Post-alignment QC     | samtools, RSeQC                 |---------------------------------|
-| Reads counting                          | htseq-count                     |---------------------------------|
-| Peak Calling                            | MeTPeak, macs2, MATK            |---  --skip_peakCalling true  ---|
-| Differential methylation analysis       | MeTDiff, QNB, MATK              |-  --skip_diffpeakCalling true  -|
+| Reads counting                          | htseq-count                     |---  --skip_expressiion true  ---|
+| Peak Calling                            | MeTPeak, macs2, MATK, meyer     |---  --skip_peakCalling true  ---|
+| Differential methylation analysis       | MeTDiff, QNB, MATK, Wilcox-test |-  --skip_diffpeakCalling true  -|
 | Differential expression analysis        | deseq2, edgeR, cufflinks        |---  --skip_expressiion true  ---|
-| Combines Peaks information              | MSPC                            |------  --skip_mspc true  -------|
+| Combines Peaks information              | MSPC, bedtools                  |------  --skip_mspc true  -------|
 
 ### Dependencies
 * Softwares
