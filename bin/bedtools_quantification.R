@@ -17,9 +17,9 @@ for(sample_id in designtable$Sample_ID){
   bam_stat_index = grep(paste0(sample_id,".ip"),rownames(bam_stat_table))
   ip_rpkm =  apply(ip_count_table,1,function(x) (as.numeric(x[5])/(as.numeric(x[3])-as.numeric(x[2]))*1000/bam_stat_table[bam_stat_index,]*1000000)+1)
   
-  rpkm <- as.matrix(ip_rpkm/input_rpkm)
+  rpkm <- as.matrix(ip_rpkm/(input_rpkm+ip_rpkm))
   colnames(rpkm) <- sample_id
   rpkm_peaks_list <- cbind(rpkm_peaks_list,rpkm)
 }
 rownames(rpkm_peaks_list) <- input_count_table[,4] 
-write.table(rpkm_peaks_list,file = "bedtools_quantification.matrix")
+write.table(rpkm_peaks_list,sep = "\t",file = "bedtools_quantification.matrix")

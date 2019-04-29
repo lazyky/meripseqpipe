@@ -43,5 +43,6 @@ metdiff(GENE_ANNO_GTF=gtf,
         EXPERIMENT_NAME = output_pattern)
 #set output_name
 output_bed_name <- paste0("metdiff_",group_id_1,"_",group_id_2,".bed") #diff_peak.bed
-bed_name <- paste0(output_pattern,"/diff_peak.bed") #choose peak.bed diff_peak.bed
-file.rename( bed_name , output_bed_name )
+bed_name <- paste0(output_pattern,"/diff_peak.xls") #choose peak.bed diff_peak.bed
+xls.to.bed <- paste0("awk 'BEGIN{OFS=\"\t\"}NR>1{print $1":"$2"-"$3,$4,$18,$17,$16}' ", bed_name," > ", output_bed_name)
+system(xls.to.bed)

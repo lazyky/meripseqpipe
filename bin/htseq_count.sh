@@ -1,8 +1,10 @@
 #!/bin/bash
 #$1 argv 1 : gtf file
-#$2 argv 2 : THREAD_NUM
+#$2 argv 2 : strand_info
+#$3 argv 3 : THREAD_NUM
 gtf_file=$1
-THREAD_NUM=$2
+strand_info=$2
+THREAD_NUM=$3
 mkfifo tmp
 exec 9<>tmp
 #rm -rf /tmp
@@ -16,7 +18,7 @@ for bam_file in *.bam
 do
 read -u 9
 {
-    htseq-count -f bam --stranded=no ${bam_file} ${gtf_file} > ${bam_file/%_sort*/}.txt
+    htseq-count -f bam --stranded=$strand_info ${bam_file} ${gtf_file} > ${bam_file/%_sort*/}.txt
     echo >&9
 }& 
 done

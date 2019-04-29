@@ -14,7 +14,6 @@ colnames(design.matrix) <- "Type"
 ## generate expression matrix
 htseq.filelist = grep("htseq",list.files(path = "./",pattern = "input.count"), value = T)
 expression.matrix <- NULL
-class(expression.matrix)
 for( file in htseq.filelist ){
   tmp.expression.table <- as.matrix(read.table(file, header = TRUE, row.names = 1))
   expression.matrix <- cbind(expression.matrix, tmp.expression.table)
@@ -24,19 +23,48 @@ colnames(expression.matrix) <- as.matrix(lapply(strsplit(colnames(expression.mat
 
 ## generate m6A matrix
 m6a.matrix <- as.matrix(read.table(file = grep("quantification.matrix",x = list.files(),value = T), header = T, row.names = 1))
-anno_merged_bed <- read.table(list.files(pattern = "_merged_peaks.refSeq.all.bed"), header = F, sep = "\t", quote = "")
-colnames(anno_merged_bed) <- c("Chr_site","SiteStart","SiteEnd","Peak_name","Chr","ChrStart","ChrEnd","ENST_ID","Count","Strand","ID")
+annotation.file <- list.files(pattern = "_merged_peaks.anno.txt")
+anno.merged.bed <- read.table(annotation.file, header = F, sep = "\t", stringsAsFactors = F, quote = "")[,c(4,15,11,12,13,14,17)]
+colnames(anno.merged.bed) <- c("PeakRegion","ID","Gene_symbol","Coding","Location","Count","RNA_type")
+annotation.info <- as.matrix(anno.merged.bed$ID)
+rownames(annotation.info) <- anno.merged.bed$PeakRegion
+colnames(annotation.info) <- "ID"
+m6a.anno.matrix <- as.data.frame(m6a.matrix[which(row.names(m6a.matrix) %in% rownames(annotation.info)),])
+m6a.anno.matrix <- cbind(annotation.info[rownames(m6a.anno.matrix),],m6a.anno.matrix)
+colnames(m6a.anno.matrix)[1] <- "ID"
+m6a.anno.matrix <- aggregate(m6a.anno.matrix, by=list(m6a.anno.matrix$ID), FUN=mean)
+m6a.anno.matrix <- subset(m6a.anno.matrix, select = -ID)
+colnames(m6a.anno.matrix)[1] <- "ID"
 
 ## generate diffm6A list
 diffm6A.filelist <- grep("_diffm6A_",list.files(pattern = ".txt"), value = T)
-compare.list <- read.csv(comparefile,header = F)
+compare.list <- read.csv(comparefile,header = F,stringsAsFactors = F)
 diffm6A.list <- NULL
+diffm6A.anno.list <-NULL
 for( compare_str in compare.list ){
-  compare_str = "control_vs_METLT14_KD"
-  sub("_vs_","_",compare_str)
   diffm6A.list[[compare_str]] <- read.table(grep(sub("_vs_","_",compare_str), diffm6A.filelist, value = T))
-  if( diffm6A_mode == "QNB"){
+  ## Adding the ID for Peak Region
+  diffm6A.anno.list[[compare_str]] <- diffm6A.list[[compare_str]][which(row.names(diffm6A.list[[compare_str]]) %in% rownames(annotation.info)),]
+  diffm6A.anno.list[[compare_str]] <- cbind(annotation.info[rownames(diffm6A.anno.list[[compare_str]]),],diffm6A.anno.list[[compare_str]])
+  colnames(diffm6A.anno.list[[compare_str]])[1] <- "ID"
+  diffm6A.anno.list[[compare_str]] <- aggregate(diffm6A.anno.list[[compare_str]], by=list(diffm6A.anno.list[[compare_str]]$ID), FUN=mean)
+  diffm6A.anno.list[[compare_str]] <- subset(diffm6A.anno.list[[compare_str]], select = -ID)
+  colnames(diffm6A.anno.list[[compare_str]])[1] <- "ID"
+  if( diffm6A_mode == "QNB" ){
     colnames(diffm6A.list[[compare_str]]) <- c("p.treated","p.control","log2FC","log2.OR","pvalue","q","padj")
+    colnames(diffm6A.anno.list[[compare_str]]) <- c("ID","p.treated","p.control","log2FC","log2.OR","pvalue","q","padj")
+  }
+  else if( diffm6A_mode == "MeTDiff" ){
+    
+  }
+  else if( diffm6A_mode == "MATK" ){
+    
+  }
+  else if( diffm6A_mode == "bedtools" ){
+    
+  }
+  else{
+    stop("Please check your setting of quantification_mode")
   }
 }
 
@@ -51,5 +79,5 @@ for( file in QC.filelist ){
 }
 
 ## save variable for m6Aviewer
-save(design.matrix, expression.matrix, m6a.matrix, diffm6A.list, QC.list, compare.list, anno_merged_bed,
+save(design.matrix, expression.matrix, m6a.matrix,m6a.anno.matrix, diffm6A.list,diffm6A.anno.list, QC.list, compare.list, annotation.info,
      file ="arranged_results.m6APipe")

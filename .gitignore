@@ -10,15 +10,6 @@ circpipe.nf
 nextflow_test_fly.config
 nextflow_for_bam.config
 designfile_test_human.txt
-designfile_test_human.txt
-test_bam/Mut2ip.bam
-test_bam/Mut1input.bam
-test_bam/Mut1ip.bam
-test_bam/Mut2input.bam
-test_bam/WT1input.bam
-test_bam/WT1ip.bam
-test_bam/WT2input.bam
-test_bam/WT2ip.bam
 grozhik2018.pdf
 test_human/H1B_ES_cell_no_IP_input_RNA.fastq
 test_human/H1A_ES_cell_RNA_IP_against_m6A.fastq
@@ -41,3 +32,6 @@ test_human_bam/H1B_Endoderm_cells_RNA_IP_against_m6A.bam
 test_human_bam/H1B_Endoderm_cells_no_IP_input_RNA.bam
 test.nf
 .gitignore
+work_log/m6APipe.pptx
+work_log/~$m6APipe.pptx
+arranged_results.m6APipe

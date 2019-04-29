@@ -2,57 +2,48 @@
 library("QNB")
 args <- commandArgs(T)
 designfile <- args[1]
-compare_str <- as.character(args[2])
+quantification_matrix_file <- args[2]
+compare_str <- as.character(args[3])
 
-designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
-filelist =list.files(path = "./",pattern = ".count")
-countlist <- NULL
-#combine the matrix by groups
-for(group_id in designtable$Group){
-  input.count <- c()
-  input.names <- c()
-  input.samples <- c()
-  for(input in grep(group_id, grep(".input",filelist,value = TRUE), value = T)){
-    input.exp <- read.table(input,header=T,sep="\t",row.names= NULL,quote = "")
-    input.count <- cbind(input.count,input.exp[,5])
-    input.names <- input.exp[,4] #peaks name
-    input.samples <- c(input.samples,input) #samples name
+designtable <- read.csv(designfile, head = TRUE, stringsAsFactors=FALSE, colClasses = c("character"))
+quantification_matrix = read.table(quantification_matrix_file ,sep = "\t",header = T, row.names = 1)
+## generate design matrix
+design.matrix <- as.data.frame(designtable$Group)
+rownames(design.matrix) <- designtable$Sample_ID
+colnames(design.matrix) <- "Type"
+
+row_wilcox <- function(design.matrix,group_id_1,group_id_2,x,test_mode=""){
+  group1 <- as.character(rownames(subset(design.matrix,Type==group_id_1))) 
+  group2 <- as.character(rownames(subset(design.matrix,Type==group_id_2)))
+  if (test_mode=="paired"){
+    res_wix0 <- wilcox.test(x[which(colnames(design.matrix)%in%group1)],x[which(rownames(design.matrix)%in%group2)], paired = T)
+  } else {
+    res_wix0 <- wilcox.test(x[which(rownames(design.matrix)%in%group1)],x[which(rownames(design.matrix)%in%group2)])
   }
-  colnames(input.count) <- input.samples
-  rownames(input.count) <- input.names
-  countlist[[paste0(group_id,"_input")]] <- input.count 
-  
-  ip.count <- c()
-  ip.names <- c()
-  ip.samples <- c()
-  for(ip in grep(group_id, grep(".ip",filelist,value = TRUE), value = T)){
-    ip.exp <- read.table(ip,header=T,sep="\t",row.names= NULL,quote = "")
-    ip.count <- cbind(ip.count,ip.exp[,5])
-    ip.names <- ip.exp[,4] #peaks name
-    ip.samples <- c(ip.samples,ip) #samples name
-  }
-  colnames(ip.count) <- ip.samples
-  rownames(ip.count) <- ip.names
-  countlist[[paste0(group_id,"_ip")]] <- ip.count
+  res_wix <- c(Pvalue=res_wix0$p.value,statistic=res_wix0$statistic) 
+  return(res_wix)
 }
 
-# Running QNB quantification
-if(length(unique(designtable$Group)) < 2){
+if(length(unique(design.matrix$Type)) < 2){
   stop( "The count of Group is less than two, please check your designfile.")
 }else if( compare_str == "two_group" ){
-  # Running QNB quantification without compare_str beacause of only two groups
-  group_id_1 <- unique(designtable$Group)[1]
-  group_id_2 <- unique(designtable$Group)[2]
+  # Running MeTDiff quantification without compare_str beacause of only two groups
+  group_id_1 <- unique(design.matrix$Type)[1]
+  group_id_2 <- unique(design.matrix$Type)[2]
 }else{
-  # Running QNB quantification with compare_str
+  # Running MeTDiff quantification with compare_str
   group_id_1 <- strsplit(as.character(compare_str), "_vs_")[[1]][1]
   group_id_2 <- strsplit(as.character(compare_str), "_vs_")[[1]][2]
 }
-meth1 = countlist[[paste0(group_id_1,"_ip")]]
-meth2 = countlist[[paste0(group_id_2,"_ip")]]
-unmeth1 = countlist[[paste0(group_id_1,"_input")]]
-unmeth2 = countlist[[paste0(group_id_2,"_input")]]
-output_name <- paste0("QNB_diffm6A_",group_id_1, "_",group_id_2)
-dir.create(output_name)
-result <- qnbtest(meth1, meth2, unmeth1, unmeth2, mode="auto", output.dir = output_name)
-write.table(result,file = paste0(output_name,".txt"))
+
+cat("peak number ",dim(quantification_matrix)[1],"\n")
+test_mode=""
+res_wix_lst <- apply(quantification_matrix,1,function(x) row_wilcox(design.matrix,group_id_1,group_id_2,x,test_mode))
+res_wix_lst = as.data.frame(t(res_wix_lst)) 
+res_wix_lst$padj = p.adjust(res_wix_lst$Pvalue,method = "BH")
+res_wix_lst$BY = p.adjust(res_wix_lst$Pvalue,method = "bonferroni")
+cat("DM peaks Pvalue(0.05)",sum(res_wix_lst$Pvalue <=0.05),"\n")
+cat("DM peaks FDR(0.05)",sum(res_wix_lst$padj <=0.05),"\n")
+output_name <- paste0("bedtools_diffm6A_",group_id_1, "_",group_id_2)
+write.table(res_wix_lst,file = paste0(output_name,".txt"))
+

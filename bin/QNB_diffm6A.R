@@ -19,13 +19,12 @@ if(length(unique(designtable$Group)) < 2){
 }
 
 #combine the matrix by groups
-filelist =list.files(path = "./",pattern = ".count")
 countlist <- NULL
 for(group_id in c(group_id_1,group_id_2)){
   input.count <- c()
   input.names <- c()
   input.samples <- c()
-  for(input in grep(group_id, grep(".input",filelist,value = TRUE), value = T)){
+  for( input in grep(paste0("merged_peaks.bed.",group_id), list.files(pattern = "input.count"), value = T) ){
     input.exp <- read.table(input,header=T,sep="\t",row.names= NULL,quote = "")
     input.count <- cbind(input.count,input.exp[,5])
     input.names <- input.exp[,4] #peaks name
@@ -38,7 +37,7 @@ for(group_id in c(group_id_1,group_id_2)){
   ip.count <- c()
   ip.names <- c()
   ip.samples <- c()
-  for(ip in grep(group_id, grep(".ip",filelist,value = TRUE), value = T)){
+  for( ip in grep(paste0("merged_peaks.bed.",group_id), list.files(pattern = "ip.count"), value = T) ){
     ip.exp <- read.table(ip,header=T,sep="\t",row.names= NULL,quote = "")
     ip.count <- cbind(ip.count,ip.exp[,5])
     ip.names <- ip.exp[,4] #peaks name

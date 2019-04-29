@@ -747,8 +747,7 @@ process RenameByDesignfile{
     aligners_name = params.aligners
     """
     #Windows and linux newline ^M conversion
-    cat $designfile > formatted_designfile.txt 
-    dos2unix formatted_designfile.txt  
+    cat $designfile | dos2unix |sed '1s/.*/Sample_ID,input_FileName,ip_FileName,Group/g' > formatted_designfile.txt
     bash $baseDir/bin/rename.sh $aligners_name formatted_designfile.txt
     """
 
@@ -976,7 +975,8 @@ process Meyer{
     file chromsizesfile from chromsizesfile
 
     output:
-    file "meyer*.bed" into meyer_bed
+    file "meyer*.bed" into meyer_results
+    file "meyer*_normalized.bed" into meyer_nomarlized_bed
 
     when:
     chromsizesfile != "" && !params.skip_meyer && !params.skip_peakCalling
@@ -989,14 +989,13 @@ process Meyer{
         println LikeletUtils.print_purple("Peak Calling performed by Meyer in independent mode")
     }
     '''
-    ln !{baseDir}/bin/meyer_m6A_peak_call_by_yeying.sh ./
-    ln !{baseDir}/bin/cluster_bins.pl ./
-    ln !{baseDir}/bin/cal_pval_for_bin.pl ./
+    ln !{baseDir}/bin/meyer.py ./
     bedtools makewindows -g !{chromsizesfile} -w 25 > genome.bin25.bed
     awk '{print $1}' !{chromsizesfile} > chrName.txt
+    peak_windows_number=$(wc -l genome.bin25.bed| cut -d " " -f 1)
     mkdir genomebin
     awk '{print "cat genome.bin25.bed | grep "$1" > genomebin/"$1".bin25.bed"}' chrName.txt | xargs -iCMD -P!{task.cpus} bash -c CMD
-    bash !{baseDir}/bin/meyer.sh !{formatted_designfile} chrName.txt genomebin/ !{task.cpus} !{flag_peakCallingbygroup};
+    bash !{baseDir}/bin/meyer_peakCalling.sh !{formatted_designfile} chrName.txt genomebin/ ${peak_windows_number} !{task.cpus} !{flag_peakCallingbygroup}
     ''' 
 }
 
@@ -1022,11 +1021,13 @@ process Htseq_count{
 
     script:
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
+    strand_info = params.strand == "no" ? "no" : params.strand == "reverse" ? "reverse" : "yes"
     """
-    bash $baseDir/bin/htseq_count.sh $gtf ${task.cpus} 
-    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile ${task.cpus} 
+    bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus} 
+    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile  ${task.cpus} 
     """ 
 }
+
 process Deseq2{
     tag "$compare_str"
 
@@ -1048,7 +1049,6 @@ process Deseq2{
     """
     Rscript $baseDir/bin/DESeq2.R $formatted_designfile $compare_str
     """ 
-
 }
 
 process EdgeR{
@@ -1082,7 +1082,7 @@ process Cufflinks{
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "cuffdiff_*" into cufflinks_results
+    file "cuffdiff*" into cufflinks_results
 
     when:
     !params.skip_cufflinks && !params.skip_expression
@@ -1104,11 +1104,11 @@ process Cufflinks{
 */
 Channel
     .from()
-    .concat(metpeak_nomarlized_bed, macs2_nomarlized_bed, matk_nomarlized_bed, meyer_bed)
+    .concat(metpeak_nomarlized_bed, macs2_nomarlized_bed, matk_nomarlized_bed, meyer_nomarlized_bed)
     .into {merged_bed ;mspc_merge_peak_bed; bedtools_merge_peak_bed; bed_for_motif_searching; bed_for_annotation}
 
 process PeakMergeBYMspc {
-    publishDir "${params.outdir}/result_arranged/mspc", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
     
     input:
     file peak_bed from mspc_merge_peak_bed.collect()
@@ -1126,12 +1126,12 @@ process PeakMergeBYMspc {
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
     println LikeletUtils.print_purple("Start merge peaks by MSPC")
     """
-    bash $baseDir/bin/merge_peaks_by_mspc.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
+    bash $baseDir/bin/merge_peaks_by_mspc.sh $mspc_directory $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
     """
 }
 
 process PeakMergeBYbedtools {
-    publishDir "${params.outdir}/result_arranged/bedtools", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
     
     input:
     file peak_bed from bedtools_merge_peak_bed.collect()
@@ -1199,8 +1199,8 @@ process PeaksQuantification{
 
     # PeaksQuantification by MATK
     if [ ${quantification_mode} == "MATK" ]; then 
-        export OMP_NUM_THREADS=${task.cpus}
-        bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${peak_bed}
+        export OMP_NUM_THREADS=1
+        bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${peak_bed} ${task.cpus}
     fi
     """
 }
@@ -1236,7 +1236,7 @@ process diffm6APeak{
     """
     # PeaksQuantification by bedtools
     if [ ${quantification_mode} == "bedtools" ]; then 
-        Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile $compare_str
+        Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile bedtools_quantification.matrix $compare_str
     fi
 
     # PeaksQuantification by QNB
@@ -1252,7 +1252,7 @@ process diffm6APeak{
     # PeaksQuantification by MATK
     if [ ${quantification_mode} == "MATK" ]; then 
         export OMP_NUM_THREADS=${task.cpus}
-        bash $baseDir/bin/MATK_diffm6A.sh  $matk_jar $gtf $formatted_designfile $gtf $compare_str 
+        bash $baseDir/bin/MATK_diffm6A.sh $matk_jar $formatted_designfile $gtf $compare_str 
     fi
 
     """ 
@@ -1275,10 +1275,10 @@ process MotifSearching {
     !params.skip_dreme
 
     script:
-    println LikeletUtils.print_purple("Motif analysis is going on by DREME")
+    println LikeletUtils.print_purple("Motif analysis is going on by DREME and Homer")
     """
     
-    bash $baseDir/bin/motif_by_dreme.sh $fasta $gtf ${task.cpus}
+    bash $baseDir/bin/motif_searching.sh $fasta $gtf ${task.cpus}
     """
 }
 process SingleNucleotidePrediction{
@@ -1357,7 +1357,7 @@ process AggrangeForM6Aviewer {
     val compare_info from compareLines_for_arranged_result.collect()
     
     output:
-    file "m6APipe_results.RDate" into final_results
+    file "arranged_results.m6APipe" into final_results
 
     when:
     true
@@ -1366,8 +1366,8 @@ process AggrangeForM6Aviewer {
     mergepeak_mode = params.mergepeak_mode
     quantification_mode = params.quantification_mode
     """
-    echo $compare_info | sed 's/^\\[//g' | sed 's/\\]\$//g' > compare_info.txt
-    Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info.txt $mergepeak_mode $quantification_mode
+    echo $compare_info | sed 's/^\\[//g' | sed 's/\\]\$//g' | sed s/[[:space:]]//g > compare_info
+    Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $mergepeak_mode $quantification_mode
     """
 }
 
@@ -1375,15 +1375,15 @@ process AggrangeForM6Aviewer {
 Working completed message
  */
 workflow.onComplete {
-    LikeletUtils.print_green("=================================================")
-    LikeletUtils.print_green("Cheers! m6APipe from SYSUCC run Complete!")
-    LikeletUtils.print_green("=================================================")
+    println LikeletUtils.print_green("=================================================")
+    println LikeletUtils.print_green("Cheers! m6APipe from SYSUCC run Complete!")
+    println LikeletUtils.print_green("=================================================")
     //email information
     if (params.mail) {
         recipient = params.mail
         def subject = 'My m6Aseq-SYSUCC execution'
 
-       def  msg = """\
+        def  msg = """\
             RNAseq-SYSUCC execution summary
             ---------------------------
             Your command line: ${workflow.commandLine}
@@ -1399,6 +1399,7 @@ workflow.onComplete {
         sendMail(to: recipient, subject: subject, body: msg)
     }
 }
+
 workflow.onError {
-   LikeletUtils.print_yellow("Oops... Pipeline execution stopped with the following message: ")+print_red(workflow.errorMessage)
+   println LikeletUtils.print_yellow("Oops... Pipeline execution stopped with the following message: ")+print_red(workflow.errorMessage)
 }

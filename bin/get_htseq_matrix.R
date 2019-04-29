@@ -39,6 +39,8 @@ mclapply(unique(designtable$Group),function(x){
   
   #parsing samplenames
   output_pattern = paste0("htseq_group_",group_id)  #添加aligner
+  trans.htseq.input.count <- trans.htseq.input.count[c(-nrow(trans.htseq.input.count):-(nrow(trans.htseq.input.count)-4)),]
+  trans.htseq.ip.count <- trans.htseq.ip.count[c(-nrow(trans.htseq.ip.count):-(nrow(trans.htseq.ip.count)-4)),]
   write.table(trans.htseq.input.count, file = paste0(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
   write.table(trans.htseq.ip.count, file = paste0(output_pattern,"_ip.count") , sep ="\t", row.names =T,col.names =T)
   },
