@@ -30,7 +30,7 @@ if(flag_peakCallingbygroup){
     )
     bed_name <- paste0( "metpeak_",group_id ,"/peak.xls")
     output_bed_name <- paste0("metpeak_group_",group_id,"_normalized.bed") #peak.bed
-    bed12.to.bed6 <- paste0("awk 'BEGIN{OFS=\"\t\"}NR>1{print $1,$2,$3,$4,-$13,$6,$7,$8,$9,$10,$11,$12}' ", bed_name," | bed12ToBed6 -i > ", output_bed_name)
+    bed12.to.bed6 <- paste0("awk 'BEGIN{OFS=\"\t\"}NR>1{print $1,$2,$3,$1":"$2"-"$3,-$13,$6,$7,$8,$9,$10,$11,$12}' ", bed_name," | bed12ToBed6 -i | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"}{print $1,$2,$3,$4,$5}'> ", output_bed_name)
     system(bed12.to.bed6)
     },
     mc.cores = THREAD_NUM)
@@ -46,7 +46,7 @@ if(flag_peakCallingbygroup){
     )
     bed_name <- paste0( "metpeak_",sample_id ,"/peak.xls")
     output_bed_name <- paste0("metpeak_",sample_id,"_normalized.bed") #peak.bed
-    bed12.to.bed6 <- paste0("awk 'BEGIN{OFS=\"\t\"}NR>1{print $1,$2,$3,$4,-$13,$6,$7,$8,$9,$10,$11,$12}' ", bed_name," | bed12ToBed6 -i > ", output_bed_name)
+    bed12.to.bed6 <- paste0("awk 'BEGIN{OFS=\"\t\"}NR>1{print $1,$2,$3,$1":"$2"-"$3,-$13,$6,$7,$8,$9,$10,$11,$12}' ", bed_name," | bed12ToBed6 -i | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"}{print $1,$2,$3,$4,$5}'> ", output_bed_name)
     system(bed12.to.bed6)
   },
   mc.cores = THREAD_NUM)

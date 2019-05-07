@@ -1,5 +1,4 @@
 ## Rscript arranged_results.R aligners_tools_name peak_calling_tools_name 
-library("QNB")
 args <- commandArgs(T)
 designfile <- args[1]
 quantification_matrix_file <- args[2]
@@ -20,7 +19,8 @@ row_wilcox <- function(design.matrix,group_id_1,group_id_2,x,test_mode=""){
   } else {
     res_wix0 <- wilcox.test(x[which(rownames(design.matrix)%in%group1)],x[which(rownames(design.matrix)%in%group2)])
   }
-  res_wix <- c(Pvalue=res_wix0$p.value,statistic=res_wix0$statistic) 
+  res_wix0$log2FC = log2(mean(x[which(rownames(design.matrix)%in%group2)])/mean(x[which(rownames(design.matrix)%in%group1)]))
+  res_wix <- c(log2FC=res_wix0$log2FC,pvalue=res_wix0$p.value,statistic=res_wix0$statistic) 
   return(res_wix)
 }
 
@@ -40,9 +40,9 @@ cat("peak number ",dim(quantification_matrix)[1],"\n")
 test_mode=""
 res_wix_lst <- apply(quantification_matrix,1,function(x) row_wilcox(design.matrix,group_id_1,group_id_2,x,test_mode))
 res_wix_lst = as.data.frame(t(res_wix_lst)) 
-res_wix_lst$padj = p.adjust(res_wix_lst$Pvalue,method = "BH")
-res_wix_lst$BY = p.adjust(res_wix_lst$Pvalue,method = "bonferroni")
-cat("DM peaks Pvalue(0.05)",sum(res_wix_lst$Pvalue <=0.05),"\n")
+res_wix_lst$padj = p.adjust(res_wix_lst$pvalue,method = "BH")
+res_wix_lst$BY = p.adjust(res_wix_lst$pvalue,method = "bonferroni")
+cat("DM peaks pvalue(0.05)",sum(res_wix_lst$pvalue <=0.05),"\n")
 cat("DM peaks FDR(0.05)",sum(res_wix_lst$padj <=0.05),"\n")
 output_name <- paste0("bedtools_diffm6A_",group_id_1, "_",group_id_2)
 write.table(res_wix_lst,file = paste0(output_name,".txt"))

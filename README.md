@@ -22,14 +22,14 @@ You can skip the tools by using `--skip_ToolsName` or not(default).
 
 | Step                                    | Pipeline                        | Pipeline(skip_mode)             |
 |-----------------------------------------|---------------------------------|---------------------------------|
-| Raw Data QC                             | FastQC                          |---------------------------------|
+| Raw Data QC                             | Fastp,FastQC                    |---------------------------------|
 | Reads Mapping                           | star, bwa, tophat, hisat2       |------  --aligners "star"  ------|
 | Sort BAM file AND Post-alignment QC     | samtools, RSeQC                 |---------------------------------|
 | Reads counting                          | htseq-count                     |---  --skip_expressiion true  ---|
 | Peak Calling                            | MeTPeak, macs2, MATK, meyer     |---  --skip_peakCalling true  ---|
 | Differential methylation analysis       | MeTDiff, QNB, MATK, Wilcox-test |-  --skip_diffpeakCalling true  -|
 | Differential expression analysis        | deseq2, edgeR, cufflinks        |---  --skip_expressiion true  ---|
-| Combines Peaks information              | MSPC, bedtools                  |------  --skip_mspc true  -------|
+| Combines Peaks information              | RobustRankAggreg, bedtools      |---------------------------------|
 
 ### Dependencies
 * Softwares
@@ -47,6 +47,5 @@ You can skip the tools by using `--skip_ToolsName` or not(default).
     * [macs](https://github.com/taoliu/MACS)
     * [MeTDiff](https://github.com/compgenomics/MeTDiff)
     * [QNB](https://cran.r-project.org/src/contrib/Archive/QNB/)
-    * [MSPC](https://github.com/Genometric/MSPC)
 
     * Several R packages for downstream analysis.

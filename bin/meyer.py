@@ -43,9 +43,8 @@ def cluster_bin( bonferroni_filter_list ):
             peak_line.append(data[3])
     for data in bonferroni_peak:
         statistic, pval = stats.combine_pvalues(data[3:len(data)], method='fisher', weights=None)
-        data[3] = data[0] + ":" + str(data[1]) + "-" + str(data[2])
-        data[4] = pval
-        del data[5:len(data)]
+        data[3] = pval
+        del data[4:len(data)]
     return bonferroni_peak
 
 with open (input_bin25_file) as input_bin25,open (ip_bin25_file) as ip_bin25:

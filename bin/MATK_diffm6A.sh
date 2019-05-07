@@ -36,14 +36,14 @@ if [ compare_str != "two_group" ]; then
     # Running MATK quantification with compare_str
     group_id_1=$(echo $compare_str | awk 'BEGIN{FS="_vs_"}{print $1}')
     group_id_2=$(echo $compare_str | awk 'BEGIN{FS="_vs_"}{print $2}')
-    matk_diffm6a_by_group_id $group_id_1 $group_id_2 $matk_jar $gtf_file
+    matk_diffm6a_by_two_id $group_id_1 $group_id_2 $matk_jar $gtf_file
 else
     # Running MATK quantification without compare_str beacause of only two groups
     echo "no compare file"
     group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS="\t"}{print $0}')
     group_id_1=$(echo $group_list | awk 'BEGIN{FS="\t"}{print $1}')
     group_id_2=$(echo $group_list | awk 'BEGIN{FS="\t"}{print $2}')   
-    matk_diffm6a_by_group_id $group_id_1 $group_id_2 $matk_jar $gtf_file
+    matk_diffm6a_by_two_id $group_id_1 $group_id_2 $matk_jar $gtf_file
 fi
 wait
 echo "diffMATK done"

@@ -8,7 +8,7 @@ args <- commandArgs(T)
 designfile <- args[1]
 annotation_file <- args[2]
 compare_str <- as.character(args[3])
-
+designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 # Running MeTDiff quantification
 if(length(unique(designtable$Group)) < 2){
   stop( "The count of Group is less than two, please check your designfile.")
@@ -24,7 +24,6 @@ if(length(unique(designtable$Group)) < 2){
 
 #setting CONTROL_SITUATION and TREATED_SITUATION 
 #default 1 is CONTROL_SITUATION else are TREATED_SITUATION
-designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 filelist = grep(".bai",list.files(path = "./",pattern = ".bam"),value = TRUE,invert = TRUE)
 bamlist <- NULL
 for(group_id in c(group_id_1,group_id_2)){
@@ -35,7 +34,7 @@ for(group_id in c(group_id_1,group_id_2)){
 
 ##Running MeTDiff and rename the output name
 output_pattern <- paste0("metdiff_diffm6A_",group_id_1,"_",group_id_2)
-metdiff(GENE_ANNO_GTF=gtf,
+metdiff(GENE_ANNO_GTF=annotation_file,
         IP_BAM = bamlist[[group_id_1]][,2],
         INPUT_BAM = bamlist[[group_id_1]][,1],
         TREATED_IP_BAM = bamlist[[group_id_2]][,2],

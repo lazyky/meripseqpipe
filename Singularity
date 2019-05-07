@@ -30,5 +30,7 @@ Bootstrap:docker
     conda install -c r r-stringr=1.3.1
     conda install -c bioconda bioconductor-exomepeak=2.14.0
     conda install -c bioconda bioconductor-genomeinfodb=1.10.3
-
+  - QNB=1.1.11
+  - MetPeak=1.0.0
+  - MetDIff=1.0.0
 

@@ -1105,32 +1105,9 @@ process Cufflinks{
 Channel
     .from()
     .concat(metpeak_nomarlized_bed, macs2_nomarlized_bed, matk_nomarlized_bed, meyer_nomarlized_bed)
-    .into {merged_bed ;mspc_merge_peak_bed; bedtools_merge_peak_bed; bed_for_motif_searching; bed_for_annotation}
+    .into {merged_bed ; bedtools_merge_peak_bed; bed_for_motif_searching; bed_for_annotation}
 
-process PeakMergeBYMspc {
-    publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
-    
-    input:
-    file peak_bed from mspc_merge_peak_bed.collect()
-    file formatted_designfile from formatted_designfile.collect()
-
-    output:
-    file "mspc_group*.bed" into mspc_group_merged_bed
-    file "mspc_merged_peaks.bed" into mspc_merged_bed
-
-    when:
-    params.mergepeak_mode == "mspc"
-
-    script:
-    mspc_directory = baseDir + "/bin/mspc_v3.3"
-    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
-    println LikeletUtils.print_purple("Start merge peaks by MSPC")
-    """
-    bash $baseDir/bin/merge_peaks_by_mspc.sh $mspc_directory $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
-    """
-}
-
-process PeakMergeBYbedtools {
+process PeakMergeBYRank {
     publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
     
     input:
@@ -1138,33 +1115,24 @@ process PeakMergeBYbedtools {
     file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "bedtools_group*.bed" into bedtools_group_merged_bed
-    file "bedtools_merged_peaks.bed" into bedtools_merged_bed
-
-    when:
-    params.mergepeak_mode == "bedtools"
+    file "*merged*.bed" into merge_result
+    file "merged_group*.bed" into group_merged_bed
+    file "Rankmerged_peaks.bed" into rankmerged_bed
 
     script:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
-    println LikeletUtils.print_purple("Start merge peaks by bedtools")
+    println LikeletUtils.print_purple("Start merge peaks by RobustRankAggreg")
     """
-    bash $baseDir/bin/merge_peaks_by_bedtools.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
+    ln $baseDir/bin/merge_peaks_by_rank.R ./
+    bash $baseDir/bin/merge_peaks_by_rank.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
     """
 }
-Channel
-    .from()
-    .concat( mspc_merged_bed, bedtools_merged_bed )
-    .into{ merged_bed_all_merged; merged_bed_all_merged_for_diffm6A; merged_bed_part_one }
-Channel
-    .from()
-    .concat( mspc_group_merged_bed, bedtools_group_merged_bed )
-    .into{ merged_bed_group_merged_for_diffm6A; merged_bed_group_merged_for_motif; merged_bed_group_merged_for_prediction ; merged_bed_part_two }
     
 process PeaksQuantification{
     publishDir "${params.outdir}/result_arranged/quantification", mode: 'link', overwrite: true
     
     input:
-    file peak_bed from merged_bed_all_merged.collect()
+    file peak_bed from rankmerged_bed.collect()
     file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
     file gtf
@@ -1210,8 +1178,8 @@ process diffm6APeak{
     publishDir "${params.outdir}/result_arranged/diffm6A", mode: 'link', overwrite: true
     
     input:
-    file peak_bed from merged_bed_group_merged_for_diffm6A.collect()
-    file merged_bed from merged_bed_all_merged_for_diffm6A.collect()
+    file peak_bed from group_merged_bed.collect()
+    file merged_bed from rankmerged_bed.collect()
     file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
     file count_matrix from quantification_matrix.collect()
@@ -1245,7 +1213,7 @@ process diffm6APeak{
     fi
 
     # PeaksQuantification by MeTDiff
-    if [ ${quantification_mode} == "MeTdiff" ]; then
+    if [ ${quantification_mode} == "MeTDiff" ]; then
         Rscript $baseDir/bin/MeTDiff_diffm6A.R $formatted_designfile $merged_bed $compare_str 
     fi
 
@@ -1263,16 +1231,16 @@ process MotifSearching {
     
     input:
     file peak_bed from bed_for_motif_searching.collect()
-    file group_bed from merged_bed_group_merged_for_motif.collect()
+    file group_bed from group_merged_bed.collect()
     file formatted_designfile from formatted_designfile.collect()
     file fasta
     file gtf
 
     output:
-    file "*_dreme" into motif_results
+    file "*_{dreme,homer}" into motif_results
 
     when:
-    !params.skip_dreme
+    !params.skip_motif
 
     script:
     println LikeletUtils.print_purple("Motif analysis is going on by DREME and Homer")
@@ -1285,7 +1253,7 @@ process SingleNucleotidePrediction{
     publishDir "${params.outdir}/result_arranged/m6Aprediction", mode: 'link', overwrite: true
     
     input:
-    file group_bed from merged_bed_group_merged_for_prediction.collect()
+    file group_bed from group_merged_bed.collect()
     file formatted_designfile from formatted_designfile.collect()
     file fasta
     file gtf
@@ -1308,7 +1276,7 @@ process SingleNucleotidePrediction{
 
 Channel
     .from()
-    .concat( bed_for_annotation, merged_bed_part_one, merged_bed_part_two )
+    .concat( bed_for_annotation, group_merged_bed, rankmerged_bed )
     .into { annotate_collection; bed_collect_for_arrange_results}
 
 process BedAnnotated{
@@ -1357,7 +1325,7 @@ process AggrangeForM6Aviewer {
     val compare_info from compareLines_for_arranged_result.collect()
     
     output:
-    file "arranged_results.m6APipe" into final_results
+    file "*" into final_results
 
     when:
     true
@@ -1366,6 +1334,7 @@ process AggrangeForM6Aviewer {
     mergepeak_mode = params.mergepeak_mode
     quantification_mode = params.quantification_mode
     """
+    #igvtools count -z 5 -w 10 -e 0 bamfile output.tdf chromesizefile
     echo $compare_info | sed 's/^\\[//g' | sed 's/\\]\$//g' | sed s/[[:space:]]//g > compare_info
     Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $mergepeak_mode $quantification_mode
     """

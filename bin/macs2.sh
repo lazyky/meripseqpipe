@@ -31,7 +31,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
             ls *input_${group_id}*.bam | awk 'BEGIN{ORS=" "}{print "ln "$0," macs2_group_'${group_id}'_input.bam"}' | bash
         fi
         macs2 callpeak -t macs2_group_${group_id}_ip.bam -c macs2_group_${group_id}_input.bam -g hs -n macs2_group_${group_id} -p 1e-6 -f BAM --nomodel
-        awk '{print $1"\t"$2"\t"$3"\t"$4"\t"$8"\t"$7}' macs2_group_${group_id}_peaks.narrowPeak > macs2_group_${group_id}_normalized.bed
+        awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"$8"\t"$7}' macs2_group_${group_id}_peaks.narrowPeak > macs2_group_${group_id}_normalized.bed
         mv macs2_group_${group_id}_summits.bed macs2_group_${group_id}.summits
         echo >&9
     }&
@@ -44,7 +44,7 @@ else
     read -u 9
     {
         macs2 callpeak -t ${sample_id}.ip*.bam -c ${sample_id}.input*.bam -g hs -n macs2_${sample_id} -p 1e-6 -f BAM --nomodel
-        awk '{print $1"\t"$2"\t"$3"\t"$4"\t"$8"\t"$7}' macs2_${sample_id}_peaks.narrowPeak > macs2_${sample_id}_normalized.bed
+        awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"$8"\t"$7}' macs2_${sample_id}_peaks.narrowPeak > macs2_${sample_id}_normalized.bed
         mv macs2_${sample_id}_summits.bed macs2_${sample_id}.summits
         echo >&9
     }&
