@@ -5,14 +5,15 @@
 fasta=$1
 gtf_file=$2
 THREAD_NUM=$3
+
+## Define a multi-threaded run channel
 mkfifo tmp
 exec 9<>tmp
-#rm -rf /tmp
-
 for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
     echo >&9
 done
+
 for bed_file in *.bed
 do
 read -u 9

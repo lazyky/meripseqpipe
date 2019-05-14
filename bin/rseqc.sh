@@ -1,4 +1,5 @@
 #!/bin/bash
+#bash rseqc.sh <bed12> [THREAD_NUM]
 #$1 argv 1 : bed12
 #$2 argv 2 : THREAD_NUM
 bed12_file=$1

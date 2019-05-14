@@ -1,6 +1,8 @@
-## Rscript MeTPeak.R aligner_tools designfile gtf eg. Rscript MeTPeak.R tophat2 designfile_single.txt genes.gtf
-## designfile: filename, input_or_ip, situation(default 1 is CONTROL_SITUATION else are TREATED_SITUATION)
 #!/bin/Rscript
+## Rscript MeTPeak.R <designfile> <gtf> <THREAD_NUM> <flag_peakCallingbygroup> eg. Rscript MeTPeak.R designfile.txt genes.gtf 10
+### designfile: Sample_id, Input_filename, IP_filename, group_id
+### flag_peakCallingbygroup: 1(group) 0(sample)
+
 library(MeTPeak)
 library(parallel)
 args <- commandArgs(T) 
@@ -8,9 +10,8 @@ designfile <- args[1]
 gtf <- args[2]
 THREAD_NUM <- as.numeric(args[3])
 flag_peakCallingbygroup <- as.numeric(args[4])
-##setting CONTROL_SITUATION and TREATED_SITUATION 
-#default 1 is CONTROL_SITUATION else are TREATED_SITUATION
 designtable <- read.csv(designfile,header = TRUE ,stringsAsFactors=FALSE, colClasses = c("character"))
+
 ##Traversing all situations
 filelist = grep(".bai",list.files(path = "./",pattern = ".bam"),value = TRUE,invert = TRUE)
 if(flag_peakCallingbygroup){
@@ -46,7 +47,7 @@ if(flag_peakCallingbygroup){
     )
     bed_name <- paste0( "metpeak_",sample_id ,"/peak.xls")
     output_bed_name <- paste0("metpeak_",sample_id,"_normalized.bed") #peak.bed
-    bed12.to.bed6 <- paste0("awk 'BEGIN{OFS=\"\t\"}NR>1{print $1,$2,$3,$1":"$2"-"$3,-$13,$6,$7,$8,$9,$10,$11,$12}' ", bed_name," | bed12ToBed6 -i | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"}{print $1,$2,$3,$4,$5}'> ", output_bed_name)
+    bed12.to.bed6 <- paste0("awk 'BEGIN{OFS=\"\t\"}NR>1{print $1,$2,$3,$4,-$13,$6,$7,$8,$9,$10,$11,$12}' ", bed_name," | bed12ToBed6 -i | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"}{print $1,$2,$3,$4,$5}'> ", output_bed_name)
     system(bed12.to.bed6)
   },
   mc.cores = THREAD_NUM)

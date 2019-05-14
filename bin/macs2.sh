@@ -1,21 +1,24 @@
 #!/bin/bash
+#bash macs2.sh <designfile> <THREAD_NUM> <whether_peakcallingbygroup>
 #$1 argv 1 : designfile
 #$2 argv 2 : THREAD_NUM
 #$3 argv 3 : flag_peakCallingbygroup
+## flag_peakCallingbygroup: 1(group) 0(sample)
 designfile=$1
 THREAD_NUM=$2
 flag_peakCallingbygroup=$3
 
-#定义描述符为9的管道
+# Define a multi-threaded run channel
 mkfifo tmp
 exec 9<>tmp
-#rm -rf /tmp                   #关联后的文件描述符拥有管道文件的所有特性,所以这时候管道文件可以删除，我们留下文件描述符来用就可以了
 for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
-    echo >&9                   #&9代表引用文件描述符9，这条命令代表往管道里面放入了一个"令牌"
+    echo >&9  
 done
-#peakCalling by group
+
+# Check the mode of peakcalling
 if [ $flag_peakCallingbygroup -gt 0 ]; then
+    ## Running Macs2 for peakcalling per group
     group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for group_id in $group_list
     do
@@ -37,7 +40,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
     }&
     done
 else
-#peakCalling by individual sample
+    ## Running Macs2 for peakcalling per samole
     sample_list=$(awk 'BEGIN{FS=","}NR>1{print $1}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for sample_id in $sample_list
     do

@@ -18,9 +18,10 @@ if(length(unique(designtable$Group)) < 2){
   group_id_2 <- strsplit(as.character(compare_str), "_vs_")[[1]][2]
 }
 
-#combine the matrix by groups
+# combine the matrix by groups
 countlist <- NULL
 for(group_id in c(group_id_1,group_id_2)){
+  ## generate the list of input count
   input.count <- c()
   input.names <- c()
   input.samples <- c()
@@ -33,7 +34,8 @@ for(group_id in c(group_id_1,group_id_2)){
   colnames(input.count) <- input.samples
   rownames(input.count) <- input.names
   countlist[[paste0(group_id,"_input")]] <- input.count 
-  
+
+  ## generate the list of ip count
   ip.count <- c()
   ip.names <- c()
   ip.samples <- c()
@@ -47,6 +49,7 @@ for(group_id in c(group_id_1,group_id_2)){
   rownames(ip.count) <- ip.names
   countlist[[paste0(group_id,"_ip")]] <- ip.count
 }
+## Run the QNB by using the count of peaks
 meth1 = countlist[[paste0(group_id_1,"_ip")]]
 meth2 = countlist[[paste0(group_id_2,"_ip")]]
 unmeth1 = countlist[[paste0(group_id_1,"_input")]]

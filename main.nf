@@ -17,6 +17,18 @@
  * Zhu Kaiyu <zhuky5@mail2.sysu.edu.cn>:
  */
 
+// requirement:
+// - fastp/fastqc
+// - STAR/tophat2/bowtie2/hisat2
+// - samtools/rseqc
+// - MeTPeak/Macs2/MATK/meyer
+// - RobustRankAggreg/bedtools
+// - Cufflinks/Deseq2/EdgeR
+// - MeTDiff/QNB/MATK
+// - Homer/DREME
+// - SRAMP/MATK
+// - igvtools
+
 //pre-defined functions for render command
 //=======================================================================================
 def helpMessage() {
@@ -45,7 +57,7 @@ def helpMessage() {
     Options:
       --inputformat                 fastq.gz;fastq default = fastq
       --singleEnd                   Specifies that the input is single end reads
-      
+      --strand
       --tophat2_index               Path to tophat2 index, eg. "path/to/Tophat2Index/*"
       --hisat2_index                Path to hisat2 index, eg. "path/to/Hisat2Index/*"
       --bwa_index                   Path to bwa index, eg. "path/to/BwaIndex/*"
@@ -99,7 +111,6 @@ params.email = false
 params.plaintext_email = false
 params.seqCenter = false
 params.help = false
-unstranded = params.unstranded ? true : false
 
 
 // Preset trimming options
@@ -226,13 +237,13 @@ log.info LikeletUtils.print_purple("Checking parameters ...")
 
 log.info LikeletUtils.print_yellow("=====================================Reads types================================")
 log.info (LikeletUtils.print_yellow("SingleEnd :                     ") + LikeletUtils.print_green(params.singleEnd))
-log.info (LikeletUtils.print_yellow("Strand :                        ") + LikeletUtils.print_green(params.strand))
+log.info (LikeletUtils.print_yellow("Stranded :                      ") + LikeletUtils.print_green(params.stranded))
 
 log.info LikeletUtils.print_yellow("====================================Mode selected==============================")
 log.info (LikeletUtils.print_yellow("aligners :                      ") + LikeletUtils.print_green(params.aligners))
 log.info (LikeletUtils.print_yellow("peakCalling_mode :              ") + LikeletUtils.print_green(params.peakCalling_mode))
-log.info (LikeletUtils.print_yellow("mergepeak_mode :                ") + LikeletUtils.print_green(params.mergepeak_mode))
 log.info (LikeletUtils.print_yellow("quantification_mode :           ") + LikeletUtils.print_green(params.quantification_mode))
+log.info (LikeletUtils.print_yellow("diffm6A_mode :                  ") + LikeletUtils.print_green(params.quantification_mode))
 
 log.info LikeletUtils.print_yellow("==================================Input files selected==========================")
 log.info (LikeletUtils.print_yellow("Reads Path:                     ") + LikeletUtils.print_green(params.readPaths))
@@ -540,7 +551,7 @@ process Tophat2Align {
 
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.fa)?(\.bt2)?$/
-    strand_str = unstranded ? "fr-unstranded" : "fr-firststrand"
+    strand_info = params.stranded == "no" ? "fr-unstranded" : params.strand == "reverse" ? "fr-secondstrand" : "fr-firststrand"
     if (params.singleEnd) {
         println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Tophat2 in single-end mode")
         """
@@ -548,7 +559,7 @@ process Tophat2Align {
                 -G $gtf \
                 -o $sample_name \
                 --no-novel-juncs \
-                --library-type $strand_str \
+                --library-type $strand_info \
                 $index_base \
                 $reads &> ${sample_name}_log.txt
         mv $sample_name/accepted_hits.bam ${sample_name}_tophat2.bam
@@ -560,7 +571,7 @@ process Tophat2Align {
                 -G $gtf \
                 -o $sample_name \
                 --no-novel-juncs \
-                --library-type $strand_str \
+                --library-type $strand_info \
                 $index_base \
                 ${reads[0]} ${reads[1]} &> ${sample_name}_log.txt
         mv $sample_name/accepted_hits.bam ${sample_name}_tophat2.bam
@@ -774,6 +785,7 @@ process Sort {
         do
         {
             mv ${bam_file} ${bam_file/.bam/_sort.bam}
+            samtools index ${bam_file/.bam/_sort.bam}
         }
         done
         '''
@@ -953,7 +965,7 @@ process MATKpeakCalling {
     !params.skip_matk && !params.skip_peakCalling
 
     script:
-    matk_jar = baseDir + "/bin/MATK-1.0.jar"
+    matk_jar = params.matk_jar
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
     if( flag_peakCallingbygroup ){
         println LikeletUtils.print_purple("Peak Calling performed by MATK in group mode")
@@ -1021,7 +1033,7 @@ process Htseq_count{
 
     script:
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
-    strand_info = params.strand == "no" ? "no" : params.strand == "reverse" ? "reverse" : "yes"
+    strand_info = params.stranded == "no" ? "no" : params.strand == "reverse" ? "reverse" : "yes"
     """
     bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus} 
     Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile  ${task.cpus} 
@@ -1144,7 +1156,7 @@ process PeaksQuantification{
     !params.skip_peakCalling
 
     script:
-    matk_jar = baseDir + "/bin/MATK-1.0.jar"
+    matk_jar = params.matk_jar
     quantification_mode = params.quantification_mode
     if ( quantification_mode == "bedtools" )  
         println LikeletUtils.print_purple("Generate m6A quantification matrix by bedtools")
@@ -1193,7 +1205,7 @@ process diffm6APeak{
     !params.skip_diffpeakCalling && params.comparefile
 
     script:
-    matk_jar = baseDir + "/bin/MATK-1.0.jar"
+    matk_jar = params.matk_jar
     quantification_mode = params.quantification_mode
     if ( quantification_mode == "bedtools" )  
         println LikeletUtils.print_purple("Differential m6A analysis is going on by bedtools")
@@ -1265,8 +1277,8 @@ process SingleNucleotidePrediction{
     !params.skip_m6Aprediction
 
     script:
-    matk_jar = baseDir + "/bin/MATK-1.0.jar"
-    sramp_dir = baseDir + "/sramp_simple"
+    matk_jar = params.matk_jar
+    sramp_dir = params.sramp_dir
     println LikeletUtils.print_purple("SignleNucleotide Prediction analysis is going on by MATK and SRAMP")
     """
     ln -s ${sramp_dir}/* ./
@@ -1331,12 +1343,11 @@ process AggrangeForM6Aviewer {
     true
 
     script:
-    mergepeak_mode = params.mergepeak_mode
     quantification_mode = params.quantification_mode
     """
     #igvtools count -z 5 -w 10 -e 0 bamfile output.tdf chromesizefile
     echo $compare_info | sed 's/^\\[//g' | sed 's/\\]\$//g' | sed s/[[:space:]]//g > compare_info
-    Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $mergepeak_mode $quantification_mode
+    Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $quantification_mode
     """
 }
 

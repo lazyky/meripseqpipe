@@ -1,3 +1,4 @@
+# required for merge_peaks_by_rank.sh
 library(RobustRankAggreg)
 args<-commandArgs(T)
 bedlist <- read.table(args[1],header = F,sep = "\t",stringsAsFactors = F, na.strings = "")
@@ -21,5 +22,7 @@ merged.bed <- apply(mergepeak, 1 ,function(x){
   peak.region = unlist(strsplit(strsplit(as.character(peak.info[1]),split = ":" )[[1]],split = "-"))
   x = c(peak.region,as.character(peak.info[1]),peak.info[2])
 })
+## 
+
 merged.bed <- t(merged.bed)
 write.table(merged.bed,file = out_name,sep = "\t",quote = FALSE,row.names = FALSE,col.names = FALSE)

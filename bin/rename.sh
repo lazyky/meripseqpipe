@@ -1,10 +1,11 @@
 #!/bin/bash
+#bash rename.sh 
 #$1 argv 1 : Aligners name
 #$2 argv 2 : designfile
 Aligners_name=$1
 designfile=$2
 sampleinfo_list=$(awk 'BEGIN{FS=",";OFS=","}NR>1{print $1,$2,$3,$4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
-# if the number of peakcalling tools > 2
+# Rename the name of bamfiles
 for sample_group_id in ${sampleinfo_list}
 do
 {

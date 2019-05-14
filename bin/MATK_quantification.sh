@@ -1,5 +1,5 @@
 #!/bin/bash
-## MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${task.cpus} ${peak_bed}
+## MATK_quantification.sh <matk_jar> <gtf> <designfile> <merge_bed> <THREAD_NUM>
 ## $1 argv 1 : matk_jar
 ## $2 argv 2 : gtf file
 ## $3 argv 3 : designfile

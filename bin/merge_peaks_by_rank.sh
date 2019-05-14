@@ -6,14 +6,14 @@ designfile=$1
 THREAD_NUM=$2
 flag_peakCallingbygroup=$3
 
-#定义描述符为9的管道
+# Define a multi-threaded run channel
 mkfifo tmp
 exec 9<>tmp
-#rm -rf /tmp                   #关联后的文件描述符拥有管道文件的所有特性,所以这时候管道文件可以删除，我们留下文件描述符来用就可以了
 for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
-    echo >&9                   #&9代表引用文件描述符9，这条命令代表往管道里面放入了一个"令牌"
+    echo >&9 
 done
+
 function sort_and_transferbed()
 {
     bed_file=$1
@@ -53,7 +53,6 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
     done
 else
     sampleinfo_list=$(awk 'BEGIN{FS=","}NR>1{print $1","$4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
-    # if the number of peakcalling tools > 2
     for sample_group_id in ${sampleinfo_list}
     do
     read -u 9

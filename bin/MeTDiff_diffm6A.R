@@ -1,8 +1,8 @@
-## Rscript MeTDiff.R aligner_tools designfile gtf eg. Rscript MeTDiff.R tophat2 designfile_single.txt genes.gtf
-## designfile: filename, control_or_treated, input_or_ip, situation(default 1 is CONTROL_SITUATION else are TREATED_SITUATION)
-## TREATED_SITUATION_STARTPOINT is the default situation check point
 #!/bin/Rscript
-library(stringr)
+## Rscript MeTDiff.R <designfile> <gtf> <compare_str> eg. Rscript MeTDiff.R designfile.txt genes.gtf 
+### designfile: Sample_id, Input_filename, IP_filename, group_id
+### compare_str: Compairision design (eg: A_vs_B)
+
 library(MeTDiff)
 args <- commandArgs(T)
 designfile <- args[1]

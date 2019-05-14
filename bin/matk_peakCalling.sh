@@ -1,13 +1,16 @@
 #!/bin/bash
-## MATK_peakCalling.sh $matk_jar $designfile
+## MATK_peakCalling.sh <matk_jar> <designfile> <flag_peakCallingbygroup>
 ## $1 argv 1 : matk_jar
 ## $2 argv 2 : designfile
 ## $3 argv 3 : flag_peakCallingbygroup
+## flag_peakCallingbygroup: 1(group) 0(sample)
 matk_jar=$1
 designfile=$2
 flag_peakCallingbygroup=$3
 
+# Check the mode of peakcalling
 if [ $flag_peakCallingbygroup -gt 0 ]; then
+    ## Running the peakcalling mode of MATK per group
     group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for group_id in $group_list
     do 
@@ -19,6 +22,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
     }
     done 
 else
+    ## Running the peakcalling mode of MATK per sample
     sample_list=$(awk 'BEGIN{FS=","}NR>1{print $1}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for sample_id in $sample_list
     do

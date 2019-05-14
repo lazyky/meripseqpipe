@@ -1,16 +1,14 @@
+#!/bin/Rscript
 ## Rscript get_htseq_matrix.R aligner_tools designfile gtf eg. Rscript get_htseq_matrix.R tophat2 designfile_single.txt
 ## designfile: filename, control_or_treated, input_or_ip, group(default 0 is CONTROL_SITUATION else are TREATED_SITUATION)
-## TREATED_SITUATION_STARTPOINT is the default group check point
-#!/bin/Rscript
+
 library(parallel)
 args<-commandArgs(T)
 designfile <- args[1]
 THREAD_NUM <- as.numeric(args[2])
-# setting CONTROL_SITUATION and TREATED_SITUATION 
-## default 1 is CONTROL_SITUATION else are TREATED_SITUATION
-designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 
-#Gene expression matrix for control_input_bwa(aligner)
+designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
+#Generate gene count matrix
 htseq.files <- list.files("./",pattern = ".txt")
 mclapply(unique(designtable$Group),function(x){
   group_id <- x

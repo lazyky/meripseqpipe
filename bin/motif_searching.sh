@@ -1,18 +1,21 @@
 #!/bin/bash
+#bash motif_searching.sh <fasta> <gtf> <THREAD_NUM>
 #$1 argv 1 : fasta file
 #$2 argv 2 : gtf file
 #$3 argv 3 : THREAD_NUM
 fasta_file=$1
 gtf_file=$2
 THREAD_NUM=$3
+
+# Define a multi-threaded run channel
 mkfifo tmp
 exec 9<>tmp
-#rm -rf /tmp
-
 for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
     echo >&9
 done
+
+## setting function for motif searching 
 function motif_searching_by_pvalue()
 {
     bed_file=$1

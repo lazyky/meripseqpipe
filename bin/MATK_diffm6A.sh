@@ -1,14 +1,17 @@
 #!/bin/bash
-## MATK_diffpeakCalling.sh tophat2 $matk_jar $designfile $gtf
+## MATK_diffpeakCalling.sh <matk_jar> <designfile> <gtf> <compare_str>
 ## $1 argv 1 : matk_jar
 ## $2 argv 2 : designfile
 ## $3 argv 3 : gtf file
-## $4 argv 4 : comparefile
+## $4 argv 4 : compare_str
+### designfile: Sample_id, Input_filename, IP_filename, group_id
+### compare_str: Compairision design (eg: A_vs_B)
+
 matk_jar=$1
 designfile=$2
 gtf_file=$3
 compare_str=$4
-# Running MATK quantification
+# setting the function of Running the quantification mode of MATK by two names of groups
 function matk_diffm6a_by_two_id()
 {
     group_id_1=$1

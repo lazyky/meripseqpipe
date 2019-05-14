@@ -1,9 +1,11 @@
-# Rscript arranged_result.R designfile comparefile
+#!/bin/Rscript
+## Rscript arranged_result.R <designfile> <comparefile> <diffm6A_mode>
+### designfile: Sample_id, Input_filename, IP_filename, group_id
+### compare_str: Compairision design (eg: A_vs_B)
 args <- commandArgs(T)
 designfile <- args[1]#"formatted_designfile.txt"
 comparefile <- args[2]#"compare_info.txt"
-merged_peak_mode <- args[3]#"bedtools"
-diffm6A_mode <- args[4]#"QNB"
+diffm6A_mode <- args[3]#"QNB"
 
 ## generate design matrix
 designtable <- read.csv(designfile, head = TRUE, stringsAsFactors=FALSE, colClasses = c("character"))
@@ -60,13 +62,12 @@ for( compare_str in compare.list ){
   diffm6A.anno.list[[compare_str]] <- diffm6A.list[[compare_str]][which(row.names(diffm6A.list[[compare_str]]) %in% rownames(annotation.info)),]
   diffm6A.anno.list[[compare_str]] <- cbind(annotation.info[rownames(diffm6A.anno.list[[compare_str]]),],diffm6A.anno.list[[compare_str]])
   colnames(diffm6A.anno.list[[compare_str]])[1] <- "ID"
-  diffm6A.anno.list[[compare_str]] <- aggregate(diffm6A.anno.list[[compare_str]], by=list(diffm6A.anno.list[[compare_str]]$ID), FUN=mean)
-  diffm6A.anno.list[[compare_str]] <- subset(diffm6A.anno.list[[compare_str]], select = -ID)
-  colnames(diffm6A.anno.list[[compare_str]])[1] <- "ID"
+  # diffm6A.anno.list[[compare_str]] <- aggregate(diffm6A.anno.list[[compare_str]], by=list(diffm6A.anno.list[[compare_str]]$ID), FUN=mean)
+  # diffm6A.anno.list[[compare_str]] <- subset(diffm6A.anno.list[[compare_str]], select = -ID)
+  # colnames(diffm6A.anno.list[[compare_str]])[1] <- "ID"
 }
-
 ## generate QC list
-QC.filelist <- grep("unanno.txt",grep(".anno.txt", list.files(pattern = paste0(merged_peak_mode,"_group")), value = T), value = T, invert = T)
+QC.filelist <- grep("unanno.txt",grep(".anno.txt", list.files(pattern = "merged_group"), value = T), value = T, invert = T)
 QC.list <- NULL
 for( file in QC.filelist ){
   tmp.QC <-  read.table(file , header = F, sep = "\t", quote = "")[,c(1,2,3,15,11,12,13,14,17)]
@@ -76,7 +77,7 @@ for( file in QC.filelist ){
 }
 
 ## generate the motif list of ATCG matrix
-motif.filelist = dir(".",pattern = "motif1.motif",recursive = TRUE)
+motif.filelist = dir(".",pattern = "motif3.motif",recursive = TRUE)
 motif.list <- NULL
 motif.pvalue <- NULL
 for( file in motif.filelist ){
@@ -85,7 +86,7 @@ for( file in motif.filelist ){
   pvalue <- strsplit(motif_matrix[1,6], split = ":")[[1]][4]
   motif_matrix <- motif_matrix[-1,c(-5,-6)]
   colnames(motif_matrix) <- c("A","C","G","T")
-  rownames(motif_matrix) <- c(1:6)
+  rownames(motif_matrix) <- c(1:nrow(motif_matrix))
   motif_matrix <- as.matrix(t(motif_matrix))
   motif.list[[group_name]] <- motif_matrix
   motif.pvalue[[group_name]] <- pvalue

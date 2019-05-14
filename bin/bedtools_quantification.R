@@ -1,10 +1,14 @@
-## Rscript arranged_results.R aligners_tools_name peak_calling_tools_name 
+#!/bin/Rscript
+## Rscript bedtools_quantification.R <designfile> <bam_stat_summary_file>
+### the content of bam_stat_summary_file: example.bam TOTAL_READS
+### designfile: Sample_id, Input_filename, IP_filename, group_id
 args <- commandArgs(T)
 designfile <- args[1]
-bam_stat_summary <- args[2]#"bam_stat_summary.txt"
+bam_stat_summary <- args[2]
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 bam_stat_table <- read.table(bam_stat_summary,row.names = 1)
 filelist =list.files(path = "./",pattern = ".count")
+## Generate the quantificative value of peaks referred to RPKM
 rpkm_peaks_list <- NULL
 for(sample_id in designtable$Sample_ID){
   input_count_file <- grep(paste0(sample_id,".input"),filelist,value = TRUE)

@@ -1,4 +1,5 @@
 #!/bin/bash
+#bash m6Aprediction.sh <matk_jar> <fasta> <gtf> <THREAD_NUM>
 ## $1 argv 1 : matk_jar
 ## $2 argv 2 : fasta file
 ## $3 argv 3 : gtf file
@@ -7,18 +8,18 @@ matk_jar=$1
 fasta_file=$2
 gtf_file=$3
 THREAD_NUM=$4
-
+## Define a multi-threaded run channel
 mkfifo tmp
 exec 9<>tmp
-#rm -rf /tmp
 for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
     echo >&9
 done
 
-#check if the output file of Macs2 exists
+## Check whether bed files exists
 bed_count=$(ls *.bed |wc -w)
 if [ $bed_count -gt 0 ]; then
+    ## Run Sramp and MATK to predict the m6A sites
     for bedfile in $(ls *.bed)
     do
     read -u 9

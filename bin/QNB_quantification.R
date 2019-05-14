@@ -1,12 +1,13 @@
-## Rscript arranged_results.R aligners_tools_name peak_calling_tools_name 
+# Rscript QNB_quantification.R designfile
 library("QNB")
 args <- commandArgs(T)
 designfile <- args[1]
-
+## read designfile to get the name of samples
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 filelist = list.files(path = "./",pattern = ".count")
 rpkm_peaks_list <- NULL
 for(sample_id in designtable$Sample_ID){
+  ## generate the dataframe of peak count
   input.count <- c()
   input.names <- c()
   input.samples <- c()
@@ -18,7 +19,6 @@ for(sample_id in designtable$Sample_ID){
   }
   colnames(input.count) <- input.samples
   rownames(input.count) <- input.names
-  
   ip.count <- c()
   ip.names <- c()
   ip.samples <- c()
@@ -30,6 +30,7 @@ for(sample_id in designtable$Sample_ID){
   }
   colnames(ip.count) <- ip.samples
   rownames(ip.count) <- ip.names
+  ## Run the QNB to generate quantificative value per sample
   result <- qnbtest(ip.count, ip.count, input.count, input.count, mode="blind")
   sample_quantification <- as.matrix(result$p.treated)
   colnames(sample_quantification) <- sample_id
