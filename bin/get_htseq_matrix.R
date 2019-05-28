@@ -21,8 +21,9 @@ mclapply(unique(designtable$Group),function(x){
     pc.names <- rownames(pc.exp) #genes name
     pc.samples <- c(pc.samples,pc) #samples name
   }
-  colnames(trans.htseq.input.count) <- pc.samples
   rownames(trans.htseq.input.count) <- pc.names  
+  trans.htseq.input.count <- as.matrix(trans.htseq.input.count[c(-nrow(trans.htseq.input.count):-(nrow(trans.htseq.input.count)-4)),])
+  colnames(trans.htseq.input.count) <- pc.samples
   trans.htseq.ip.count <- c()
   pc.names <- c()
   pc.samples <- c()
@@ -32,15 +33,13 @@ mclapply(unique(designtable$Group),function(x){
     pc.names <- rownames(pc.exp) #genes name
     pc.samples <- c(pc.samples,pc) #samples name
   }
-  colnames(trans.htseq.ip.count) <- pc.samples
   rownames(trans.htseq.ip.count) <- pc.names  
-  
+  trans.htseq.ip.count <- as.matrix(trans.htseq.ip.count[c(-nrow(trans.htseq.ip.count):-(nrow(trans.htseq.ip.count)-4)),])
+  colnames(trans.htseq.ip.count) <- pc.samples
   #parsing samplenames
   output_pattern = paste0("htseq_group_",group_id)  #添加aligner
-  trans.htseq.input.count <- trans.htseq.input.count[c(-nrow(trans.htseq.input.count):-(nrow(trans.htseq.input.count)-4)),]
-  trans.htseq.ip.count <- trans.htseq.ip.count[c(-nrow(trans.htseq.ip.count):-(nrow(trans.htseq.ip.count)-4)),]
   write.table(trans.htseq.input.count, file = paste0(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
   write.table(trans.htseq.ip.count, file = paste0(output_pattern,"_ip.count") , sep ="\t", row.names =T,col.names =T)
-  },
-  mc.cores = THREAD_NUM
+},
+mc.cores = THREAD_NUM
 )

@@ -24,8 +24,6 @@ class LikeletUtils {
         static def print_purple = {  str -> LikeletUtils.ANSI_PURPLE + str + LikeletUtils.ANSI_RESET }
         static def print_white = {  str -> LikeletUtils.ANSI_WHITE + str + LikeletUtils.ANSI_RESET }
 
-
-
         // Check if a row has the expected number of item, adjusted from Sarek 
           static def checkNumberOfItem(row, number) {
             if (row.size() != number) exit 1, "Malformed row in TSV file: ${row}, see --help for more information"
@@ -66,9 +64,6 @@ class LikeletUtils {
 
 
         static def sysucc_ascii() {
-
-
-            
           print LikeletUtils.print_yellow(" ▄▄▄▄▄▄▄▄▄▄▄  ▄         ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄         ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄ \n")
           print LikeletUtils.print_yellow("▐░░░░░░░░░░░▌▐░▌       ▐░▌▐░░░░░░░░░░░▌▐░▌       ▐░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌\n")
           print LikeletUtils.print_yellow("▐░█▀▀▀▀▀▀▀▀▀ ▐░▌       ▐░▌▐░█▀▀▀▀▀▀▀▀▀ ▐░▌       ▐░▌▐░█▀▀▀▀▀▀▀▀▀ ▐░█▀▀▀▀▀▀▀▀▀ \n")
@@ -80,7 +75,6 @@ class LikeletUtils {
           print LikeletUtils.print_yellow(" ▄▄▄▄▄▄▄▄▄█░▌     ▐░▌      ▄▄▄▄▄▄▄▄▄█░▌▐░█▄▄▄▄▄▄▄█░▌▐░█▄▄▄▄▄▄▄▄▄ ▐░█▄▄▄▄▄▄▄▄▄ \n")
           print LikeletUtils.print_yellow("▐░░░░░░░░░░░▌     ▐░▌     ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌\n")
           print LikeletUtils.print_yellow(" ▀▀▀▀▀▀▀▀▀▀▀       ▀       ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀ \n")
-        
           }
 
         static def addstringToalign(String str,int num){

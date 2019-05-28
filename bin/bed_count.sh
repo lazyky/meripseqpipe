@@ -32,11 +32,10 @@ read -u 9
     input_bam_file=$(ls ${sample_id}.input*.bam | awk '{ORS=" "}{print $0}')
     ip_bam_file=$(ls ${sample_id}.ip*.bam | awk '{ORS=" "}{print $0}')
 
-    ## Create files and print the name of samples
+    ## Create files and print the name of samples && Get the Total reads of the samples of input and ip
     echo -e ${input_bam_file}"\t" | awk 'BEGIN{ORS=""}{print $0}' > ${sample_id}.bam_stat.txt
-    echo -e ${ip_bam_file}"\t" | awk 'BEGIN{ORS=""}{print $0}' >> ${sample_id}.bam_stat.txt
-    ## Get the Total reads of the samples of input and ip
     samtools view -c ${input_bam_file} >> ${sample_id}.bam_stat.txt
+    echo -e ${ip_bam_file}"\t" | awk 'BEGIN{ORS=""}{print $0}' >> ${sample_id}.bam_stat.txt
     samtools view -c ${ip_bam_file} >> ${sample_id}.bam_stat.txt
 
     ## Setting colnames of peaks input/ip count
@@ -56,4 +55,5 @@ read -u 9
 done
 wait
 cat *.bam_stat.txt >> $output_bam_stat_file
+wait
 echo "bedtools count done"

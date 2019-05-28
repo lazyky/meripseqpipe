@@ -57,7 +57,6 @@ def helpMessage() {
     Options:
       --inputformat                 fastq.gz;fastq default = fastq
       --singleEnd                   Specifies that the input is single end reads
-      --strand
       --tophat2_index               Path to tophat2 index, eg. "path/to/Tophat2Index/*"
       --hisat2_index                Path to hisat2 index, eg. "path/to/Hisat2Index/*"
       --bwa_index                   Path to bwa index, eg. "path/to/BwaIndex/*"
@@ -231,38 +230,39 @@ else{
                          showing the process and files
 ========================================================================================
 */
-log.info LikeletUtils.sysucc_ascii()
-log.info LikeletUtils.print_purple("============You are running m6APipe with the following parameters===============")
-log.info LikeletUtils.print_purple("Checking parameters ...")
+println LikeletUtils.sysucc_ascii()
+println LikeletUtils.print_purple("============You are running m6APipe with the following parameters===============")
+println LikeletUtils.print_purple("Checking parameters ...")
 
-log.info LikeletUtils.print_yellow("=====================================Reads types================================")
-log.info (LikeletUtils.print_yellow("SingleEnd :                     ") + LikeletUtils.print_green(params.singleEnd))
-log.info (LikeletUtils.print_yellow("Stranded :                      ") + LikeletUtils.print_green(params.stranded))
+println LikeletUtils.print_yellow("=====================================Reads types================================")
+println (LikeletUtils.print_yellow("SingleEnd :                     ") + LikeletUtils.print_green(params.singleEnd))
+println (LikeletUtils.print_yellow("Stranded :                      ") + LikeletUtils.print_green(params.stranded))
 
-log.info LikeletUtils.print_yellow("====================================Mode selected==============================")
-log.info (LikeletUtils.print_yellow("aligners :                      ") + LikeletUtils.print_green(params.aligners))
-log.info (LikeletUtils.print_yellow("peakCalling_mode :              ") + LikeletUtils.print_green(params.peakCalling_mode))
-log.info (LikeletUtils.print_yellow("quantification_mode :           ") + LikeletUtils.print_green(params.quantification_mode))
-log.info (LikeletUtils.print_yellow("diffm6A_mode :                  ") + LikeletUtils.print_green(params.quantification_mode))
+println LikeletUtils.print_yellow("====================================Mode selected==============================")
+println (LikeletUtils.print_yellow("aligners :                      ") + LikeletUtils.print_green(params.aligners))
+println (LikeletUtils.print_yellow("peakCalling_mode :              ") + LikeletUtils.print_green(params.peakCalling_mode))
+println (LikeletUtils.print_yellow("quantification_mode :           ") + LikeletUtils.print_green(params.quantification_mode))
+println (LikeletUtils.print_yellow("diffm6A_mode :                  ") + LikeletUtils.print_green(params.quantification_mode))
 
-log.info LikeletUtils.print_yellow("==================================Input files selected==========================")
-log.info (LikeletUtils.print_yellow("Reads Path:                     ") + LikeletUtils.print_green(params.readPaths))
-log.info (LikeletUtils.print_yellow("fasta file :                    ") + LikeletUtils.print_green(params.fasta))
-log.info (LikeletUtils.print_yellow("Gtf file :                      ") + LikeletUtils.print_green(params.gtf))
-log.info (LikeletUtils.print_yellow("Bed12 file :                    ") + LikeletUtils.print_green(params.bed12))
-log.info (LikeletUtils.print_yellow("Design file :                   ") + LikeletUtils.print_green(params.designfile))
-log.info (LikeletUtils.print_yellow("Compare file :                  ") + LikeletUtils.print_green(params.comparefile))
+println LikeletUtils.print_yellow("==================================Input files selected==========================")
+println (LikeletUtils.print_yellow("Reads Path:                     ") + LikeletUtils.print_green(params.readPaths))
+println (LikeletUtils.print_yellow("fasta file :                    ") + LikeletUtils.print_green(params.fasta))
+println (LikeletUtils.print_yellow("Gtf file :                      ") + LikeletUtils.print_green(params.gtf))
+println (LikeletUtils.print_yellow("Bed12 file :                    ") + LikeletUtils.print_green(params.bed12))
+println (LikeletUtils.print_yellow("Design file :                   ") + LikeletUtils.print_green(params.designfile))
+println (LikeletUtils.print_yellow("Compare file :                  ") + LikeletUtils.print_green(params.comparefile))
+println (LikeletUtils.print_yellow("chromsizes file :               ") + LikeletUtils.print_green(params.chromsizesfile))
 
-log.info LikeletUtils.print_yellow("==================================Skip model selected==========================")
-log.info (LikeletUtils.print_yellow("Skip samtools sort :            ") + LikeletUtils.print_green(params.skip_sort))
-log.info (LikeletUtils.print_yellow("Skip expression analysis :      ") + LikeletUtils.print_green(params.skip_expression))
-log.info (LikeletUtils.print_yellow("Skip peakCalling :              ") + LikeletUtils.print_green(params.skip_peakCalling))
-log.info (LikeletUtils.print_yellow("Skip diffpeakCalling :          ") + LikeletUtils.print_green(params.skip_diffpeakCalling))
-log.info (LikeletUtils.print_yellow("Skip annotation :               ") + LikeletUtils.print_green(params.skip_annotation))
-log.info (LikeletUtils.print_yellow("Skip qc :                       ") + LikeletUtils.print_green(params.skip_qc))
+println LikeletUtils.print_yellow("==================================Skip model selected==========================")
+println (LikeletUtils.print_yellow("Skip samtools sort :            ") + LikeletUtils.print_green(params.skip_sort))
+println (LikeletUtils.print_yellow("Skip expression analysis :      ") + LikeletUtils.print_green(params.skip_expression))
+println (LikeletUtils.print_yellow("Skip peakCalling :              ") + LikeletUtils.print_green(params.skip_peakCalling))
+println (LikeletUtils.print_yellow("Skip diffpeakCalling :          ") + LikeletUtils.print_green(params.skip_diffpeakCalling))
+println (LikeletUtils.print_yellow("Skip annotation :               ") + LikeletUtils.print_green(params.skip_annotation))
+println (LikeletUtils.print_yellow("Skip qc :                       ") + LikeletUtils.print_green(params.skip_qc))
 
-log.info LikeletUtils.print_yellow("==================================Output files directory========================")
-log.info (LikeletUtils.print_yellow("Output directory :              ") + LikeletUtils.print_green(params.outdir))
+println LikeletUtils.print_yellow("==================================Output files directory========================")
+println (LikeletUtils.print_yellow("Output directory :              ") + LikeletUtils.print_green(params.outdir))
 
 
 /*
@@ -284,6 +284,9 @@ if( params.bed12 ){
         tag "gtf2bed12"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/reference_genome" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
+
+        when:
+        !params.skip_qc && !params.skip_rseqc
 
         input:
         file gtf
@@ -481,7 +484,7 @@ process Fastp{
     } else {
         if ( skip_fastp )  println LikeletUtils.print_purple("fastp is skipped")
         else println LikeletUtils.print_purple("fastp is on going for pair-end data")
-        filename = reads[0].toString() - ~/(_R[0-9])(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
+        filename = reads[0].toString() - ~/(_R[0-9])?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners_1 = reads[0].toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
         add_aligners_2 = reads[1].toString() - ~/(\.fq)?(\.fastq)?$/ + "_aligners.fastq"
@@ -497,7 +500,7 @@ process Fastp{
 }
 process Fastqc{
     tag "$sample_name"
-    publishDir path: { params.skip_fastqc ? params.outdir : "${params.outdir}/QC/fastqc" },
+    publishDir path: { params.skip_fastqc ? params.outdir : "${params.outdir}/QC" },
              saveAs: { params.skip_fastqc ? null : it }, mode: 'link'
 
     input:
@@ -551,7 +554,7 @@ process Tophat2Align {
 
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.fa)?(\.bt2)?$/
-    strand_info = params.stranded == "no" ? "fr-unstranded" : params.strand == "reverse" ? "fr-secondstrand" : "fr-firststrand"
+    strand_info = params.stranded == "no" ? "fr-unstranded" : params.stranded == "reverse" ? "fr-secondstrand" : "fr-firststrand"
     if (params.singleEnd) {
         println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Tophat2 in single-end mode")
         """
@@ -768,15 +771,18 @@ process Sort {
 
     input:
     file( bam_query_file ) from rename_bam_file.collect()
+    file formatted_designfile from formatted_designfile.collect()
 
     output:
-    file "*_sort*" into sort_bam
+    file "*_sort*.{bam,bai}" into sort_bam
+    file "*.bam" into bam_results
 
     script:
     if (!params.skip_sort){
         println LikeletUtils.print_purple("Samtools sorting the bam files now")
         """    
         bash $baseDir/bin/samtools_sort.sh ${task.cpus}
+        bash $baseDir/bin/rename_for_resume.sh $formatted_designfile
         """
     } else {
         println LikeletUtils.print_purple("The step of samtools sort is skipped")
@@ -796,7 +802,7 @@ process Sort {
  * STEP 3-2 - RSeQC analysis
 */
 process RSeQC {
-    publishDir "${params.outdir}/rseqc" , mode: 'copy', overwrite: true,
+    publishDir "${params.outdir}/QC/rseqc" , mode: 'copy', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf("bam_stat.txt") > 0)                      "bam_stat/$filename"
             else if (filename.indexOf("infer_experiment.txt") > 0)              "infer_experiment/$filename"
@@ -805,10 +811,6 @@ process RSeQC {
             else if (filename.indexOf("read_duplication.DupRate_plot.r") > 0)   "read_duplication/rscripts/$filename"
             else if (filename.indexOf("read_duplication.pos.DupRate.xls") > 0)  "read_duplication/dup_pos/$filename"
             else if (filename.indexOf("read_duplication.seq.DupRate.xls") > 0)  "read_duplication/dup_seq/$filename"
-            else if (filename.indexOf("RPKM_saturation.eRPKM.xls") > 0)         "RPKM_saturation/rpkm/$filename"
-            else if (filename.indexOf("RPKM_saturation.rawCount.xls") > 0)      "RPKM_saturation/counts/$filename"
-            else if (filename.indexOf("RPKM_saturation.saturation.pdf") > 0)    "RPKM_saturation/$filename"
-            else if (filename.indexOf("RPKM_saturation.saturation.r") > 0)      "RPKM_saturation/rscripts/$filename"
             else if (filename.indexOf("inner_distance.txt") > 0)                "inner_distance/$filename"
             else if (filename.indexOf("inner_distance_freq.txt") > 0)           "inner_distance/data/$filename"
             else if (filename.indexOf("inner_distance_plot.r") > 0)             "inner_distance/rscripts/$filename"
@@ -832,21 +834,14 @@ process RSeQC {
     file "*.{txt,pdf,r,xls}" into rseqc_results
     file "*.bam_stat.txt" into bam_stat_for_normlization
     script:
-    /* 
-    def strandRule = ''
-    if (forward_stranded && !unstranded){
-        strandRule = params.singleEnd ? '-d ++,--' : '-d 1++,1--,2+-,2-+'
-    } else if (reverse_stranded && !unstranded){
-        strandRule = params.singleEnd ? '-d +-,-+' : '-d 1+-,1-+,2++,2--'
-    }
-    */
+
     """    
     bash $baseDir/bin/rseqc.sh $bed12 ${task.cpus}
     """
 }
 
 process CreateBigWig {
-    publishDir "${params.outdir}/rseqc/bigwig", mode: 'link', overwrite: true 
+    publishDir "${params.outdir}/QC/rseqc/bigwig", mode: 'link', overwrite: true 
 
     input:
     file bam from sort_bam.collect()
@@ -864,7 +859,7 @@ process CreateBigWig {
 }
 
 process GenebodyCoverage {
-       publishDir "${params.outdir}/rseqc" , mode: 'link', overwrite: true, 
+       publishDir "${params.outdir}/QC/rseqc" , mode: 'link', overwrite: true, 
         saveAs: {filename ->
             if (filename.indexOf("geneBodyCoverage.curves.pdf") > 0)       "geneBodyCoverage/$filename"
             else if (filename.indexOf("geneBodyCoverage.r") > 0)           "geneBodyCoverage/rscripts/$filename"
@@ -1001,7 +996,7 @@ process Meyer{
         println LikeletUtils.print_purple("Peak Calling performed by Meyer in independent mode")
     }
     '''
-    ln !{baseDir}/bin/meyer.py ./
+    cp !{baseDir}/bin/meyer.py ./
     bedtools makewindows -g !{chromsizesfile} -w 25 > genome.bin25.bed
     awk '{print $1}' !{chromsizesfile} > chrName.txt
     peak_windows_number=$(wc -l genome.bin25.bed| cut -d " " -f 1)
@@ -1033,7 +1028,7 @@ process Htseq_count{
 
     script:
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
-    strand_info = params.stranded == "no" ? "no" : params.strand == "reverse" ? "reverse" : "yes"
+    strand_info = params.stranded == "no" ? "no" : params.stranded == "reverse" ? "reverse" : "yes"
     """
     bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus} 
     Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile  ${task.cpus} 
@@ -1133,10 +1128,11 @@ process PeakMergeBYRank {
 
     script:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    peakCalling_tools_count = (params.skip_metpeak ? 0 : 1).toInteger() + (params.skip_macs2 ? 0 : 1).toInteger() + (params.skip_matk ? 0 : 1).toInteger() + (params.skip_meyer ? 0 : 1).toInteger()
     println LikeletUtils.print_purple("Start merge peaks by RobustRankAggreg")
     """
-    ln $baseDir/bin/merge_peaks_by_rank.R ./
-    bash $baseDir/bin/merge_peaks_by_rank.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup
+    cp $baseDir/bin/merge_peaks_by_rank.R ./
+    bash $baseDir/bin/merge_peaks_by_rank.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count
     """
 }
     
@@ -1226,7 +1222,7 @@ process diffm6APeak{
 
     # PeaksQuantification by MeTDiff
     if [ ${quantification_mode} == "MeTDiff" ]; then
-        Rscript $baseDir/bin/MeTDiff_diffm6A.R $formatted_designfile $merged_bed $compare_str 
+        Rscript $baseDir/bin/MeTDiff_diffm6A.R $formatted_designfile $gtf $compare_str 
     fi
 
     # PeaksQuantification by MATK
@@ -1265,24 +1261,25 @@ process SingleNucleotidePrediction{
     publishDir "${params.outdir}/result_arranged/m6Aprediction", mode: 'link', overwrite: true
     
     input:
-    file group_bed from group_merged_bed.collect()
+    file peak_bed from group_merged_bed.collect()
+    file group_bed from rankmerged_bed.collect()
     file formatted_designfile from formatted_designfile.collect()
+    file bam_bai_file from sort_bam.collect()
     file fasta
     file gtf
 
     output:
-    file "*_prediction.txt" into prediction_results
+    file "m6A_sites*.bed" into prediction_results
 
     when:
     !params.skip_m6Aprediction
 
     script:
     matk_jar = params.matk_jar
-    sramp_dir = params.sramp_dir
-    println LikeletUtils.print_purple("SignleNucleotide Prediction analysis is going on by MATK and SRAMP")
+    println LikeletUtils.print_purple("SignleNucleotide Prediction analysis is going on by MATK")
     """
-    ln -s ${sramp_dir}/* ./
-    bash m6Aprediction.sh $matk_jar $fasta $gtf ${task.cpus}
+    export OMP_NUM_THREADS=${task.cpus}
+    bash $baseDir/bin/m6Aprediction.sh $matk_jar $formatted_designfile $fasta $gtf
     """
 }
 
@@ -1313,8 +1310,8 @@ process BedAnnotated{
     # Annotation Peaks
     mkdir -p annotatedbyxy
     mkdir -p annotatedbyhomer
-    ln ${annotated_script_dir}/intersec.pl ./
-    ln ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
+    cp ${annotated_script_dir}/intersec.pl ./
+    cp ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
     bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}  
     mv *annotatedbyhomer.bed annotatedbyhomer/
     """
@@ -1324,7 +1321,8 @@ Channel
     .from()
     .concat( quantification_results, motif_results, diffm6A_results, 
         htseq_count_ip_to_arrange, htseq_count_input_to_arrange, 
-        annotation_results, prediction_results, bed_collect_for_arrange_results
+        annotation_results, prediction_results, bed_collect_for_arrange_results,
+        fastqc_results, rseqc_results, deseq2_results, edgeR_results, cufflinks_results
     )
     .set{ results_arrange }
 
@@ -1340,12 +1338,13 @@ process AggrangeForM6Aviewer {
     file "*" into final_results
 
     when:
-    true
+    !params.skip_annotation && !params.skip_expression && !skip_diffpeakCalling
 
     script:
     quantification_mode = params.quantification_mode
     """
     #igvtools count -z 5 -w 10 -e 0 bamfile output.tdf chromesizefile
+    multiqc -o multiqc .
     echo $compare_info | sed 's/^\\[//g' | sed 's/\\]\$//g' | sed s/[[:space:]]//g > compare_info
     Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $quantification_mode
     """
@@ -1381,5 +1380,5 @@ workflow.onComplete {
 }
 
 workflow.onError {
-   println LikeletUtils.print_yellow("Oops... Pipeline execution stopped with the following message: ")+print_red(workflow.errorMessage)
+   println LikeletUtils.print_yellow("Oops... Pipeline execution stopped with the following message: ")+LikeletUtils.print_red(workflow.errorMessage)
 }

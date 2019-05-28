@@ -27,9 +27,10 @@ You can skip the tools by using `--skip_ToolsName` or not(default).
 | Sort BAM file AND Post-alignment QC     | samtools, RSeQC                 |---------------------------------|
 | Reads counting                          | htseq-count                     |---  --skip_expressiion true  ---|
 | Peak Calling                            | MeTPeak, macs2, MATK, meyer     |---  --skip_peakCalling true  ---|
+| Combines Peaks information              | RobustRankAggreg, bedtools      |---------------------------------|
 | Differential methylation analysis       | MeTDiff, QNB, MATK, Wilcox-test |-  --skip_diffpeakCalling true  -|
 | Differential expression analysis        | deseq2, edgeR, cufflinks        |---  --skip_expressiion true  ---|
-| Combines Peaks information              | RobustRankAggreg, bedtools      |---------------------------------|
+
 
 ### Dependencies
 * Softwares

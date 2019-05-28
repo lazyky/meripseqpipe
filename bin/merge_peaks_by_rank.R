@@ -23,6 +23,5 @@ merged.bed <- apply(mergepeak, 1 ,function(x){
   x = c(peak.region,as.character(peak.info[1]),peak.info[2])
 })
 ## 
-
 merged.bed <- t(merged.bed)
 write.table(merged.bed,file = out_name,sep = "\t",quote = FALSE,row.names = FALSE,col.names = FALSE)

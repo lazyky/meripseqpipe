@@ -2,9 +2,11 @@
 #$1 argv 1 : designfile
 #$2 argv 2 : THREAD_NUM
 #$3 argv 3 : flag_peakCallingbygroup
+#$4 argv 4 : peakCalling_tools_count
 designfile=$1
 THREAD_NUM=$2
 flag_peakCallingbygroup=$3
+peakCalling_tools_count=$4
 
 # Define a multi-threaded run channel
 mkfifo tmp
@@ -19,7 +21,9 @@ function sort_and_transferbed()
     bed_file=$1
     bed_anno_file=$2
     outdir=$3
+    ## sort bed by pvalue for rank merge
     sort -k5,5 -n -r ${bed_file} | awk '{ print $1":"$2"-"$3}' > ${outdir}/tmp.${bed_file}
+    ## transfer the origin region of peaks into the bedtools merged region of peaks 
     cat ${outdir}/tmp.${bed_file} | xargs -iID grep ID ${bed_anno_file} | awk '{print $2}' > ${outdir}/tmp.${bed_file}.location
     #rm -rf tmp.${outdir}
 }
@@ -47,7 +51,11 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
     do
     read -u 9
     {
-        mergebed_by_rank ${group_id} merged_group_${group_id}
+        if [ $peakCalling_tools_count -gt 1 ]; then
+            mergebed_by_rank ${group_id} merged_group_${group_id}
+        else
+            ln *${group_id}*.bed merged_group_${group_id}.bed
+        fi
         echo >&9
     }&
     done
@@ -64,7 +72,11 @@ else
         do
             mv $samplefile ${samplefile/_normalized.bed/}_${group_id}_normalized.bed
         done
-        mergebed_by_rank ${sample_id} merged_${sample_id}
+        if [ $peakCalling_tools_count -gt 1 ]; then
+            mergebed_by_rank ${sample_id} merged_${sample_id}
+        else
+            ln *${sample_id}*.bed merged_${sample_id}.bed
+        fi
         echo >&9
     }&
     done

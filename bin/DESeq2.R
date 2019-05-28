@@ -34,7 +34,8 @@ dds <- DESeqDataSetFromMatrix(countData = combined_database,colData = colData,de
 rownames(dds) <- rownames(combined_database)
 #dds <- dds[ rowSums(counts(dds)) > 1, ]
 dds <- DESeq(dds)
-res <- results(dds)
+## FoldChange = group_id_2 / group_id_1
+res <- results(object = dds, contrast = c("condition",group_id_2,group_id_1))
 table(res$padj <0.05)
 res <- res[order(res$padj),]
 resdata <- merge(as.data.frame(res), as.data.frame(counts(dds, normalized=TRUE)),by="row.names",sort=FALSE)

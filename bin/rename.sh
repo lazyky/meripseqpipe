@@ -1,5 +1,6 @@
 #!/bin/bash
 #bash rename.sh 
+
 #$1 argv 1 : Aligners name
 #$2 argv 2 : designfile
 Aligners_name=$1
