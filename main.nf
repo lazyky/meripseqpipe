@@ -870,7 +870,7 @@ process CreateBigWig {
     file "*.bigwig" into bigwig_for_genebody
 
     when:
-    !params.skip_rseqc && !params.skip_genebody_coverage 
+    !params.skip_createbigwig
 
     script:
     """

@@ -19,17 +19,15 @@ A full tutorial of m6APipe can be found at Wiki page of this project. plz go to 
 m6APipe allows you to run pipelines skip the tools by your params.
 You can skip the tools by using `--skip_ToolsName` or not(default).
 
-
 | Step                                    | Pipeline                        | Pipeline(skip_mode)             |
 |-----------------------------------------|---------------------------------|---------------------------------|
-| Raw Data QC                             | Fastp,FastQC                    |---------------------------------|
+| Raw Data QC                             | Fastp, FastQC                   |---------------------------------|
 | Reads Mapping                           | star, bwa, tophat, hisat2       |------  --aligners "star"  ------|
 | Sort BAM file AND Post-alignment QC     | samtools, RSeQC                 |---------------------------------|
-| Reads counting                          | htseq-count                     |---  --skip_expressiion true  ---|
-| Peak Calling                            | MeTPeak, macs2, MATK, meyer     |---  --skip_peakCalling true  ---|
-| Combines Peaks information              | RobustRankAggreg, bedtools      |---------------------------------|
-| Differential methylation analysis       | MeTDiff, QNB, MATK, Wilcox-test |-  --skip_diffpeakCalling true  -|
-| Differential expression analysis        | deseq2, edgeR, cufflinks        |---  --skip_expressiion true  ---|
+| Peak Calling                            | MeTPeak, MACS2, MATK, meyer     |---  --skip_peakCalling true  ---|
+| Combines Peaks information              | RobustRankAggreg, BEDtools      |---------------------------------|
+| Methylation analysis                    | MeTDiff, QNB, MATK, Wilcox-test |-  --skip_diffpeakCalling true  -|
+| Expression analysis                     | htseq, deseq2, edgeR, cufflinks |---  --skip_expressiion true  ---|
 
 
 ### Dependencies
