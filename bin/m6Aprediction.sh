@@ -14,7 +14,7 @@ group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN
 for group_id in $group_list
 do 
 {
-    bedfile=$(ls merged_group_${group_id}.bed)
+    bedfile=$(ls *merged_group_${group_id}.bed)
     ip_bam_file_array=$(echo *.ip_${group_id}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
     input_bam_file_array=$(echo *.input_${group_id}*.bam | awk '{OFS=",";ORS=""}{for(x=1;x<NF;x++) print $x";" }END{print $x""}')
     java -jar $matk_jar -singleNucleotide \

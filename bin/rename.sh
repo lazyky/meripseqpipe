@@ -1,6 +1,5 @@
 #!/bin/bash
 #bash rename.sh 
-
 #$1 argv 1 : Aligners name
 #$2 argv 2 : designfile
 Aligners_name=$1
@@ -15,23 +14,27 @@ do
     input_sample_name=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $2}')
     ip_sample_name=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $3}')
     if [ $Aligners_name == "none" ]; then 
-        ln -f ${input_sample_name}".bam" ${sample_id}".input_"${group_id}".bam"
+        ln -f ${input_sample_name}"_sort.bam" ${sample_id}".input_"${group_id}".bam"
+        ln -f ${input_sample_name}"_sort.bam.bai" ${sample_id}".input_"${group_id}".bam.bai"
         if [ $? != "0" ]; then
             echo "You may check your designfile, because there is something wrong in the process of rename process"
             exit 1
         fi
-        ln -f ${ip_sample_name}".bam" ${sample_id}".ip_"${group_id}".bam"
+        ln -f ${ip_sample_name}"_sort.bam" ${sample_id}".ip_"${group_id}".bam"
+        ln -f ${ip_sample_name}"_sort.bam.bai" ${sample_id}".ip_"${group_id}".bam.bai"
         if [ $? != "0" ]; then
             echo "You may check your designfile, because there is something wrong in the process of rename process"
             exit 1
         fi
     else
-        ln -f ${input_sample_name}"_"$Aligners_name".bam" ${sample_id}".input_"${group_id}".bam"
+        ln -f ${input_sample_name}"_"$Aligners_name"_sort.bam" ${sample_id}".input_"${group_id}".bam"
+        ln -f ${input_sample_name}"_"$Aligners_name"_sort.bam.bai" ${sample_id}".input_"${group_id}".bam.bai"
         if [ $? != "0" ]; then
             echo "You may check your designfile, because there is something wrong in the process of rename process"
             exit 1
         fi
-        ln -f ${ip_sample_name}"_"$Aligners_name".bam" ${sample_id}".ip_"${group_id}".bam"
+        ln -f ${ip_sample_name}"_"$Aligners_name"_sort.bam" ${sample_id}".ip_"${group_id}".bam"
+        ln -f ${ip_sample_name}"_"$Aligners_name"_sort.bam.bai" ${sample_id}".ip_"${group_id}".bam.bai"
         if [ $? != "0" ]; then
             echo "You may check your designfile, because there is something wrong in the process of rename process"
             exit 1

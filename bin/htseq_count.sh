@@ -14,7 +14,7 @@ do
     echo >&9
 done
 
-for bam_file in *.bam
+for bam_file in *.input*.bam
 do
 read -u 9
 {

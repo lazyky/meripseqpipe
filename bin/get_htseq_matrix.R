@@ -24,22 +24,9 @@ mclapply(unique(designtable$Group),function(x){
   rownames(trans.htseq.input.count) <- pc.names  
   trans.htseq.input.count <- as.matrix(trans.htseq.input.count[c(-nrow(trans.htseq.input.count):-(nrow(trans.htseq.input.count)-4)),])
   colnames(trans.htseq.input.count) <- pc.samples
-  trans.htseq.ip.count <- c()
-  pc.names <- c()
-  pc.samples <- c()
-  for(pc in grep(paste0(".ip_",group_id),htseq.files,value = TRUE)){
-    pc.exp <- read.table(pc,header=F,sep="\t",row.names=1,quote = "")
-    trans.htseq.ip.count <- cbind(trans.htseq.ip.count,pc.exp[,1])
-    pc.names <- rownames(pc.exp) #genes name
-    pc.samples <- c(pc.samples,pc) #samples name
-  }
-  rownames(trans.htseq.ip.count) <- pc.names  
-  trans.htseq.ip.count <- as.matrix(trans.htseq.ip.count[c(-nrow(trans.htseq.ip.count):-(nrow(trans.htseq.ip.count)-4)),])
-  colnames(trans.htseq.ip.count) <- pc.samples
   #parsing samplenames
   output_pattern = paste0("htseq_group_",group_id)  #添加aligner
   write.table(trans.htseq.input.count, file = paste0(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
-  write.table(trans.htseq.ip.count, file = paste0(output_pattern,"_ip.count") , sep ="\t", row.names =T,col.names =T)
 },
 mc.cores = THREAD_NUM
 )

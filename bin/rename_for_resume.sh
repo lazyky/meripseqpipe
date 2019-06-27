@@ -12,8 +12,8 @@ do
     group_id=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $4}')
     input_sample_name=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $2}')
     ip_sample_name=$(echo ${sample_group_id} | awk 'BEGIN{FS=","}{print $3}')
-    ln -f ${sample_id}".input_"${group_id}"_sort.bam" bam_for_resume/${input_sample_name}".bam"
-    ln -f ${sample_id}".ip_"${group_id}"_sort.bam" bam_for_resume/${ip_sample_name}".bam"
+    ln -f ${sample_id}".input_"${group_id}".bam" bam_for_resume/${input_sample_name}".bam"
+    ln -f ${sample_id}".ip_"${group_id}".bam" bam_for_resume/${ip_sample_name}".bam"
 }
 done
 wait

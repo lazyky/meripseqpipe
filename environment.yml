@@ -37,3 +37,5 @@ dependencies:
   - ucsc-genepredtobed=377=h199ee4e_1
   - scipy=1.2.1=py27he2b7bc3_0
   - deeptools=3.1.3=py27h14c3975_1
+  - multiqc=1.7=py_4
+  - ucsc-bigwigtowig=357=1

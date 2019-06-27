@@ -21,10 +21,8 @@ function sort_and_transferbed()
     bed_file=$1
     bed_anno_file=$2
     outdir=$3
-    ## sort bed by pvalue for rank merge
-    sort -k5,5 -n -r ${bed_file} | awk '{ print $1":"$2"-"$3}' > ${outdir}/tmp.${bed_file}
-    ## transfer the origin region of peaks into the bedtools merged region of peaks 
-    cat ${outdir}/tmp.${bed_file} | xargs -iID grep ID ${bed_anno_file} | awk '{print $2}' > ${outdir}/tmp.${bed_file}.location
+    ## sort bed by pvalue for rank merge && transfer the origin region of peaks into the bedtools merged region of peaks 
+    awk '{ print $1":"$2"-"$3,$5}' ${bed_file} | sort -k1,1 |join -a1 - ${bed_anno_file} | sort -k2,2 -n -r | awk '{print $3}' > ${outdir}/tmp.${bed_file}.location
     #rm -rf tmp.${outdir}
 }
 function mergebed_by_rank()
@@ -54,7 +52,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
         if [ $peakCalling_tools_count -gt 1 ]; then
             mergebed_by_rank ${group_id} merged_group_${group_id}
         else
-            ln *${group_id}*.bed merged_group_${group_id}.bed
+            awk '{OFS="\t";$5=10^-$5;print }' *${group_id}*.bed |sortBed -i - > merged_group_${group_id}.bed
         fi
         echo >&9
     }&
@@ -75,7 +73,7 @@ else
         if [ $peakCalling_tools_count -gt 1 ]; then
             mergebed_by_rank ${sample_id} merged_${sample_id}
         else
-            ln *${sample_id}*.bed merged_${sample_id}.bed
+            awk '{OFS="\t";$5=10^-$5;print }' *${sample_id}*.bed |sortBed -i - > merged_${sample_id}.bed
         fi
         echo >&9
     }&
@@ -92,7 +90,7 @@ else
     done
 fi
 wait
-mergebed_by_rank normalized Rankmerged_peaks
+mergebed_by_rank merged_group Rankmerged_peaks
 echo "bedtools merged peaks done"
 
 

@@ -24,6 +24,8 @@ QC.reads.distribution.file <- dir(".",pattern = "multiqc_rseqc_read_distribution
 QC.reads.distribution <- read.table(QC.reads.distribution.file,header =F,stringsAsFactors = F)
 colnames(QC.reads.distribution)  <- QC.reads.distribution[1,]
 QC.reads.distribution <- QC.reads.distribution[-1,]
+rownames(QC.reads.distribution)=QC.reads.distribution[,1]
+QC.reads.distribution <- QC.reads.distribution[, grep("tag_pct",colnames(QC.reads.distribution))]
 
 ## generate QC.peaks list
 QC.peaks.filelist <- grep("unanno.txt",grep(".anno.txt", list.files(pattern = "merged_group"), value = T), value = T, invert = T)
@@ -77,7 +79,6 @@ colnames(expression.matrix) <- as.matrix(lapply(strsplit(colnames(expression.mat
 ## generate diff_expression list
 diffexpression.filelist <- grep("Deseq2",list.files(pattern = ".csv"), value = T)
 diffexpression.list <- NULL
-diffm6A.anno.list <- NULL
 for( compare_str in compare.list ){
   diffexpression.list[[compare_str]] <- read.csv(grep(sub("_vs_","_",compare_str), diffexpression.filelist, value = T),header = T,row.names = 1)
   colnames(diffexpression.list[[compare_str]])[1] <- "ID"
@@ -119,6 +120,7 @@ write.table(m6a.anno.matrix,file= "m6a.anno.matrix")
 save(design.matrix, compare.list, 
     QC.reads.stats, QC.reads.distribution,
     QC.motif.list, QC.motif.pvalue,QC.peaks.list,
+    m6a.peaks.table, m6a.sites.table,
     expression.matrix, m6a.anno.matrix, 
     diffexpression.list, diffm6A.list,
-    file = paste(diffm6A_mode,"_arranged_results_20190514.m6APipe", sep = "_"))
+    file = paste(diffm6A_mode,"arranged_results_20190514.m6APipe", sep = "_"))
