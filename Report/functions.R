@@ -1,6 +1,5 @@
 library(ggplot2)
 library(ggseqlogo)
-library(ggrepel)
 #pie plot
 pie_plot <- function(dt){
   data1 <- table(dt[,9])
@@ -49,10 +48,12 @@ distribution_plot <- function(qclist){
 }
 
 #motif
-motif_plot <- function(motif, pval){
+motif_plot <- function(motif, pval, rank){
   ggplot()+
     geom_logo(motif, method = "bits")+
     annotate("text", x=ncol(motif)-0.5, y=2.45, label=paste0("p = ",pval),size = 8)+
+    ggtitle(rank)+
+    theme(plot.title = element_text(hjust = 0, size = 8))+
     theme_logo()
 }
 
@@ -154,11 +155,7 @@ volcano_plot_de = function(res, Sample_1 = "A", Sample_2 = "B", lfc = 0, pval = 
 
 #heatmaps
 heatmap_dm <- function(mat,coldt){
-anno_color = c("#e34a33", "#2ca25f")
-names(anno_color) = c(levels(as.factor(coldt$Type)))
-anno_colors = list(Type = anno_color)
 pheatmap(mat, cluster_rows=FALSE, show_rownames=F, cluster_cols=FALSE, annotation_col=coldt, 
-         color = colorRampPalette(c(rep('#1C2B6F',1),'black', rep('#E31E26',1)))(50), annotation_colors = anno_colors,
          main = "Heatmap of Different Methylation", scale = "row")
 }
 
@@ -185,7 +182,31 @@ pca_plot <- function(mat,coldt){
 
 }
 
-
+#multiplot
+ggplot2.multiplot <- function(..., plotlist=NULL, cols=2) {
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # Make the panel
+  plotCols = cols                          # Number of columns of plots
+  plotRows = ceiling(numPlots/plotCols) # Number of rows needed, calculated from # of cols
+  
+  # Set up the page
+  grid::grid.newpage()
+  grid::pushViewport(grid::viewport(layout = grid::grid.layout(plotRows, plotCols)))
+  vplayout <- function(x, y)
+    grid::viewport(layout.pos.row = x, layout.pos.col = y)
+  
+  # Make each plot, in the correct location
+  for (i in 1:numPlots) {
+    curRow = ceiling(i/plotCols)
+    curCol = (i-1) %% plotCols + 1
+    print(plots[[i]], vp = vplayout(curRow, curCol ))
+  }
+  
+}
 
 
 

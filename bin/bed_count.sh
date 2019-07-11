@@ -19,6 +19,7 @@ done
 
 # Create the file about the summary of bam stat
 echo "Total_Reads" > $output_bam_stat_file
+awk '{ print $1"\t"$2"\t"$3"\t"$4}' ${merge_bed_file} > tmp.${merge_bed_file}
 
 sampleinfo_list=$(awk 'BEGIN{FS=","}NR>1{print $1","$4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
 for sample_group_id in ${sampleinfo_list}
@@ -47,10 +48,16 @@ read -u 9
     > ${merge_bed_file}.${group_id}.${sample_id}.ip.count
 
     ## Count input/ip peaks
-    awk '{ print $1"\t"$2"\t"$3"\t"$4}' ${merge_bed_file} > tmp.${merge_bed_file}
+    
     bedtools multicov -bams ${input_bam_file} -bed tmp.${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.input.count
     bedtools multicov -bams ${ip_bam_file} -bed tmp.${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.ip.count
     echo >&9
+
+    awk -v bam="$input_bam" -v pre="$prefix" '
+    {print " bedtools multicov -bams '${input_bam_file}' -bed tmp.'${merge_bed_file}' >> '${merge_bed_file}'.'${group_id}'.'${sample_id}'.input.count; \
+    bedtools multicov -bams '${ip_bam_file}' -bed tmp.'${merge_bed_file}' >> '${merge_bed_file}'.'${group_id}'.'${sample_id}'.ip.count; \
+    sortBed -i ./"pre".tmp/input/"$1".bed | intersectBed  -a '${genomebin_dir}'"$1".bin25.bed -b - -sorted -c > ./"pre".tmp/input/"$1".bin25.txt"}' $chrName_file \
+    | xargs -iCMD -P$THREAD_NUM bash -c CMD
 }&
 done
 wait

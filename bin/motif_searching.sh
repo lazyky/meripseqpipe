@@ -2,18 +2,13 @@
 #bash motif_searching.sh <fasta> <gtf> <THREAD_NUM>
 #$1 argv 1 : fasta file
 #$2 argv 2 : gtf file
-#$3 argv 3 : THREAD_NUM
+#$3 argv 3 : RRACH_motif file
+#$4 argv 4 : THREAD_NUM
 fasta_file=$1
 gtf_file=$2
-THREAD_NUM=$3
+RRACH_motif=$3
+THREAD_NUM=$4
 
-# Define a multi-threaded run channel
-mkfifo tmp
-exec 9<>tmp
-for ((i=1;i<=${THREAD_NUM:=1};i++))
-do
-    echo >&9
-done
 
 ## setting function for motif searching 
 function motif_searching_by_pvalue()
@@ -25,8 +20,8 @@ function motif_searching_by_pvalue()
     sort -k5,5 -n ${bed_file}| head -1000 | awk '{ print $1"\t"$2"\t"$3}' > ${prefix}.location
     intersectBed -wo -a ${prefix}.location -b $gtf | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${prefix}_bestpeaks.bed
     bedtools getfasta -s -fi $fasta -bed ${prefix}_bestpeaks.bed -fo ${prefix}_bestpeaks.fa
-    ame -oc ${prefix}_ame ${prefix}_bestpeaks.fa RRACH.motif
-    findMotifsGenome.pl ${prefix}_bestpeaks.bed $fasta ${prefix}_homer -len 7 -rna
+    ame -oc ${prefix}_ame ${prefix}_bestpeaks.fa $RRACH_motif
+    findMotifsGenome.pl ${prefix}_bestpeaks.bed $fasta ${prefix}_homer -len 7 -rna -p ${THREAD_NUM:=1}
 }
 
 #check if the output file of Bedtools Merge exists

@@ -38,21 +38,26 @@ for( file in QC.peaks.filelist ){
 }
 
 ## generate the motif list of ATCG matrix
-QC.motif.filelist = dir(".",pattern = "motif1.motif",recursive = TRUE)
+QC.motif.filelist = dir(".",pattern = "motif[1,2,3].motif",recursive = TRUE)
 QC.motif.list <- NULL
 QC.motif.pvalue <- NULL
-for( file in QC.motif.filelist ){
-  motif_matrix <- read.delim(file,header = F,sep = "\t",stringsAsFactors = F)
-  group_name <- strsplit(strsplit(file,split = c("_homer/homerResults"))[[1]][1],split = "_group_")[[1]][2]
-  pvalue <- strsplit(motif_matrix[1,6], split = ":")[[1]][4]
-  motif_matrix <- motif_matrix[-1,c(-5,-6)]
-  colnames(motif_matrix) <- c("A","C","G","T")
-  rownames(motif_matrix) <- c(1:nrow(motif_matrix))
-  motif_matrix <- as.matrix(t(motif_matrix))
-  QC.motif.list[[group_name]] <- motif_matrix
-  QC.motif.pvalue[[group_name]] <- pvalue
+for( group_name in as.vector(unique(design.matrix)[,1]) ){
+  group.motif.list <- NULL
+  group.motif.pvalue <- NULL
+  for (file in grep(paste0(group_name, "_homer/homerResults"), QC.motif.filelist, value = T) ){
+    motif_matrix <- read.delim(file,header = F,sep = "\t",stringsAsFactors = F)
+    motif_pvalue <- strsplit(motif_matrix[1,6], split = ":")[[1]][4]
+    motif_matrix <- motif_matrix[-1,c(-5,-6)]
+    colnames(motif_matrix) <- c("A","C","G","T")
+    rownames(motif_matrix) <- c(1:nrow(motif_matrix))
+    motif_matrix <- as.matrix(t(motif_matrix))
+    motif_name <- strsplit(strsplit(file,split = c("_homer/homerResults/"))[[1]][2],split = "[.]motif")[[1]][1]
+    group.motif.list[[motif_name]] <- motif_matrix
+    group.motif.pvalue[[motif_name]] <- motif_pvalue
+  }
+  QC.motif.list[[group_name]] <- group.motif.list
+  QC.motif.pvalue[[group_name]] <- group.motif.pvalue
 }
-QC.motif.pvalue = as.data.frame(t(QC.motif.pvalue))
 
 ## generate peak Visualization
 annotation.file <- list.files(pattern = "merged_peaks.anno.txt")

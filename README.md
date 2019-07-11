@@ -32,19 +32,27 @@ You can skip the tools by using `--skip_ToolsName` or not(default).
 
 ### Dependencies
 * Softwares
-    * [Fastqc](https://github.com/OpenGene/fastp)
+    * [Fastqc](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
+    * [Fastp](https://github.com/OpenGene/fastp)
+    * [RSeQC](http://rseqc.sourceforge.net/)
+    * [MultiQC](https://multiqc.info/)
     * [STAR](https://github.com/alexdobin/STAR)
     * [BWA](https://github.com/lh3/bwa)
     * [TopHat](https://ccb.jhu.edu/software/tophat/)
     * [HISAT2](https://ccb.jhu.edu/software/hisat2/)
     * [Bowtie2](https://github.com/BenLangmead/bowtie2)
     * [samtools](http://www.htslib.org/)
+    * [MeTPeak](https://github.com/compgenomics/MeTPeak)
+    * [MATK](http://matk.renlab.org)
+    * [Meyer]()
+    * [MACS2](https://github.com/taoliu/MACS)
+    * [BEDtools](https://bedtools.readthedocs.io/en/latest/index.html)
+    * [RobustRankAggreg](https://cran.r-project.org/web/packages/RobustRankAggreg/index.html)
+    * [MeTDiff](https://github.com/compgenomics/MeTDiff)
+    * [QNB](https://cran.r-project.org/src/contrib/Archive/QNB/)
     * [htseq](https://github.com/simon-anders/htseq)
     * [deseq2](http://bioconductor.org/packages/DESeq2/)
     * [edgeR](http://bioconductor.org/packages/edgeR/)
-    * [MeTPeak](https://github.com/compgenomics/MeTPeak)
-    * [macs](https://github.com/taoliu/MACS)
-    * [MeTDiff](https://github.com/compgenomics/MeTDiff)
-    * [QNB](https://cran.r-project.org/src/contrib/Archive/QNB/)
+    * [cufflinks](http://cole-trapnell-lab.github.io/cufflinks/)
 
     * Several R packages for downstream analysis.

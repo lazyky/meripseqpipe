@@ -4,10 +4,10 @@ library(shinydashboard)
 library(shinyWidgets)
 library(shinyBS)
 library(shinycssloaders)
-
+library(DT)
 
 ui<-dashboardPage(skin = "black",
-  dashboardHeader(title = "m6A Viewer"),
+  dashboardHeader(title = "m6A Report"),
   dashboardSidebar(
     sidebarMenu(
       menuItem("Introduction", tabName = "introduction",icon = icon("bullseye")),
@@ -25,11 +25,10 @@ ui<-dashboardPage(skin = "black",
   #introduction------------------------------------------------------------
   
   dashboardBody(
-    useShinyjs(),
     tabItems(
       tabItem(
         tabName = "introduction",
-        h1("Welcome to m6A Viewer"),
+        h1("Welcome to m6AReport"),
         fluidRow(
           box(width = 10, h2("Introduction"),hr(),
               p("m6A (N6-Methyladenosine) is a common methylated modification on RNA. It is mainly found in mRNA, and it can also be found in other type of RNA such as rRNA and lncRNA. 
@@ -54,19 +53,20 @@ ui<-dashboardPage(skin = "black",
               tabPanel("Reads Statistic", div(style = 'overflow-x: scroll', 
                                            conditionalPanel(
                                              condition = "input.readsbutton > 0",
-                                             withSpinner(dataTableOutput("readstable"),type = 4)))),
+                                             withSpinner(dataTableOutput("readstable"),type = 4),
+                                             downloadButton("reads_download_table", label = "Download Table")))),
               tabPanel("Reads Distribution",
                        withSpinner(plotOutput("readsbarplot")),
                        conditionalPanel(
                          condition = "input.readsbutton >0",
-                         awesomeRadio(
+                         radioButtons(
                            inputId = "reads_download_bartype",
                            label = "File Type", 
                            choices = c("png", "pdf"),
                            selected = "png",
                            inline = TRUE
                          ),
-                         downloadBttn("reads_download_bar", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")
+                         downloadButton("reads_download_bar", label = "DOWNLOAD PLOT")
                        ))
             )
           )
@@ -87,46 +87,47 @@ ui<-dashboardPage(skin = "black",
                     tabPanel("Data Display", div(style = 'overflow-x: scroll', 
                                                  conditionalPanel(
                                                    condition = "input.peakbutton > 0",
-                                                   helpText("Data for genomic and position distribution")),
-                                                 withSpinner(dataTableOutput("peaktable"),type = 4))),
+                                                   helpText("Data for genomic and position distribution"),
+                                                   withSpinner(dataTableOutput("peaktable"),type = 4),
+                                                  downloadButton("peak_download_table", label = "Download Table")))),
                     tabPanel("Motif",
-                             withSpinner(plotOutput("motif")),
+                             withSpinner(plotOutput("motif", height = "800px")),
                              conditionalPanel(
                                condition = "input.peakbutton > 0 ",
-                               awesomeRadio(
+                               radioButtons(
                                  inputId = "peak_download_MOTIFtype",
                                  label = "File Type", 
                                  choices = c("png", "pdf"),
                                  selected = "png",
                                  inline = TRUE
                                ),
-                               downloadBttn("peak_download_MOTIF", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")
+                               downloadButton("peak_download_MOTIF", label = "DOWNLOAD PLOT")
                              )),
                     tabPanel("Genomic Distribution",
                              withSpinner(plotOutput("Pieplot")),
                              conditionalPanel(
                                condition = "input.peakbutton >0",
-                               awesomeRadio(
+                               radioButtons(
                                  inputId = "peak_download_PIEtype",
                                  label = "File Type", 
                                  choices = c("png", "pdf"),
                                  selected = "png",
                                  inline = TRUE
                                ),
-                               downloadBttn("peak_download_PIE", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")
+                               downloadButton("peak_download_PIE", label = "DOWNLOAD PLOT")
                              )),
                     tabPanel("Position Distribution",
                              withSpinner(plotOutput("peakdistri")),
                              conditionalPanel(
                                condition = "input.peakbutton >0",
-                               awesomeRadio(
+                               radioButtons(
                                  inputId = "peak_download_PDtype",
                                  label = "File Type", 
                                  choices = c("png", "pdf"),
                                  selected = "png",
                                  inline = TRUE
                                ),
-                               downloadBttn("peak_download_PD", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")
+                               downloadButton("peak_download_PD", label = "DOWNLOAD PLOT")
                              ))
                     
              )
@@ -136,59 +137,37 @@ ui<-dashboardPage(skin = "black",
   
       #IGV------------------------------------------------------------------
   
-      tabItem(
-          tabName = "IGV", h1("IGV"),hr(),
-          fluidRow(
-            column(width = 4,
-                   box(width = NULL, solidHeader = TRUE, status = "primary", title = "DATA",
-                       fileInput("file4", "Choose CSV File",
-                                 multiple = TRUE,
-                                 accept = c("text/csv",
-                                            "text/comma-separated-values,text/plain",
-                                            ".csv",
-                                            ".matrix")),
-                 
-                 
-                       checkboxInput("header4", "Header", TRUE),
-                 
-                 
-                       radioButtons("sep4", "Separator",
-                                     choices = c(Comma = ",",
-                                                Semicolon = ";",
-                                                Tab = "\t"),
-                                     selected = "\t"),
-                 
-                 
-                       radioButtons("quote4", "Quote",
-                                    choices = c(None = "",
-                                                "Double Quote" = '"',
-                                                "Single Quote" = "'"),
-                                    selected = '"'),
-                 
-                 
-                       radioButtons("disp4", "Display",
-                                    choices = c(Head = "head",
-                                                All = "all"),
-                                    selected = "head"),
-                       actionButton("dedmbutton", "GO PLOT!"),
-                       uiOutput("selectfile4"))),
+  tabItem(
+    tabName = "IGV", h1("IGV Browser"),hr(),
+    fluidRow(
+      tabBox(width = NULL,title = "TYPES", id = "tabset4", side = "right",
+             tabPanel("Browser",
+                      conditionalPanel(
+                        condition="input.IGVbutton > 0",
+                        tags$head(
+                          includeScript("igv.min.js")
+                        ),
+                        div(id="igvDiv"),
+                        tags$script(src="igv.js")
+                      ),
+                      p(strong("Click button to view IGV browser and m6A data tables")),
+                      actionButton("IGVbutton", label = "GO!")),
+             tabPanel("m6A peaks table",
+                      div(style = 'overflow-x: scroll',
+                          conditionalPanel(
+                            condition="input.IGVbutton > 0",
+                            withSpinner(dataTableOutput("m6apeak"),type = 4),
+                            downloadButton("igv_download_peaktable", label = "Download Table")))),      
+             tabPanel("m6A sites table",
+                      div(style = 'overflow-x: scroll',
+                          conditionalPanel(
+                            condition="input.IGVbutton > 0",
+                            withSpinner(dataTableOutput("m6asite"),type = 4),
+                            downloadButton("igv_download_sitetable", label = "Download Table"))))
              
-            column(width = 8,
-                   tabBox(width = NULL,title = "TYPES", id = "tabset4", side = "right",
-                          tabPanel("Venn Diagram",
-                                   plotOutput("venn_dedm")),
-                          tabPanel("Scatter Plot",
-                                   plotOutput("Scatter_dedm")),      
-                          tabPanel("ECDF Plot",
-                                   plotOutput("ecdf_dedm")),
-                          tabPanel("Box Plot",
-                                   plotOutput("box_dedm")),
-                          tabPanel("Enrichment Analysis",
-                                   plotOutput("go_dedm"))
-                   )
-             )
-           )),
-  
+      )
+      
+    )),
       
       #different methylation------------------------------------------------------------------
       
@@ -205,49 +184,55 @@ ui<-dashboardPage(skin = "black",
           column(width = 8,
             tabBox(width = NULL,title = "TYPES", id = "dmplot", side = "right",
                    tabPanel("m6A Quantification Matrix",div(style = 'overflow-x: scroll',
-                                                            withSpinner(dataTableOutput("dmmatrix"),type = 4))),
+                                                            conditionalPanel(
+                                                            condition="input.dmbutton > 0",
+                                                            withSpinner(dataTableOutput("dmmatrix"),type = 4),
+                                                            downloadButton("dm_download_matrix", label = "Download Table")))),
                    tabPanel("Diffm6A Peaks Table",div(style = 'overflow-x: scroll',
-                                                      withSpinner(dataTableOutput("dmres"),type = 4))),
+                                                      conditionalPanel(
+                                                        condition="input.dmbutton > 0",
+                                                        withSpinner(dataTableOutput("dmres"),type = 4),
+                                                        downloadButton("dm_download_difftable", label = "Download Table")))),
                    tabPanel("Heat Map",
-                            withSpinner(plotOutput("dmheatmap")),
+                            withSpinner(plotOutput("dmheatmap", height = "650px")),
                             conditionalPanel(
                               condition = "input.dmbutton >0",
-                              awesomeRadio(
+                              radioButtons(
                                 inputId = "DM_download_HMtype",
                                 label = "File Type", 
                                 choices = c("png", "pdf"),
                                 selected = "png",
                                 inline = TRUE
                               ),
-                              downloadBttn("DM_download_HM", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")
+                              downloadButton("DM_download_HM", label = "DOWNLOAD PLOT")
                             )
                             ),
                    tabPanel("Volcano Plot",
-                            withSpinner(plotOutput("dmvolcano")),
+                            withSpinner(plotOutput("dmvolcano", height = "650px")),
                             conditionalPanel(
                               condition = "input.dmbutton >0",
-                              awesomeRadio(
+                              radioButtons(
                                 inputId = "DM_download_voltype",
                                 label = "File Type", 
                                 choices = c("png", "pdf"),
                                 selected = "png",
                                 inline = TRUE
                               ),
-                              downloadBttn("DM_download_vol", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")
+                              downloadButton("DM_download_vol", label = "DOWNLOAD PLOT")
                             )),
                         
                    tabPanel("PCA Plot",
-                            withSpinner(plotOutput("dmPCA")),
+                            withSpinner(plotOutput("dmPCA", height = "650px")),
                             conditionalPanel(
                               condition = "input.dmbutton >0",
-                              awesomeRadio(
+                              radioButtons(
                                 inputId = "DM_download_PCAtype",
                                 label = "File Type", 
                                 choices = c("png", "pdf"),
                                 selected = "png",
                                 inline = TRUE
                               ),
-                              downloadBttn("DM_download_PCA", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")))
+                              downloadButton("DM_download_PCA", label = "DOWNLOAD PLOT")))
                                  
               )
             )
@@ -271,48 +256,54 @@ ui<-dashboardPage(skin = "black",
                  tabBox(width = NULL,title = "TYPES", id = "deplot", side = "right",
                         tabPanel("Expression Matrix",
                                  div(style = 'overflow-x: scroll',
-                                     withSpinner(dataTableOutput("dematrix"),type = 4))),
+                                     conditionalPanel(
+                                     condition="input.debutton > 0",
+                                     withSpinner(dataTableOutput("dematrix"),type = 4),
+                                     downloadButton("de_download_matrix", label = "Download Table")))),
                         tabPanel("Differential Expression Table",
                                  div(style = 'overflow-x: scroll',
-                                     withSpinner(dataTableOutput("deres"),type = 4))),
+                                     conditionalPanel(
+                                     condition="input.debutton > 0",
+                                     withSpinner(dataTableOutput("deres"),type = 4),
+                                     downloadButton("de_download_difftable", label = "Download Table")))),
                         tabPanel("Heat Map",
-                                 withSpinner(plotOutput("deheatmap")),
+                                 withSpinner(plotOutput("deheatmap", height = "650px")),
                                  conditionalPanel(
                                    condition = "input.debutton >0",
-                                   awesomeRadio(
+                                   radioButtons(
                                      inputId = "DE_download_HMtype",
                                      label = "File Type", 
                                      choices = c("png", "pdf"),
                                      selected = "png",
                                      inline = TRUE
                                    ),
-                                   downloadBttn("DE_download_HM", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")
+                                   downloadButton("DE_download_HM", label = "DOWNLOAD PLOT")
                                  )),
                         tabPanel("Volcano Plot",
-                                 withSpinner(plotOutput("devolcano")),
+                                 withSpinner(plotOutput("devolcano", height = "650px")),
                                  conditionalPanel(
                                    condition = "input.debutton >0",
-                                   awesomeRadio(
+                                   radioButtons(
                                      inputId = "DE_download_voltype",
                                      label = "File Type", 
                                      choices = c("png", "pdf"),
                                      selected = "png",
                                      inline = TRUE
                                    ),
-                                   downloadBttn("DE_download_vol", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")
+                                   downloadButton("DE_download_vol", label = "DOWNLOAD PLOT")
                                  )),
                         tabPanel("PCA Plot",
-                                 withSpinner(plotOutput("dePCA")),
+                                 withSpinner(plotOutput("dePCA", height = "650px")),
                                  conditionalPanel(
                                    condition = "input.debutton >0",
-                                   awesomeRadio(
+                                   radioButtons(
                                      inputId = "DE_download_PCAtype",
                                      label = "File Type", 
                                      choices = c("png", "pdf"),
                                      selected = "png",
                                      inline = TRUE
                                    ),
-                                   downloadBttn("DE_download_PCA", style = "material-flat", size = "sm", label = "DOWNLOAD PLOT")))
+                                   downloadButton("DE_download_PCA", label = "DOWNLOAD PLOT")))
           )
         )
       ) 

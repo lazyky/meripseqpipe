@@ -241,8 +241,7 @@ println (LikeletUtils.print_yellow("Stranded :                      ") + Likelet
 println LikeletUtils.print_yellow("====================================Mode selected==============================")
 println (LikeletUtils.print_yellow("aligners :                      ") + LikeletUtils.print_green(params.aligners))
 println (LikeletUtils.print_yellow("peakCalling_mode :              ") + LikeletUtils.print_green(params.peakCalling_mode))
-println (LikeletUtils.print_yellow("quantification_mode :           ") + LikeletUtils.print_green(params.quantification_mode))
-println (LikeletUtils.print_yellow("diffm6A_mode :                  ") + LikeletUtils.print_green(params.quantification_mode))
+println (LikeletUtils.print_yellow("methylation_analysis_mode :           ") + LikeletUtils.print_green(params.methylation_analysis_mode))
 
 println LikeletUtils.print_yellow("==================================Input files selected==========================")
 println (LikeletUtils.print_yellow("Reads Path:                     ") + LikeletUtils.print_green(params.readPaths))
@@ -281,6 +280,7 @@ if( params.bed12 ){
         .into {bed_rseqc; bed_genebody_coverage}
 }else if( params.gtf && !params.bed12 ){
     process makeBED12 {
+        label 'build_index'
         tag "gtf2bed12"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/reference_genome" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
@@ -311,6 +311,7 @@ if( params.tophat2_index && !skip_tophat2 ){
         .ifEmpty { exit 1, "Tophat2 index not found: ${params.tophat2_index}" }
 }else if( params.fasta ){
     process MakeTophat2Index {
+        label 'build_index'
         tag "tophat2_index"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/": params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
@@ -344,6 +345,7 @@ if( params.hisat2_index && !skip_hisat2 ){
         .ifEmpty { exit 1, "hisat2 index not found: ${params.hisat2_index}" }
 }else if( params.fasta){
     process MakeHisat2Index {
+        label 'build_index'
         tag "hisat2_index"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/ " : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'        
@@ -381,6 +383,7 @@ if( params.bwa_index && !skip_bwa ){
         .ifEmpty { exit 1, "bwa index not found: ${params.bwa_index}" }
 }else if(params.fasta ){
     process MakeBWAIndex {
+        label 'build_index'
         tag "bwa_index"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
@@ -416,6 +419,7 @@ if( params.star_index && !skip_star){
         .ifEmpty { exit 1, "STAR index not found: ${params.star_index}" }
 }else if( params.fasta ){
     process MakeStarIndex {
+        label 'build_index'
         tag "star_index"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
@@ -545,6 +549,7 @@ process Fastqc{
 ========================================================================================
 */ 
 process Tophat2Align {
+    label 'aligners'
     tag "$sample_name"
     publishDir "${params.outdir}/aligners/tophat2", mode: 'link', overwrite: true
 
@@ -592,6 +597,7 @@ process Tophat2Align {
 }
 
 process Hisat2Align {
+    label 'aligners'
     tag "$sample_name"
     publishDir "${params.outdir}/aligners/hisat2", mode: 'link', overwrite: true
 
@@ -615,7 +621,7 @@ process Hisat2Align {
         hisat2  -p ${task.cpus} --dta \
                 -x $index_base \
                 -U $reads \
-                -S ${sample_name}_hisat2.sam 2> ${sample_name}_hisat2_summary.txt
+                -S ${sample_name}_hisat2.sam &> ${sample_name}_hisat2_summary.txt
         samtools view -@ ${task.cpus} -h -bS ${sample_name}_hisat2.sam >${sample_name}_hisat2.bam
         rm *.sam
         """
@@ -625,7 +631,7 @@ process Hisat2Align {
         hisat2  -p ${task.cpus} --dta \
                 -x $index_base \
                 -1 ${reads[0]} -2 ${reads[1]} \
-                -S ${sample_name}_hisat2.sam 2> ${sample_name}_hisat2_summary.txt
+                -S ${sample_name}_hisat2.sam &> ${sample_name}_hisat2_summary.txt
         samtools view -@ ${task.cpus} -h -bS ${sample_name}_hisat2.sam > ${sample_name}_hisat2.bam
         rm *.sam
         """
@@ -633,6 +639,7 @@ process Hisat2Align {
 }
 
 process BWAAlign{
+    label 'aligners'
     tag "$sample_name"
     publishDir "${params.outdir}/aligners/bwa", mode: 'link', overwrite: true
     
@@ -686,6 +693,7 @@ process BWAAlign{
 }
 
 process StarAlign {
+    label 'aligners'
     tag "$sample_name"
     publishDir "${params.outdir}/aligners/star", mode: 'link', overwrite: true
     
@@ -934,6 +942,7 @@ process multiqc {
  * STEP 4 - 1  Peak Calling------MetPeak, MACS2, MATK
 */
 process Metpeak {
+    label 'peak_calling'
     publishDir "${params.outdir}/peak_calling/metpeak", mode: 'link', overwrite: true
 
     input:
@@ -961,6 +970,7 @@ process Metpeak {
 }
 
 process Macs2{
+    label 'peak_calling'
     publishDir "${params.outdir}/peak_calling/macs2", mode: 'link', overwrite: true
 
     input:
@@ -987,6 +997,7 @@ process Macs2{
 }
 
 process MATKpeakCalling {
+    label 'peak_calling'
     publishDir "${params.outdir}/peak_calling/MATK", mode: 'link', overwrite: true
 
     input:
@@ -1016,6 +1027,7 @@ process MATKpeakCalling {
 }
 
 process Meyer{
+    label 'peak_calling'
     publishDir "${params.outdir}/peak_calling/meyer", mode: 'link', overwrite: true
 
     input:
@@ -1047,13 +1059,13 @@ process Meyer{
     bash !{baseDir}/bin/meyer_peakCalling.sh !{formatted_designfile} chrName.txt genomebin/ ${peak_windows_number} !{task.cpus} !{flag_peakCallingbygroup}
     ''' 
 }
-
 /*
 ========================================================================================
                         Step 5 Differential expression analysis
 ========================================================================================
 */
 process Htseq_count{
+    label 'analysis'
     publishDir "${params.outdir}/diff_expression/htseq_count", mode: 'link', overwrite: true
 
     input:
@@ -1077,6 +1089,7 @@ process Htseq_count{
 }
 
 process Deseq2{
+    label 'analysis'
     tag "$compare_str"
 
     publishDir "${params.outdir}/diff_expression/deseq2", mode: 'link', overwrite: true
@@ -1100,6 +1113,7 @@ process Deseq2{
 }
 
 process EdgeR{
+    label 'analysis'
     tag "$compare_str"
     publishDir "${params.outdir}/diff_expression/edgeR", mode: 'link', overwrite: true
 
@@ -1122,6 +1136,7 @@ process EdgeR{
 }
 
 process Cufflinks{
+    label 'analysis'
     publishDir "${params.outdir}/diff_expression/cufflinks", mode: 'link', overwrite: true
 
     input:
@@ -1139,7 +1154,7 @@ process Cufflinks{
     println LikeletUtils.print_purple("Differential expression analysis performed by Cufflinks")
     """
     bash $baseDir/bin/cufflinks.sh $formatted_designfile $gtf ${task.cpus}
-    """ 
+    """
 }
 
 /*
@@ -1156,6 +1171,7 @@ Channel
     .concat(metpeak_nomarlized_bed, macs2_nomarlized_bed, matk_nomarlized_bed, meyer_nomarlized_bed)
     .into {merged_bed ; bedtools_merge_peak_bed; bed_for_motif_searching; bed_for_annotation}
     process PeakMergeBYRank {
+        label 'analysis'
         publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
         
         input:
@@ -1177,6 +1193,7 @@ Channel
         """
     }
 process PeaksQuantification{
+    label 'analysis'
     publishDir "${params.outdir}/result_arranged/quantification", mode: 'link', overwrite: true
     
     input:
@@ -1193,28 +1210,28 @@ process PeaksQuantification{
 
     script:
     matk_jar = params.matk_jar
-    quantification_mode = params.quantification_mode
-    if ( quantification_mode == "bedtools" )  
+    methylation_analysis_mode = params.methylation_analysis_mode
+    if ( methylation_analysis_mode == "bedtools" )  
         println LikeletUtils.print_purple("Generate m6A quantification matrix by bedtools")
-    else if ( quantification_mode == "QNB" )  
+    else if ( methylation_analysis_mode == "QNB" )  
         println LikeletUtils.print_purple("Generate m6A quantification matrix by QNB")
-    else if ( quantification_mode == "MATK" )
+    else if ( methylation_analysis_mode == "MATK" )
         println LikeletUtils.print_purple("Generate m6A quantification matrix by MATK")
     """
     # PeaksQuantification by bedtools
-    if [ ${quantification_mode} == "bedtools" ]; then 
+    if [ ${methylation_analysis_mode} == "bedtools" ]; then 
         bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
         Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
     fi
 
     # PeaksQuantification by QNB
-    if [ ${quantification_mode} == "QNB" ]||[ ${quantification_mode} == "MeTDiff" ]; then 
+    if [ ${methylation_analysis_mode} == "QNB" ]||[ ${methylation_analysis_mode} == "MeTDiff" ]; then 
         bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
         Rscript $baseDir/bin/QNB_quantification.R $formatted_designfile ${task.cpus}
     fi
 
     # PeaksQuantification by MATK
-    if [ ${quantification_mode} == "MATK" ]; then 
+    if [ ${methylation_analysis_mode} == "MATK" ]; then 
         export OMP_NUM_THREADS=${task.cpus}
         bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${peak_bed} 1
     fi
@@ -1222,6 +1239,7 @@ process PeaksQuantification{
 }
 
 process diffm6APeak{
+    label 'analysis'
     tag "$compare_str"
     publishDir "${params.outdir}/result_arranged/diffm6A", mode: 'link', overwrite: true
     
@@ -1242,31 +1260,31 @@ process diffm6APeak{
 
     script:
     matk_jar = params.matk_jar
-    quantification_mode = params.quantification_mode
-    if ( quantification_mode == "bedtools" )  
+    methylation_analysis_mode = params.methylation_analysis_mode
+    if ( methylation_analysis_mode == "bedtools" )  
         println LikeletUtils.print_purple("Differential m6A analysis is going on by bedtools")
-    else if ( quantification_mode == "QNB" )  
+    else if ( methylation_analysis_mode == "QNB" )  
         println LikeletUtils.print_purple("Differential m6A analysis is going on by QNB")
-    else if ( quantification_mode == "MATK" )
+    else if ( methylation_analysis_mode == "MATK" )
         println LikeletUtils.print_purple("Differential m6A analysis is going on by MATK")
     """
     # PeaksQuantification by bedtools
-    if [ ${quantification_mode} == "bedtools" ]; then 
+    if [ ${methylation_analysis_mode} == "bedtools" ]; then 
         Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile bedtools_quantification.matrix $compare_str
     fi
 
     # PeaksQuantification by QNB
-    if [ ${quantification_mode} == "QNB" ]; then 
+    if [ ${methylation_analysis_mode} == "QNB" ]; then 
         Rscript $baseDir/bin/QNB_diffm6A.R $formatted_designfile $compare_str 
     fi
 
     # PeaksQuantification by MeTDiff
-    if [ ${quantification_mode} == "MeTDiff" ]; then
+    if [ ${methylation_analysis_mode} == "MeTDiff" ]; then
         Rscript $baseDir/bin/MeTDiff_diffm6A.R $formatted_designfile $gtf $compare_str 
     fi
 
     # PeaksQuantification by MATK
-    if [ ${quantification_mode} == "MATK" ]; then 
+    if [ ${methylation_analysis_mode} == "MATK" ]; then 
         export OMP_NUM_THREADS=${task.cpus}
         bash $baseDir/bin/MATK_diffm6A.sh $matk_jar $formatted_designfile $gtf $compare_str $merged_bed
     fi
@@ -1275,6 +1293,7 @@ process diffm6APeak{
 }
 
 process MotifSearching {
+    label 'analysis'
     publishDir "${params.outdir}/result_arranged/motif", mode: 'link', overwrite: true
     
     input:
@@ -1299,6 +1318,7 @@ process MotifSearching {
     """
 }
 process SingleNucleotidePrediction{
+    label 'analysis'
     publishDir "${params.outdir}/result_arranged/m6Aprediction", mode: 'link', overwrite: true
     
     input:
@@ -1330,6 +1350,7 @@ Channel
     .into { annotate_collection; bed_collect_for_arrange_results}
 
 process BedAnnotated{
+    label 'analysis'
     publishDir "${params.outdir}/result_arranged/annotation", mode: 'link', overwrite: true
     
     input:
@@ -1377,13 +1398,13 @@ process AggrangeForM6AReport {
     
     output:
     file "*.m6APipe" into m6APipe_result
-    file "*" into final_results
+    file "*" into arranged_results
 
     when:
     !params.skip_annotation && !params.skip_expression && !skip_diffpeakCalling
 
     script:
-    quantification_mode = params.quantification_mode
+    methylation_analysis_mode = params.methylation_analysis_mode
     """
     #igvtools count -z 5 -w 10 -e 0 bamfile output.tdf chromesizefile
     if [ "$compare_info" != "[two_group]" ]; then
@@ -1391,10 +1412,10 @@ process AggrangeForM6AReport {
     else
         echo \$(awk 'BEGIN{FS=","}NR>1{print \$4}' $formatted_designfile |sort|uniq|awk 'NR==1{printf \$0"_vs_"}NR==2{print \$0}') > compare_info
     fi
-    Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $quantification_mode
+    Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $methylation_analysis_mode
     """
 }
-/*
+
 process m6AReport{
     input:
     file load_data from m6APipe_result
@@ -1406,11 +1427,11 @@ process m6AReport{
     !params.skip_annotation && !params.skip_expression && !skip_diffpeakCalling
 
     shell:
-    quantification_mode = params.quantification_mode
+    m6AReport_dir = baseDir + "/Report/"
     """
-
+    Rscript $baseDir/Report/app.R $load_data $m6AReport_dir
     """
-}*/
+}
 /*
 Working completed message
  */

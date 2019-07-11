@@ -16,32 +16,32 @@ do
     echo >&9 
 done
 
-function sort_and_transferbed()
+function mergebed_for_BioRepeat()
 {
     bed_file=$1
     bed_anno_file=$2
     outdir=$3
-    ## sort bed by pvalue for rank merge && transfer the origin region of peaks into the bedtools merged region of peaks 
-    awk '{ print $1":"$2"-"$3,$5}' ${bed_file} | sort -k1,1 |join -a1 - ${bed_anno_file} | sort -k2,2 -n -r | awk '{print $3}' > ${outdir}/tmp.${bed_file}.location
-    #rm -rf tmp.${outdir}
+    dotnet CLI.dll -i rep1.bed -i rep2.bed -r bio -s 1E-8 -w 1E-4 -o 
 }
-function mergebed_by_rank()
+function mergebed_for_TecRepeat()
 {
     prefix_id=$1
     out_prefix=$2
+    peakCalling_tools_count=$3
     mkdir tmp.${out_prefix}
-    cat *_${prefix_id}_*.bed | awk '{print $1"\t"$2*1"\t"$3*1"\t"$1":"$2"-"$3}' > tmp.${out_prefix}/bedtools_${prefix_id}_all_peaks
-    sortBed -i tmp.${out_prefix}/bedtools_${prefix_id}_all_peaks |mergeBed -i - -c 4,4 -o collapse,count | awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"$4}'  > tmp.${out_prefix}/bedtools_${prefix_id}
-    awk -F "\t" '{print $4,$5}' tmp.${out_prefix}/bedtools_${prefix_id} | awk -F '[," "]+' '{for (i=2 ;i<=NF;i++) printf $i" "$1"\n" }' | sort -k1 | uniq > tmp.${out_prefix}/bed_anno_file
-    for bedfile in *${prefix_id}*.bed
-    do
-        sort_and_transferbed $bedfile tmp.${out_prefix}/bed_anno_file tmp.${out_prefix}
-    done
-    paste -d "\t" tmp.${out_prefix}/tmp*location > ${out_prefix}.bedlist
-    peak_number=$(wc -l tmp.${out_prefix}/bed_anno_file | cut -d " " -f 1)
-    Rscript merge_peaks_by_rank.R ${out_prefix}.bedlist ${peak_number} ${out_prefix}.bed
-}
+    bedfile_array=$(ls *prefix_id*.bed | awk '{ORS=" "}{print "-i",$0}')
+    dotnet CLI.dll $bedfile_array -r tec -c $peakCalling_tools_count -s 1E-8 -w 1E-4 -o Tec_$prefix_id
+    mv Tec_$prefix_id
 
+}
+    ln -s !{mspc_dir} ./
+    ls exomePeak*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
+    ls metpeak*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
+    for bed in */*.bed
+    do
+        mv $bed ${bed/%ConsensusPeaks.bed/temp.bed}
+    done
+    ls */*.bed | awk '{ORS=" "}{print "-i",$0}'| awk '{print "dotnet CLI.dll",$0,"-r bio -w 1E-4 -s 1E-8"}' | bash
 # if the number of peakcalling tools > 2
 if [ $flag_peakCallingbygroup -gt 0 ]; then
     group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
