@@ -22,6 +22,7 @@ function motif_searching_by_pvalue()
     bedtools getfasta -s -fi $fasta -bed ${prefix}_bestpeaks.bed -fo ${prefix}_bestpeaks.fa
     ame -oc ${prefix}_ame ${prefix}_bestpeaks.fa $RRACH_motif
     findMotifsGenome.pl ${prefix}_bestpeaks.bed $fasta ${prefix}_homer -len 7 -rna -p ${THREAD_NUM:=1}
+    #dreme -k 7 -oc ${prefix}_dreme_4 -p ${prefix}_bestpeaks.fa
 }
 
 #check if the output file of Bedtools Merge exists

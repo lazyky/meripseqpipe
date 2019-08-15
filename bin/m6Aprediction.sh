@@ -25,26 +25,11 @@ do
                     -2bit ${fasta_file/.fa/.2bit} \
                     -gtf ${gtf_file} \
                     -out m6A_sites_${group_id}.bed
-    awk -F '[_"\t"]' '{printf $1"\t"$2"\t"$3"\t"}{if($4=="Unknown"){print $4"\t*\t"$6"\t"$5"\t'${group_id}'"}else{print $4"\t"$5"\t"$7"\t"$6"\t'${group_id}'"}}' m6A_sites_${group_id}.bed > tmp.m6A_sites_${group_id}.bed
+    awk -F "\t" '{print $1"\t"$2"\t"$3"\t"$4"\t*\t"$6"\t"$5"\t'${group_id}'"}' m6A_sites_${group_id}.bed > tmp.m6A_sites_${group_id}.bed
 }
 done
-# ## Check whether bed files exists
-# bed_count=$(ls *.bed |wc -w)
-# awk '{print $1"\t"$2"\t"$3}' ${bedfile} > ${bedfile/.bed/.location}
-# intersectBed -wo -a ${bedfile/.bed/.location} -b ${gtf_file} | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${bedfile/.bed/_bestpeaks.bed}
-# bedtools getfasta -s -fi ${fasta_file} -bed ${bedfile/.bed/_bestpeaks.bed} -fo ${bedfile/.bed/_bestpeaks.fa}
-# java -jar $matk_jar -singleNucleotide \
-#                     -mode "Fasta" \
-#                     -fasta  ${bedfile/.bed/_bestpeaks.fa} \
-#                     -out ${bedfile/.bed/_fasta_prediction}.txt
-# java -jar $matk_jar -singleNucleotide \
-#                     -mode "Sequence" \
-#                     -bed ${bedfile} \
-#                     -2bit ${fasta_file/.fa/.2bit} \
-#                     -gtf ${gtf_file} \
-#                     -out test_nogtf.txt
 wait
-cat tmp.m6A_sites*.bed | sortBed | mergeBed -s -c 4,5,6,7,8 -o first,first,first,collapse,collapse > tmp.m6A_sites_merged.bed
-awk -v gap=25 '{print $1"\t"$2-gap"\t"$3+gap"\t*\t*\t"$6}' tmp.m6A_sites_merged.bed | bedtools getfasta -s -fi ${fasta_file} -bed - | awk '$0!~">"{print $0}' > tmp.m6A_sites_merged.fa
+cat tmp.m6A_sites*.bed | sortBed | mergeBed -s -c 4,6,7,8 -o first,first,collapse,collapse > tmp.m6A_sites_merged.bed
+awk -v gap=25 '{print $1"\t"$2-gap"\t"$3+gap"\t*\t*\t"$5}' tmp.m6A_sites_merged.bed | bedtools getfasta -s -fi ${fasta_file} -bed - | awk '$0!~">"{print $0}' > tmp.m6A_sites_merged.fa
 paste tmp.m6A_sites_merged.bed tmp.m6A_sites_merged.fa > m6A_sites_merged.bed
-echo "m6Aprediction done"
+echo "Prediction sites of m6A done"

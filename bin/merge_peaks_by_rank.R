@@ -4,7 +4,7 @@ args<-commandArgs(T)
 bedlist <- read.table(args[1],header = F,sep = "\t",stringsAsFactors = F, na.strings = "")
 len_of_bed <- as.numeric(args[2])
 out_name <- as.character(args[3])
-bedlist2 <- NULL
+bedlist2 <- as.list(NULL)
 for (i in c(1:ncol(bedlist))){
   if (TRUE %in% is.na(bedlist[,i])){
     sub <- which(is.na(bedlist[,i]))

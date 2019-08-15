@@ -24,8 +24,8 @@ if( length(unique(designtable$Group)) < 2 ){
   group_id_1 <- strsplit(as.character(compare_str), "_vs_")[[1]][1]
   group_id_2 <- strsplit(as.character(compare_str), "_vs_")[[1]][2]
 }
-control_database = read.table(paste0("htseq_group_", group_id_1, "_input.count"), header = TRUE, row.names = 1)
-treated_database = read.table(paste0("htseq_group_", group_id_2, "_input.count"), header = TRUE, row.names = 1)
+control_database = read.table(paste0("htseq_group_", group_id_1, "_input.count"), header = TRUE, row.names = 1, check.names = FALSE)
+treated_database = read.table(paste0("htseq_group_", group_id_2, "_input.count"), header = TRUE, row.names = 1, check.names = FALSE)
 combined_database <- cbind(control_database,treated_database)
 condition <- factor(c(rep(group_id_1,ncol(control_database)), rep(group_id_2,ncol(treated_database)))) #setting factors
 ### assign gene names
