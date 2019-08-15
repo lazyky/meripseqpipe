@@ -1,8 +1,12 @@
-## Rscript arranged_results.R aligners_tools_name peak_calling_tools_name 
-library("QNB")
+#!/bin/Rscript
+## Rscript QNB_diffm6A.R <desginfile> <quantification_matrix_file> <compare_str>
+### designfile: Sample_id, Input_filename, IP_filename, group_id
+### compare_str: Compairision design (eg: A_vs_B)
+library(QNB)
 args <- commandArgs(T)
 designfile <- args[1]
-compare_str <- as.character(args[2])
+quantification_matrix_file <- args[2]
+compare_str <- as.character(args[3])
 
 designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 # Running QNB quantification
@@ -25,7 +29,7 @@ for(group_id in c(group_id_1,group_id_2)){
   input.count <- c()
   input.names <- c()
   input.samples <- c()
-  for( input in grep(paste0("merged_peaks.bed.",group_id), list.files(pattern = "input.count"), value = T) ){
+  for( input in grep(paste0(quantification_matrix_file,"[.]",group_id,"[.]"), list.files(pattern = "input.count"), value = T) ){
     input.exp <- read.table(input,header=T,sep="\t",row.names= NULL,quote = "")
     input.count <- cbind(input.count,input.exp[,5])
     input.names <- input.exp[,4] #peaks name
@@ -39,7 +43,7 @@ for(group_id in c(group_id_1,group_id_2)){
   ip.count <- c()
   ip.names <- c()
   ip.samples <- c()
-  for( ip in grep(paste0("merged_peaks.bed.",group_id), list.files(pattern = "ip.count"), value = T) ){
+  for( ip in grep(paste0(quantification_matrix_file,"[.]",group_id,"[.]"), list.files(pattern = "ip.count"), value = T) ){
     ip.exp <- read.table(ip,header=T,sep="\t",row.names= NULL,quote = "")
     ip.count <- cbind(ip.count,ip.exp[,5])
     ip.names <- ip.exp[,4] #peaks name

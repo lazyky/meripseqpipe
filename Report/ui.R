@@ -1,10 +1,3 @@
-library(shiny)
-library(shinyjs)
-library(shinydashboard)
-library(shinyWidgets)
-library(shinyBS)
-library(shinycssloaders)
-library(DT)
 
 ui<-dashboardPage(skin = "black",
   dashboardHeader(title = "m6A Report"),
@@ -329,4 +322,3 @@ ui<-dashboardPage(skin = "black",
     )
   )
 )
-

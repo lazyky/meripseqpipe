@@ -31,7 +31,7 @@ def cluster_bin( bonferroni_filter_list ):
         if pre_end_position == 0 or distance > 0 :
             if peak_line :
                 peak_region = peak_line[2] - peak_line[1]
-                if peak_region > 100 :
+                if peak_region >= 100 :
                     bonferroni_peak.append([])
                     bonferroni_peak[idx] = peak_line
                     idx += 1
@@ -52,6 +52,7 @@ with open (input_bin25_file) as input_bin25,open (ip_bin25_file) as ip_bin25:
     """Generate the list of bonferroni_filter_windows"""
     ip_bonferroni_filter_list = []
     ip_index = 0
+    print ("Generate the list of bonferroni_filter_windows")
     while True:
         input_line = input_bin25.readline().rstrip("\n")
         ip_line = ip_bin25.readline().rstrip("\n")
@@ -69,8 +70,10 @@ with open (input_bin25_file) as input_bin25,open (ip_bin25_file) as ip_bin25:
             ip_bonferroni_filter_list[ip_index] = ip_line_list
             ip_index += 1
 """Generate the list of bonferroni_filter_peaks"""
+print ("Generate the list of bonferroni_filter_peaks")
 ip_bonferroni_peak = cluster_bin(ip_bonferroni_filter_list[:])
 """Write the list of bonferroni_filter_peaks"""
+print ("Write the list of bonferroni_filter_peaks")
 with open(output_ip_file,'w') as output_file:
     for data in ip_bonferroni_peak:  
         output_file.write('\t'.join(str(i) for i in data))

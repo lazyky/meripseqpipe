@@ -118,7 +118,7 @@ foreach my $peakid (keys %RefPickTran) {
         		} else {
                 		if($cur_ftype ne $ftype and $cur_ftype eq "CDS"){
                         		$longest_transcript_id = $transcript_id_temp;
-					$longest_gene_id = $gene_id_temp;
+								$longest_gene_id = $gene_id_temp;
                         		$longest_sum_len = $cur_total_len;
                         		$ftype = $cur_ftype;
                 		} else {

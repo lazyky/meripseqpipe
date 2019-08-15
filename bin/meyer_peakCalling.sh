@@ -39,7 +39,7 @@ function meyer_peakCalling()
     {print "python meyer.py ./"pre".tmp/input/"$1".bin25.txt ./"pre".tmp/ip/"$1".bin25.txt '$input_total_reads_count' '$ip_total_reads_count' '$peak_windows_number' ./"pre".tmp/ip/"$1".m6A.meyer.pval.txt"}' $chrName_file \
     |xargs -iCMD -P$THREAD_NUM bash -c CMD
     cat $prefix.tmp/ip/*.m6A.meyer.pval.txt > meyer_${prefix}.bed
-    awk 'BEGIN{FS="\t";OFS="\t"}{print $1,$2,$3,$1":"$2"-"$3,-log($5)/log(10)}' meyer_${prefix}.bed > meyer_${prefix}_normalized.bed
+    awk 'BEGIN{FS="\t";OFS="\t"}{print $1,$2,$3,$1":"$2"-"$3,$4}' meyer_${prefix}.bed > meyer_${prefix}_normalized.bed
     rm -rf $prefix.tmp
 }
 

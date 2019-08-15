@@ -53,11 +53,11 @@ read -u 9
     bedtools multicov -bams ${ip_bam_file} -bed tmp.${merge_bed_file} >> ${merge_bed_file}.${group_id}.${sample_id}.ip.count
     echo >&9
 
-    awk -v bam="$input_bam" -v pre="$prefix" '
-    {print " bedtools multicov -bams '${input_bam_file}' -bed tmp.'${merge_bed_file}' >> '${merge_bed_file}'.'${group_id}'.'${sample_id}'.input.count; \
-    bedtools multicov -bams '${ip_bam_file}' -bed tmp.'${merge_bed_file}' >> '${merge_bed_file}'.'${group_id}'.'${sample_id}'.ip.count; \
-    sortBed -i ./"pre".tmp/input/"$1".bed | intersectBed  -a '${genomebin_dir}'"$1".bin25.bed -b - -sorted -c > ./"pre".tmp/input/"$1".bin25.txt"}' $chrName_file \
-    | xargs -iCMD -P$THREAD_NUM bash -c CMD
+    # awk -v bam="$input_bam" -v pre="$prefix" '
+    # {print " bedtools multicov -bams '${input_bam_file}' -bed tmp.'${merge_bed_file}' >> '${merge_bed_file}'.'${group_id}'.'${sample_id}'.input.count; \
+    # bedtools multicov -bams '${ip_bam_file}' -bed tmp.'${merge_bed_file}' >> '${merge_bed_file}'.'${group_id}'.'${sample_id}'.ip.count; \
+    # sortBed -i ./"pre".tmp/input/"$1".bed | intersectBed  -a '${genomebin_dir}'"$1".bin25.bed -b - -sorted -c > ./"pre".tmp/input/"$1".bin25.txt"}' $chrName_file \
+    # | xargs -iCMD -P$THREAD_NUM bash -c CMD
 }&
 done
 wait

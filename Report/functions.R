@@ -1,5 +1,4 @@
-library(ggplot2)
-library(ggseqlogo)
+
 #pie plot
 pie_plot <- function(dt){
   data1 <- table(dt[,9])
@@ -179,7 +178,6 @@ pca_plot <- function(mat,coldt){
     scale_colour_hue("Type") +
   #  coord_fixed() +
   theme_bw()
-
 }
 
 #multiplot

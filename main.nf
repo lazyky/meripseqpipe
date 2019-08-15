@@ -192,11 +192,32 @@ if( params.aligners == "none" ){
     skip_tophat2 = true
     skip_hisat2 = true
     skip_star = true
-}
-else{
+}else{
     exit 1, LikeletUtils.print_red("Invalid aligner option: ${params.aligner}. Valid options: 'star', 'hisat2', 'tophat2', 'bwa'")
 }
-
+if( params.expression_analysis_mode == "EdgeR" ){
+    params.skip_edger = false
+    params.skip_deseq2 = true
+    params.skip_cufflinks = true
+    params.skip_expression = false
+}else if( params.expression_analysis_mode == "DESeq2" ){
+    params.skip_edger = true
+    params.skip_deseq2 = false
+    params.skip_cufflinks = true
+    params.skip_expression = false
+}else if( params.expression_analysis_mode == "Cufflinks" ){
+    params.skip_edger = true
+    params.skip_deseq2 = true
+    params.skip_cufflinks = false
+    params.skip_expression = false
+}else if( params.expression_analysis_mode == "none" ){
+    params.skip_edger = true
+    params.skip_deseq2 = true
+    params.skip_cufflinks = true
+    params.skip_expression = true
+}else{
+    exit 1, LikeletUtils.print_red("Invalid expression_analysis_mode option: ${params.expression_analysis_mode}. Valid options: 'EdgeR', 'DESeq2', 'none'")
+}
 /*
  * Create a channel for input read files
  */
@@ -241,13 +262,13 @@ println (LikeletUtils.print_yellow("Stranded :                      ") + Likelet
 println LikeletUtils.print_yellow("====================================Mode selected==============================")
 println (LikeletUtils.print_yellow("aligners :                      ") + LikeletUtils.print_green(params.aligners))
 println (LikeletUtils.print_yellow("peakCalling_mode :              ") + LikeletUtils.print_green(params.peakCalling_mode))
-println (LikeletUtils.print_yellow("methylation_analysis_mode :           ") + LikeletUtils.print_green(params.methylation_analysis_mode))
+println (LikeletUtils.print_yellow("expression_analysis_mode :      ") + LikeletUtils.print_green(params.expression_analysis_mode))
+println (LikeletUtils.print_yellow("methylation_analysis_mode :     ") + LikeletUtils.print_green(params.methylation_analysis_mode))
 
 println LikeletUtils.print_yellow("==================================Input files selected==========================")
 println (LikeletUtils.print_yellow("Reads Path:                     ") + LikeletUtils.print_green(params.readPaths))
 println (LikeletUtils.print_yellow("fasta file :                    ") + LikeletUtils.print_green(params.fasta))
 println (LikeletUtils.print_yellow("Gtf file :                      ") + LikeletUtils.print_green(params.gtf))
-println (LikeletUtils.print_yellow("Bed12 file :                    ") + LikeletUtils.print_green(params.bed12))
 println (LikeletUtils.print_yellow("Design file :                   ") + LikeletUtils.print_green(params.designfile))
 println (LikeletUtils.print_yellow("Compare file :                  ") + LikeletUtils.print_green(params.comparefile))
 println (LikeletUtils.print_yellow("chromsizes file :               ") + LikeletUtils.print_green(params.chromsizesfile))
@@ -273,32 +294,25 @@ println (LikeletUtils.print_yellow("Output directory :              ") + Likelet
  * PREPROCESSING - Build BED12 file
  * NEED gtf.file
  */
-if( params.bed12 ){
-    Channel
-        .fromPath(params.bed12)
-        .ifEmpty { exit 1, LikeletUtils.print_red("BED12 annotation file not found: ${params.bed12}") }
-        .into {bed_rseqc; bed_genebody_coverage}
-}else if( params.gtf && !params.bed12 ){
-    process makeBED12 {
-        label 'build_index'
-        tag "gtf2bed12"
-        publishDir path: { params.saveReference ? "${params.outdir}/Genome/reference_genome" : params.outdir },
-                   saveAs: { params.saveReference ? it : null }, mode: 'copy'
+process makeBED12 {
+    label 'build_index'
+    tag "gtf2bed12"
+    publishDir path: { params.saveReference ? "${params.outdir}/Genome/reference_genome" : params.outdir },
+                saveAs: { params.saveReference ? it : null }, mode: 'copy'
 
-        when:
-        !params.skip_qc && !params.skip_rseqc
+    when:
+    !params.skip_qc && !params.skip_rseqc
 
-        input:
-        file gtf
-        
-        output:
-        file "${gtf.baseName}.bed" into bed_rseqc, bed_genebody_coverage
+    input:
+    file gtf
+    
+    output:
+    file "${gtf.baseName}.bed" into bed_rseqc, bed_genebody_coverage
 
-        script:      
-        """
-        bash ${baseDir}/bin/gtf2bed12.sh $gtf
-        """        
-    }
+    script:      
+    """
+    bash ${baseDir}/bin/gtf2bed12.sh $gtf
+    """
 }
 
 /*
@@ -466,7 +480,7 @@ process Fastp{
     output:
     val sample_name into pair_id_fastqc, pair_id_tophat2, pair_id_hisat2, pair_id_bwa, pair_id_star 
     file "*_aligners.fastq" into fastqc_reads ,tophat2_reads, hisat2_reads, bwa_reads, star_reads
-    file "*.{html,json}" into fastp_results
+    file "*" into fastp_results
 
     when:
     !skip_aligners
@@ -802,7 +816,7 @@ process Sort {
 }
 
 process RenameByDesignfile{
-    publishDir "${params.outdir}/Sample_rename", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/samtools_sort/sample_rename", mode: 'link', overwrite: true
 
     input:
     file (reads) from rename_bam_file.collect()
@@ -1051,10 +1065,10 @@ process Meyer{
     }
     '''
     cp !{baseDir}/bin/meyer.py ./
-    bedtools makewindows -g !{chromsizesfile} -w 25 > genome.bin25.bed
     awk '{print $1}' !{chromsizesfile} > chrName.txt
-    peak_windows_number=$(wc -l genome.bin25.bed| cut -d " " -f 1)
     mkdir genomebin
+    bedtools makewindows -g !{chromsizesfile} -w 25 > genome.bin25.bed
+    peak_windows_number=$(wc -l genome.bin25.bed| cut -d " " -f 1)
     awk '{print "cat genome.bin25.bed | grep "$1" > genomebin/"$1".bin25.bed"}' chrName.txt | xargs -iCMD -P!{task.cpus} bash -c CMD
     bash !{baseDir}/bin/meyer_peakCalling.sh !{formatted_designfile} chrName.txt genomebin/ ${peak_windows_number} !{task.cpus} !{flag_peakCallingbygroup}
     ''' 
@@ -1170,28 +1184,29 @@ Channel
     .from()
     .concat(metpeak_nomarlized_bed, macs2_nomarlized_bed, matk_nomarlized_bed, meyer_nomarlized_bed)
     .into {merged_bed ; bedtools_merge_peak_bed; bed_for_motif_searching; bed_for_annotation}
-    process PeakMergeBYRank {
-        label 'analysis'
-        publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
-        
-        input:
-        file peak_bed from bedtools_merge_peak_bed.collect()
-        file formatted_designfile from formatted_designfile.collect()
+process PeakMergeBYRank {
+    label 'analysis'
+    publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
+    
+    input:
+    file peak_bed from bedtools_merge_peak_bed.collect()
+    file formatted_designfile from formatted_designfile.collect()
 
-        output:
-        file "*merged*.bed" into merge_result
-        file "merged_group*.bed" into group_merged_bed
-        file "Rankmerged_peaks.bed" into all_merged_bed
+    output:
+    file "*merged*.bed" into merge_result
+    file "merged_group*.bed" into group_merged_bed
+    file "Rankmerged_peaks.bed" into all_merged_bed
 
-        script:
-        flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
-        peakCalling_tools_count = (params.skip_metpeak ? 0 : 1).toInteger() + (params.skip_macs2 ? 0 : 1).toInteger() + (params.skip_matk ? 0 : 1).toInteger() + (params.skip_meyer ? 0 : 1).toInteger()
-        println LikeletUtils.print_purple("Start merge peaks by RobustRankAggreg")
-        """
-        cp $baseDir/bin/merge_peaks_by_rank.R ./
-        bash $baseDir/bin/merge_peaks_by_rank.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count
-        """
-    }
+    script:
+    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    peakCalling_tools_count = (params.skip_metpeak ? 0 : 1).toInteger() + (params.skip_macs2 ? 0 : 1).toInteger() + (params.skip_matk ? 0 : 1).toInteger() + (params.skip_meyer ? 0 : 1).toInteger()
+    println LikeletUtils.print_purple("Start merge peaks by RobustRankAggreg")
+    """
+    cp $baseDir/bin/merge_peaks_by_rank.R ./
+    cp ${baseDir}/bin/normalize_peaks.py ./
+    bash $baseDir/bin/merge_peaks_by_rank.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count
+    """
+}
 process PeaksQuantification{
     label 'analysis'
     publishDir "${params.outdir}/result_arranged/quantification", mode: 'link', overwrite: true
@@ -1211,7 +1226,7 @@ process PeaksQuantification{
     script:
     matk_jar = params.matk_jar
     methylation_analysis_mode = params.methylation_analysis_mode
-    if ( methylation_analysis_mode == "bedtools" )  
+    if ( methylation_analysis_mode == "wilcox-test" )  
         println LikeletUtils.print_purple("Generate m6A quantification matrix by bedtools")
     else if ( methylation_analysis_mode == "QNB" )  
         println LikeletUtils.print_purple("Generate m6A quantification matrix by QNB")
@@ -1219,7 +1234,7 @@ process PeaksQuantification{
         println LikeletUtils.print_purple("Generate m6A quantification matrix by MATK")
     """
     # PeaksQuantification by bedtools
-    if [ ${methylation_analysis_mode} == "bedtools" ]; then 
+    if [ ${methylation_analysis_mode} == "wilcox-test" ]; then 
         bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
         Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
     fi
@@ -1261,15 +1276,15 @@ process diffm6APeak{
     script:
     matk_jar = params.matk_jar
     methylation_analysis_mode = params.methylation_analysis_mode
-    if ( methylation_analysis_mode == "bedtools" )  
+    if ( methylation_analysis_mode == "wilcox-test" )  
         println LikeletUtils.print_purple("Differential m6A analysis is going on by bedtools")
     else if ( methylation_analysis_mode == "QNB" )  
         println LikeletUtils.print_purple("Differential m6A analysis is going on by QNB")
     else if ( methylation_analysis_mode == "MATK" )
         println LikeletUtils.print_purple("Differential m6A analysis is going on by MATK")
     """
-    # PeaksQuantification by bedtools
-    if [ ${methylation_analysis_mode} == "bedtools" ]; then 
+    # PeaksQuantification by wilcox-test
+    if [ ${methylation_analysis_mode} == "wilcox-test" ]; then 
         Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile bedtools_quantification.matrix $compare_str
     fi
 
@@ -1313,13 +1328,13 @@ process MotifSearching {
     motif_file_dir = baseDir + "/bin"
     println LikeletUtils.print_purple("Motif analysis is going on by DREME and Homer")
     """
-    cp ${motif_file_dir}/RRACH.motif ./
-    bash $baseDir/bin/motif_searching.sh $fasta $gtf ${task.cpus}
+    cp ${motif_file_dir}/m6A_motif.meme ./
+    bash $baseDir/bin/motif_searching.sh $fasta $gtf m6A_motif.meme ${task.cpus}
     """
 }
 process SingleNucleotidePrediction{
     label 'analysis'
-    publishDir "${params.outdir}/result_arranged/m6Aprediction", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/result_arranged/m6A_prediction_sites", mode: 'link', overwrite: true
     
     input:
     file peak_bed from group_merged_bed.collect()

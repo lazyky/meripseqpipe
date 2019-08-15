@@ -1,4 +1,10 @@
 library(shiny)
+library(shinyjs)
+library(shinydashboard)
+library(shinyWidgets)
+library(shinyBS)
+library(shinycssloaders)
+library(DT)
 library(ggplot2)
 library(ggrepel)
 library(ggsci)
@@ -7,9 +13,8 @@ library(dplyr)
 library(stringr)
 library(knitr)
 library(reshape2)
-source("functions.R")
+library(ggseqlogo)
 options(stringsAsFactors=F)
-
 
 server <- function(input, output, session) {
 
