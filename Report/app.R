@@ -8,8 +8,8 @@ m6AReport.dir <- args[2]
 load(m6APipe.result)
 ## switch work dir for Shinyjs
 setwd(m6AReport.dir)
-source("ui.R")
 source("server.R")
+source("ui.R")
 source("functions.R")
 
 runApp(appDir = m6AReport.dir, port = 8848, launch.browser = T)

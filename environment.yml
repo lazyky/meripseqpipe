@@ -39,17 +39,18 @@ dependencies:
   - deeptools=3.1.3=py27h14c3975_1
   - multiqc=1.7=py_4
   - ucsc-bigwigtowig=357=1
-  - r-shiny
-  - r-shinyjs
-  - r-shinydashboard
-  - r-shinywidgets
-  - r-shinybs
-  - r-shinycssloaders
-  - r-dt 
-  - r-ggplot2
-  - r-ggrepel 
-  - r-ggsci 
-  - r-pheatmap
-  - r-dplyr
-  - r-knitr
-  - r-stringr 
+  - r-shiny=1.3.2=r35h6115d3f_1
+  - r-shinyjs=1.0=r35h6115d3f_1001
+  - r-shinydashboard=0.7.1=r35h6115d3f_1001
+  - r-shinywidgets=0.4.8=r35h6115d3f_1
+  - r-shinybs=0.61=r35h6115d3f_1002
+  - r-shinycssloaders=0.2.0=r35h6115d3f_1001
+  - r-dt=0.8=r35h6115d3f_0
+  - r-ggplot2=3.1.1=r351h6115d3f_0
+  - r-ggrepel=0.8.1=r35h0357c0b_1
+  - r-ggsci=2.9=r35h6115d3f_1002
+  - r-pheatmap=1.0.12=r35h6115d3f_1
+  - r-dplyr=0.8.3=r35h0357c0b_1
+  - r-knitr=1.24=r35h6115d3f_0
+  - r-stringr=1.4.0=r35h6115d3f_1
+  - r-ggseqlogo=0.1=r35_1002
