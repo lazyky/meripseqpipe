@@ -13,7 +13,8 @@ for ((i=1;i<=${THREAD_NUM:=1};i++))
 do
     echo >&9
 done
-
+mkdir -p annotatedbyxy
+mkdir -p annotatedbyhomer
 for bed_file in *.bed
 do
 read -u 9
@@ -27,6 +28,7 @@ read -u 9
 }& 
 done
 wait
+mv *annotatedbyhomer.bed annotatedbyhomer/
 echo "done"
 exec 9<&-
 exec 9>&-

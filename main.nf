@@ -144,12 +144,6 @@ if( params.designfile ) {
 }else{
     exit 1, LikeletUtils.print_red("No Design file specified!")
 }
-if( params.chromsizesfile ) {
-    chromsizesfile = file(params.chromsizesfile)
-    if( !chromsizesfile.exists() ) exit 1, LikeletUtils.print_red("Chromsizes file not found: ${params.chromsizesfile}")
-}else{
-    chromsizesfile = ""
-}
 if( params.comparefile == "two_group" ){
     compareLines = Channel.from("two_group")
 }else if( params.comparefile){
@@ -314,7 +308,35 @@ process makeBED12 {
     bash ${baseDir}/bin/gtf2bed12.sh $gtf
     """
 }
+/*
+ * PREPROCESSING - Create chromsizesfile for meyer
+ * NEED genome.fa
+ */
+if( params.chromsizesfile ) {
+    chromsizesfile = file(params.chromsizesfile)
+    if( !chromsizesfile.exists() ) exit 1, LikeletUtils.print_red("Chromsizes file not found: ${params.chromsizesfile}")
+}else if( params.fasta ){
+    process MeyerPrepration{
+        label 'build_index'
+        tag "MeyerPrepration"
 
+        input:
+        file fasta
+
+        output:
+        file "chromsizes.file" into chromsizesfile
+
+        when:
+        !params.chromsizesfile && !params.skip_meyer && !params.skip_peakCalling
+
+        shell:
+        '''
+        cat !{fasta} | awk 'BEGIN{len=""}{if($0~">"){split($0,ID,"[> ]");printf len"ABC"ID[2]"\\t";len=0}else{len=len+length($0)}}END{print len}' |sed 's/ABC/\\n/g' |awk NF > chromsizes.file
+        '''
+    }
+}else {
+    exit 1, println LikeletUtils.print_red("Chromsizes file cannot build due to lack of ")
+}
 /*
  * PREPROCESSING - Build TOPHAT2 index
  * NEED genome.fa
@@ -1054,7 +1076,7 @@ process Meyer{
     file "meyer*_normalized.bed" into meyer_nomarlized_bed
 
     when:
-    chromsizesfile != "" && !params.skip_meyer && !params.skip_peakCalling
+    !params.skip_meyer && !params.skip_peakCalling
 
     shell:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
@@ -1089,6 +1111,7 @@ process Htseq_count{
 
     output:
     file "*input*.count" into htseq_count_input_to_deseq2, htseq_count_input_to_edgeR, htseq_count_input_to_arrange
+    file "expression.matrix" into htseq_results
 
     when:
     !params.skip_expression
@@ -1184,7 +1207,7 @@ Channel
     .from()
     .concat(metpeak_nomarlized_bed, macs2_nomarlized_bed, matk_nomarlized_bed, meyer_nomarlized_bed)
     .into {merged_bed ; bedtools_merge_peak_bed; bed_for_motif_searching; bed_for_annotation}
-process PeakMergeBYRank {
+process PeakMerge {
     label 'analysis'
     publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
     
@@ -1194,17 +1217,31 @@ process PeakMergeBYRank {
 
     output:
     file "*merged*.bed" into merge_result
-    file "merged_group*.bed" into group_merged_bed
-    file "Rankmerged_peaks.bed" into all_merged_bed
+    file "*{merged_group,allPeaks}*.bed" into group_merged_bed
+    file "*_merged_allpeaks.bed" into all_merged_bed
 
     script:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
     peakCalling_tools_count = (params.skip_metpeak ? 0 : 1).toInteger() + (params.skip_macs2 ? 0 : 1).toInteger() + (params.skip_matk ? 0 : 1).toInteger() + (params.skip_meyer ? 0 : 1).toInteger()
-    println LikeletUtils.print_purple("Start merge peaks by RobustRankAggreg")
+    peakMerged_mode = params.peakMerged_mode
+    if ( peakMerged_mode == "rank" )  
+        println LikeletUtils.print_purple("Start merge peaks by RobustRankAggreg")
+    else if ( peakMerged_mode == "macs2" )  
+        println LikeletUtils.print_purple("Generate m6A quantification matrix by QNB")
+    else if ( peakMerged_mode == "MATK" )
+        println LikeletUtils.print_purple("Generate m6A quantification matrix by MATK")
     """
-    cp $baseDir/bin/merge_peaks_by_rank.R ./
     cp ${baseDir}/bin/normalize_peaks.py ./
-    bash $baseDir/bin/merge_peaks_by_rank.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count
+    if [ ${peakMerged_mode} == "rank" ]; then 
+        cp $baseDir/bin/merge_peaks_by_rank.R ./
+        bash $baseDir/bin/merge_peaks_by_rank.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count
+    fi
+    if [ ${peakMerged_mode} == "mspc" ]; then 
+        bash $baseDir/bin/merge_peaks_by_mspc.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count mspc_results
+    fi
+    if [ ${peakMerged_mode} == "macs2" ]||[ ${peakMerged_mode} == "MATK" ]; then 
+        bash $baseDir/bin/merge_peaks_by_bedtools.sh ${peakMerged_mode} $peakCalling_tools_count
+    fi
     """
 }
 process PeaksQuantification{
@@ -1226,7 +1263,7 @@ process PeaksQuantification{
     script:
     matk_jar = params.matk_jar
     methylation_analysis_mode = params.methylation_analysis_mode
-    if ( methylation_analysis_mode == "wilcox-test" )  
+    if ( methylation_analysis_mode == "Wilcox-test" )  
         println LikeletUtils.print_purple("Generate m6A quantification matrix by bedtools")
     else if ( methylation_analysis_mode == "QNB" )  
         println LikeletUtils.print_purple("Generate m6A quantification matrix by QNB")
@@ -1234,7 +1271,7 @@ process PeaksQuantification{
         println LikeletUtils.print_purple("Generate m6A quantification matrix by MATK")
     """
     # PeaksQuantification by bedtools
-    if [ ${methylation_analysis_mode} == "wilcox-test" ]; then 
+    if [ ${methylation_analysis_mode} == "Wilcox-test" ]; then 
         bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
         Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
     fi
@@ -1276,15 +1313,15 @@ process diffm6APeak{
     script:
     matk_jar = params.matk_jar
     methylation_analysis_mode = params.methylation_analysis_mode
-    if ( methylation_analysis_mode == "wilcox-test" )  
+    if ( methylation_analysis_mode == "Wilcox-test" )  
         println LikeletUtils.print_purple("Differential m6A analysis is going on by bedtools")
     else if ( methylation_analysis_mode == "QNB" )  
         println LikeletUtils.print_purple("Differential m6A analysis is going on by QNB")
     else if ( methylation_analysis_mode == "MATK" )
         println LikeletUtils.print_purple("Differential m6A analysis is going on by MATK")
     """
-    # PeaksQuantification by wilcox-test
-    if [ ${methylation_analysis_mode} == "wilcox-test" ]; then 
+    # PeaksQuantification by Wilcox-test
+    if [ ${methylation_analysis_mode} == "Wilcox-test" ]; then 
         Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile bedtools_quantification.matrix $compare_str
     fi
 
@@ -1385,12 +1422,9 @@ process BedAnnotated{
     //Skip Peak Calling Tools Setting
     """
     # Annotation Peaks
-    mkdir -p annotatedbyxy
-    mkdir -p annotatedbyhomer
     cp ${annotated_script_dir}/intersec.pl ./
     cp ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
     bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}  
-    mv *annotatedbyhomer.bed annotatedbyhomer/
     """
 }
 

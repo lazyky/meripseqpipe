@@ -17,7 +17,7 @@ function motif_searching_by_pvalue()
     fasta=$2
     gtf=$3
     prefix=$4
-    sort -k5,5 -n ${bed_file}| head -1000 | awk '{ print $1"\t"$2"\t"$3}' > ${prefix}.location
+    sort -k5,5 -g ${bed_file}| head -1000 | awk '{ print $1"\t"$2"\t"$3}' > ${prefix}.location
     intersectBed -wo -a ${prefix}.location -b $gtf | awk -v OFS="\t" '{print $1,$2,$3,"*","*",$10}' | sort -k1,2 | uniq > ${prefix}_bestpeaks.bed
     bedtools getfasta -s -fi $fasta -bed ${prefix}_bestpeaks.bed -fo ${prefix}_bestpeaks.fa
     ame -oc ${prefix}_ame ${prefix}_bestpeaks.fa $RRACH_motif
@@ -26,9 +26,9 @@ function motif_searching_by_pvalue()
 }
 
 #check if the output file of Bedtools Merge exists
-bed_count=$(ls *merged_group*.bed| wc -w)
+bed_count=$(ls *.bed| wc -w)
 if [ $bed_count -gt 0 ]; then
-    for bedfile in *merged_group*.bed
+    for bedfile in *.bed
     do
     {
         motif_searching_by_pvalue $bedfile $fasta_file $gtf_file ${bedfile/.bed/}

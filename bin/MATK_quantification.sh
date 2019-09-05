@@ -35,7 +35,7 @@ do
     awk 'BEGIN{FS="\t"}{print $5}' MATK_${sample_id}_quantification.bed >> tmp.quantification.$sample_id
     awk 'BEGIN{FS="\t";print ""}NR>1{print $1":"$2"-"$3}' MATK_${sample_id}_quantification.bed > tmp.MATK.quantification
     #echo >&9
-}#&
+}
 done
 wait
 ls tmp.quantification.* |xargs -iFILE sed -i '2d' FILE 

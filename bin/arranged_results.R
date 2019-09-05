@@ -60,10 +60,10 @@ for( group_name in as.vector(unique(design.matrix)[,1]) ){
 }
 
 ## generate peak Visualization
-annotation.file <- list.files(pattern = "merged_peaks.anno.txt")
+annotation.file <- list.files(pattern = "merged_allpeaks.anno.txt")
 annotation.info <- read.table(annotation.file, header = F, sep = "\t", stringsAsFactors = F, quote = "", check.names=F)[,c(4,15,11)]
 colnames(annotation.info) <- c("PeakRegion","ID","Gene_symbol")
-m6a.peaks.file <- "Rankmerged_peaks.bed"
+m6a.peaks.file <- list.files(pattern = "merged_allpeaks.bed")
 m6a.peaks.table <- read.table(m6a.peaks.file, header = F, sep = "\t", stringsAsFactors = F, quote = "", check.names=F)
 colnames(m6a.peaks.table) <- c("Chr","ChrStart","ChrEnd","PeakRegion","pvalue")
 m6a.peaks.table = merge(x = m6a.peaks.table,y = annotation.info,by = "PeakRegion",all.x = TRUE)
