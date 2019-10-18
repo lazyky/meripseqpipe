@@ -26,7 +26,7 @@ mclapply(unique(designtable$Group),function(x){
   colnames(trans.htseq.input.count) <- pc.samples
   #parsing samplenames
   output_pattern = paste0("htseq_group_",group_id)  #添加aligner
-  write.table(trans.htseq.input.count, file = paste0(output_pattern,"_input.count") , sep ="\t", row.names =T,col.names =T)
+  write.table(trans.htseq.input.count, file = paste0(output_pattern,"_input.count") , sep ="\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 },
 mc.cores = THREAD_NUM
 )

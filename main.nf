@@ -1465,22 +1465,6 @@ process AggrangeForM6AReport {
     """
 }
 
-process m6AReport{
-    input:
-    file load_data from m6APipe_result
-    
-    output:
-    file "*" into final_results
-
-    when:
-    !params.skip_annotation && !params.skip_expression && !skip_diffpeakCalling
-
-    shell:
-    m6AReport_dir = baseDir + "/Report/"
-    """
-    Rscript $baseDir/Report/app.R $load_data $m6AReport_dir
-    """
-}
 /*
 Working completed message
  */
