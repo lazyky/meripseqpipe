@@ -32,16 +32,14 @@ rownames(y) <- rownames(combined_database)
 y <- calcNormFactors(y)
 design <- model.matrix(~group)
 y <- estimateDisp(y,design)
-#To perform quasi-likelihood F-tests:
-fit <- glmQLFit(y,design)
-qlf <- glmQLFTest(fit,coef=2)
-topTags(qlf)
 #To perform likelihood ratio tests:
 fit <- glmFit(y,design)
 lrt <- glmLRT(fit,coef=2)
 topTags(lrt)
 ### set output_name
+lrt$table$padj <- p.adjust(lrt$table$PValue,"BH")
+lrt.res <- lrt$table[order(lrt$table$padj),]
+colnames(lrt.res) <- c("log2FoldChange","logCPM","LR","pvalue","padj")
 output_name <- paste0("edgeR_group_",group_id_1, "_",group_id_2)
 write.csv(combined_database, file = paste0(output_name,".matirx") )
-write.csv(qlf$table, file = paste0(output_name, "_qlf.csv"))
-write.csv(lrt$table, file = paste0(output_name, "_lrt.csv"))
+write.csv(lrt.res, file = paste0(output_name, ".csv"))

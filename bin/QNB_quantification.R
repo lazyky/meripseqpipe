@@ -37,4 +37,4 @@ for(sample_id in designtable$Sample_ID){
   rpkm_peaks_list <- cbind(rpkm_peaks_list,sample_quantification)
   rownames(rpkm_peaks_list) <- rownames(ip.count)
 }
-write.table(rpkm_peaks_list,file = "QNB_quantification.matrix")
+write.table(rpkm_peaks_list,file = "QNB_quantification.matrix",quote = F)

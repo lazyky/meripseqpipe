@@ -1,16 +1,13 @@
-#!/bin/Rscript
-## Rscript GLM_edgeR_DM.R <desginfile> <compare_str>
-### designfile: Sample_id, Input_filename, IP_filename, group_id
-### compare_str: Compairision design (eg: A_vs_B)
-
-#####GLM model###
-#edgeR
-library(edgeR)
+library(DESeq2)
+library(BiocParallel)
 
 #load data
 args <- commandArgs(T)
+#args <- c("formatted_designfile.txt","shGFPa549_vs_shMettl3a549", "10")
 designfile <- args[1]
 compare_str <- args[2]
+THREAD_NUM <- as.numeric(args[3])
+register(MulticoreParam(THREAD_NUM))
 
 designtable <- read.csv(designfile, head = TRUE, stringsAsFactors=FALSE, colClasses = c("character"), check.names=F)
 design.matrix <- as.data.frame(designtable$Group)
@@ -57,19 +54,14 @@ rownames(design.matrix) <- design.matrix$sample_id
 design.matrix$m6A <- factor(design.matrix$m6A)
 design.matrix <- design.matrix[colnames(rpkm_peaks_list),]
 
-run.edger <- function(cnts,meta){
-  #add count filter?
-  er.design <- model.matrix(~meta$Condition+meta$m6A+meta$Condition*meta$m6A)
-  er.dgelist <- edgeR::DGEList(counts=cnts,group=meta$Condition) 
-  er.dgelist <- edgeR::estimateDisp(er.dgelist, design=er.design)
-  er.fit <- edgeR::glmFit(er.dgelist, er.design)
-  er.lrt <- edgeR::glmLRT(er.fit, coef=4)
-  #hist(er.lrt$table$PValue) er.lrt$table$logFC,
-  results <- er.lrt$table
-  results$padj <- p.adjust(results$PValue,"BH")
-  colnames(results) <- c("log2FC","logCPM","LR","pvalue","padj")
+run.deseq2 <- function(cnts,meta){
+  inf.dds <- DESeq2::DESeqDataSetFromMatrix(countData = cnts,colData = meta,design = ~Condition+m6A+Condition:m6A)
+  inf.dds.LRT <- DESeq2::DESeq(inf.dds,betaPrior=FALSE, test="LRT",
+                               full=~Condition+m6A+Condition:m6A,reduced=~Condition+m6A)    
+  inf.dds.res <- DESeq2::results(inf.dds.LRT)
+  results <- inf.dds.res
+  colnames(results) <- c("baseMean", "log2FC", "lfcSE", "stat", "pvalue", "padj")
   return(results)
 }
-results <- run.edger(rpkm_peaks_list,design.matrix)
-write.table(results,file = paste0("edgeR_diffm6A_",group_id_1, "_",group_id_2,".txt") ,sep = "\t",quote = F)
-
+results <- run.deseq2(rpkm_peaks_list,design.matrix)
+write.table(results,file = paste0("DESeq2_diffm6A_",group_id_1, "_",group_id_2,".txt") ,sep = "\t",quote = F)

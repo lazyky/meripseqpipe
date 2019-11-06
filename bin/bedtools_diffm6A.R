@@ -50,6 +50,6 @@ res_wix_lst$padj = p.adjust(res_wix_lst$pvalue,method = "BH")
 res_wix_lst$BY = p.adjust(res_wix_lst$pvalue,method = "bonferroni")
 cat("DM peaks pvalue(0.05)",sum(res_wix_lst$pvalue <=0.05),"\n")
 cat("DM peaks FDR(0.05)",sum(res_wix_lst$padj <=0.05),"\n")
-output_name <- paste0("bedtools_diffm6A_",group_id_1, "_",group_id_2)
-write.table(res_wix_lst,file = paste0(output_name,".txt"))
+output_name <- paste0("bedtools_diffm6A_",group_id_1, "_", group_id_2)
+write.table(res_wix_lst,file = paste0(output_name,".txt"), quote = F)
 

@@ -23,7 +23,7 @@
 // - samtools/rseqc
 // - MeTPeak/Macs2/MATK/meyer
 // - RobustRankAggreg/bedtools
-// - Cufflinks/Deseq2/EdgeR
+// - Cufflinks/DESeq2/EdgeR
 // - MeTDiff/QNB/MATK
 // - Homer/DREME
 // - SRAMP/MATK
@@ -153,7 +153,7 @@ if( params.comparefile == "two_group" ){
 }else {
     compareLines = Channel.from("")
 }
-compareLines.into{compareLines_for_Deseq2; compareLines_for_edgeR; compareLines_for_diffm6A; compareLines_for_arranged_result }
+compareLines.into{compareLines_for_DESeq2; compareLines_for_edgeR; compareLines_for_diffm6A; compareLines_for_arranged_result }
 
 // Validate the params of skipping Aligners Tools Setting
 if( params.aligners == "none" ){
@@ -189,7 +189,7 @@ if( params.aligners == "none" ){
 }else{
     exit 1, LikeletUtils.print_red("Invalid aligner option: ${params.aligner}. Valid options: 'star', 'hisat2', 'tophat2', 'bwa'")
 }
-if( params.expression_analysis_mode == "EdgeR" ){
+if( params.expression_analysis_mode == "edgeR" ){
     params.skip_edger = false
     params.skip_deseq2 = true
     params.skip_cufflinks = true
@@ -210,7 +210,7 @@ if( params.expression_analysis_mode == "EdgeR" ){
     params.skip_cufflinks = true
     params.skip_expression = true
 }else{
-    exit 1, LikeletUtils.print_red("Invalid expression_analysis_mode option: ${params.expression_analysis_mode}. Valid options: 'EdgeR', 'DESeq2', 'none'")
+    exit 1, LikeletUtils.print_red("Invalid expression_analysis_mode option: ${params.expression_analysis_mode}. Valid options: 'edgeR', 'DESeq2', 'none'")
 }
 /*
  * Create a channel for input read files
@@ -817,19 +817,31 @@ process Sort {
     script:
     sample_name = bam_file.toString() - ~/(\.bam)?$/
     output = sample_name + "_sort.bam"
+    keep_unique = (params.mapq_cutoff).toInteger() 
     if (!params.skip_sort){
         println LikeletUtils.print_purple("Samtools sorting the bam files now")
-        """    
-        samtools sort -@ ${task.cpus} -O BAM -o $output $bam_file
+        if(keep_unique) println LikeletUtils.print_purple("Keeping unique reads")
+        """
+        if [ "$keep_unique" -gt "0" ]; then
+            samtools view -bq $keep_unique $bam_file > unique.bam
+        else
+            mv $bam_file unique.bam
+        fi
+        samtools sort -@ ${task.cpus} -O BAM -o $output unique.bam
         samtools index -@ ${task.cpus} $output
         """
     } else {
         println LikeletUtils.print_purple("The step of samtools sort is skipped")
+        if(keep_unique) println LikeletUtils.print_purple("Keeping unique reads")
         """
         for bam_file in *.bam
         do
         {
-            mv ${bam_file} $output
+            if [ "$keep_unique" -gt "0" ]; then
+                samtools view -bq $keep_unique $bam_file > $output
+            else
+                mv $bam_file $output
+            fi
             samtools index -@ ${task.cpus} $output
         }
         done
@@ -1125,25 +1137,25 @@ process Htseq_count{
     """ 
 }
 
-process Deseq2{
+process DESeq2{
     label 'analysis'
     tag "$compare_str"
 
-    publishDir "${params.outdir}/diff_expression/deseq2", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/diff_expression/DESeq2", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_deseq2
     file formatted_designfile from formatted_designfile.collect()
-    val compare_str from compareLines_for_Deseq2
+    val compare_str from compareLines_for_DESeq2
 
     output:
-    file "Deseq2*.csv" into deseq2_results
+    file "DESeq2*.csv" into deseq2_results
     
     when:
     !params.skip_deseq2 && !params.skip_expression
     
     script:
-    println LikeletUtils.print_purple("Differential expression analysis performed by Deseq2 ($compare_str)")
+    println LikeletUtils.print_purple("Differential expression analysis performed by DESeq2 ($compare_str)")
     """
     Rscript $baseDir/bin/DESeq2.R $formatted_designfile $compare_str
     """ 
@@ -1206,44 +1218,80 @@ process Cufflinks{
 Channel
     .from()
     .concat(metpeak_nomarlized_bed, macs2_nomarlized_bed, matk_nomarlized_bed, meyer_nomarlized_bed)
-    .into {merged_bed ; bedtools_merge_peak_bed; bed_for_motif_searching; bed_for_annotation}
+    .into {merged_bed ; bed_for_annotation}
 process PeakMerge {
     label 'analysis'
     publishDir "${params.outdir}/result_arranged/merged_bed", mode: 'link', overwrite: true
     
     input:
-    file peak_bed from bedtools_merge_peak_bed.collect()
+    file peak_bed from merged_bed.collect()
     file formatted_designfile from formatted_designfile.collect()
 
     output:
     file "*merged*.bed" into merge_result
-    file "*{merged_group,allPeaks}*.bed" into group_merged_bed
+    file "*merged_group*.bed" into group_merged_bed
     file "*_merged_allpeaks.bed" into all_merged_bed
 
     script:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    mspc_dir = params.mspc_dir
     peakCalling_tools_count = (params.skip_metpeak ? 0 : 1).toInteger() + (params.skip_macs2 ? 0 : 1).toInteger() + (params.skip_matk ? 0 : 1).toInteger() + (params.skip_meyer ? 0 : 1).toInteger()
     peakMerged_mode = params.peakMerged_mode
     if ( peakMerged_mode == "rank" )  
         println LikeletUtils.print_purple("Start merge peaks by RobustRankAggreg")
-    else if ( peakMerged_mode == "macs2" )  
-        println LikeletUtils.print_purple("Generate m6A quantification matrix by QNB")
-    else if ( peakMerged_mode == "MATK" )
-        println LikeletUtils.print_purple("Generate m6A quantification matrix by MATK")
+    else if ( peakMerged_mode == "mspc" )  
+        println LikeletUtils.print_purple("Start merge peaks by MSPC")
+    else ( peakMerged_mode == "bedtools" )
+        println LikeletUtils.print_purple("Start merge peaks by " + peakMerged_mode )
     """
     cp ${baseDir}/bin/normalize_peaks.py ./
     if [ ${peakMerged_mode} == "rank" ]; then 
         cp $baseDir/bin/merge_peaks_by_rank.R ./
         bash $baseDir/bin/merge_peaks_by_rank.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count
-    fi
-    if [ ${peakMerged_mode} == "mspc" ]; then 
+    elif [ ${peakMerged_mode} == "mspc" ]; then 
+        ln -s ${mspc_dir}/* ./
         bash $baseDir/bin/merge_peaks_by_mspc.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count mspc_results
-    fi
-    if [ ${peakMerged_mode} == "macs2" ]||[ ${peakMerged_mode} == "MATK" ]; then 
-        bash $baseDir/bin/merge_peaks_by_bedtools.sh ${peakMerged_mode} $peakCalling_tools_count
+    elif [ ${peakMerged_mode} == "macs2" ]||[ ${peakMerged_mode} == "metpeak" ]||[ ${peakMerged_mode} == "MATK" ]; then 
+        bash $baseDir/bin/merge_peaks_by_bedtools.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup $peakCalling_tools_count $peakMerged_mode
+    else
+        echo -e "Please check your value of peakMerged_mode: $peakMerged_mode"
     fi
     """
 }
+
+Channel
+    .from()
+    .concat( group_merged_bed, all_merged_bed )
+    .into { annotate_collection; bed_collect_for_arrange_results}
+
+process BedAnnotated{
+    label 'analysis'
+    publishDir "${params.outdir}/result_arranged/annotation", mode: 'link', overwrite: true
+    
+    input:
+    file annotate_file from annotate_collection.collect()
+    file formatted_designfile from formatted_designfile.collect()
+    file fasta
+    file gtf
+
+    output:
+    file "annotatedby{xy,homer}/*" into annotation_results
+    file "annotatedbyxy/*merged_allpeaks.anno.txt" into methylation_annotaion_file
+    
+    when:
+    !params.skip_annotation
+
+    script:
+    annotated_script_dir = baseDir + "/bin"
+    //Skip Peak Calling Tools Setting
+    """
+    # Annotation Peaks
+    cp ${annotated_script_dir}/intersec.pl ./
+    cp ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
+    bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}  
+    """
+}
+
 process PeaksQuantification{
     label 'analysis'
     publishDir "${params.outdir}/result_arranged/quantification", mode: 'link', overwrite: true
@@ -1252,6 +1300,7 @@ process PeaksQuantification{
     file peak_bed from all_merged_bed.collect()
     file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
+    file annotation_file from methylation_annotaion_file.collect()
     file gtf
 
     output:
@@ -1269,24 +1318,32 @@ process PeaksQuantification{
         println LikeletUtils.print_purple("Generate m6A quantification matrix by QNB")
     else if ( methylation_analysis_mode == "MATK" )
         println LikeletUtils.print_purple("Generate m6A quantification matrix by MATK")
+    else if ( methylation_analysis_mode == "edgeR" )  
+        println LikeletUtils.print_purple("Generate m6A quantification matrix by edgeR")
+    else if ( methylation_analysis_mode == "DESeq2" )
+        println LikeletUtils.print_purple("Generate m6A quantification matrix by DESeq2")
     """
-    # PeaksQuantification by bedtools
     if [ ${methylation_analysis_mode} == "Wilcox-test" ]; then 
+        # PeaksQuantification by bedtools
+        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
+        Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
+    elif [ ${methylation_analysis_mode} == "QNB" ]||[ ${methylation_analysis_mode} == "MeTDiff" ]; then 
+        # PeaksQuantification by QNB
+        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
+        Rscript $baseDir/bin/QNB_quantification.R $formatted_designfile ${task.cpus}
+    elif [ ${methylation_analysis_mode} == "MATK" ]; then 
+        # PeaksQuantification by MATK
+        export OMP_NUM_THREADS=${task.cpus}
+        bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${peak_bed} 1
+    elif [ ${methylation_analysis_mode} == "DESeq2" ]||[ ${methylation_analysis_mode} == "edgeR" ]; then 
+        # PeaksQuantification by LRT
         bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
         Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
     fi
-
-    # PeaksQuantification by QNB
-    if [ ${methylation_analysis_mode} == "QNB" ]||[ ${methylation_analysis_mode} == "MeTDiff" ]; then 
-        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${peak_bed} bam_stat_summary.txt
-        Rscript $baseDir/bin/QNB_quantification.R $formatted_designfile ${task.cpus}
-    fi
-
-    # PeaksQuantification by MATK
-    if [ ${methylation_analysis_mode} == "MATK" ]; then 
-        export OMP_NUM_THREADS=${task.cpus}
-        bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${peak_bed} 1
-    fi
+    head -1 *_quantification.matrix |sed 's/^\\t//'  |awk -F "\\t" '{print "ID\\tGene_symbol\\t"\$0}' > tmp.header.file
+    sed '1d' *_quantification.matrix | sort > tmp.quantification.file
+    awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}'  bedtools_merged_allpeaks.anno.txt | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
+    join -t \$'\t' tmp.annotation.file tmp.quantification.file | cat tmp.header.file - > *_quantification.matrix 
     """
 }
 
@@ -1319,26 +1376,24 @@ process diffm6APeak{
         println LikeletUtils.print_purple("Differential m6A analysis is going on by QNB")
     else if ( methylation_analysis_mode == "MATK" )
         println LikeletUtils.print_purple("Differential m6A analysis is going on by MATK")
+    else if ( methylation_analysis_mode == "edgeR" )  
+        println LikeletUtils.print_purple("Differential m6A analysis is going on by edgeR")
+    else if ( methylation_analysis_mode == "DESeq2" )
+        println LikeletUtils.print_purple("Differential m6A analysis is going on by DESeq2")
     """
-    # PeaksQuantification by Wilcox-test
     if [ ${methylation_analysis_mode} == "Wilcox-test" ]; then 
         Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile bedtools_quantification.matrix $compare_str
-    fi
-
-    # PeaksQuantification by QNB
-    if [ ${methylation_analysis_mode} == "QNB" ]; then 
-        Rscript $baseDir/bin/QNB_diffm6A.R $formatted_designfile $compare_str 
-    fi
-
-    # PeaksQuantification by MeTDiff
-    if [ ${methylation_analysis_mode} == "MeTDiff" ]; then
-        Rscript $baseDir/bin/MeTDiff_diffm6A.R $formatted_designfile $gtf $compare_str 
-    fi
-
-    # PeaksQuantification by MATK
-    if [ ${methylation_analysis_mode} == "MATK" ]; then 
+    elif [ ${methylation_analysis_mode} == "QNB" ]; then 
+        Rscript $baseDir/bin/QNB_diffm6A.R $formatted_designfile ${merged_bed} $compare_str     
+    elif [ ${methylation_analysis_mode} == "MeTDiff" ]; then
+        Rscript $baseDir/bin/MeTDiff_diffm6A.R $formatted_designfile $compare_str 
+    elif [ ${methylation_analysis_mode} == "MATK" ]; then 
         export OMP_NUM_THREADS=${task.cpus}
         bash $baseDir/bin/MATK_diffm6A.sh $matk_jar $formatted_designfile $gtf $compare_str $merged_bed
+    elif [ ${methylation_analysis_mode} == "edgeR" ]; then
+        Rscript $baseDir/bin/GLM_edgeR_DM.R $formatted_designfile $compare_str 
+    elif [ ${methylation_analysis_mode} == "DESeq2" ]; then 
+        Rscript $baseDir/bin/GLM_DESeq2_DM.R $formatted_designfile $compare_str ${task.cpus}
     fi
 
     """ 
@@ -1349,7 +1404,6 @@ process MotifSearching {
     publishDir "${params.outdir}/result_arranged/motif", mode: 'link', overwrite: true
     
     input:
-    file peak_bed from bed_for_motif_searching.collect()
     file group_bed from group_merged_bed.collect()
     file formatted_designfile from formatted_designfile.collect()
     file fasta
@@ -1396,37 +1450,6 @@ process SingleNucleotidePrediction{
     """
 }
 
-Channel
-    .from()
-    .concat( bed_for_annotation, group_merged_bed, all_merged_bed )
-    .into { annotate_collection; bed_collect_for_arrange_results}
-
-process BedAnnotated{
-    label 'analysis'
-    publishDir "${params.outdir}/result_arranged/annotation", mode: 'link', overwrite: true
-    
-    input:
-    file annotate_file from annotate_collection.collect()
-    file formatted_designfile from formatted_designfile.collect()
-    file fasta
-    file gtf
-
-    output:
-    file "annotatedby{xy,homer}/*" into annotation_results
-    
-    when:
-    !params.skip_annotation
-
-    script:
-    annotated_script_dir = baseDir + "/bin"
-    //Skip Peak Calling Tools Setting
-    """
-    # Annotation Peaks
-    cp ${annotated_script_dir}/intersec.pl ./
-    cp ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
-    bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}  
-    """
-}
 
 Channel
     .from()
@@ -1449,11 +1472,13 @@ process AggrangeForM6AReport {
     file "*.m6APipe" into m6APipe_result
     file "*" into arranged_results
 
-    when:
-    !params.skip_annotation && !params.skip_expression && !skip_diffpeakCalling
+    // when:
+    // !params.skip_annotation && !params.skip_expression && !skip_diffpeakCalling
 
     script:
     methylation_analysis_mode = params.methylation_analysis_mode
+    expression_analysis_mode = params.expression_analysis_mode
+    peakMerged_mode = params.peakMerged_mode
     """
     #igvtools count -z 5 -w 10 -e 0 bamfile output.tdf chromesizefile
     if [ "$compare_info" != "[two_group]" ]; then
@@ -1461,7 +1486,7 @@ process AggrangeForM6AReport {
     else
         echo \$(awk 'BEGIN{FS=","}NR>1{print \$4}' $formatted_designfile |sort|uniq|awk 'NR==1{printf \$0"_vs_"}NR==2{print \$0}') > compare_info
     fi
-    Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $methylation_analysis_mode
+    Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $methylation_analysis_mode $expression_analysis_mode $peakMerged_mode
     """
 }
 

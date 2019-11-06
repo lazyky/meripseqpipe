@@ -351,7 +351,7 @@ server <- function(input, output, session) {
     coldata0 = as.data.frame(design.matrix)
     coldata = subset(coldata0, Type==group1|Type==group2)
     coldata$Type = as.factor(coldata$Type)
-    deg = subset(deres, abs(log2FoldChange)> 0.58 & padj < 0.05)
+    deg = subset(deres, abs(log2FoldChange)> 0.58 & pvalue < 0.05)
     rownames(deg) = deg$ID
     de_mat = matrix[row.names(deg),rownames(coldata)]
     select <- deg[order(deg$log2FoldChange, decreasing = TRUE), ] 
