@@ -38,9 +38,9 @@ dds <- DESeq(dds)
 res <- results(object = dds, contrast = c("condition",group_id_2,group_id_1))
 table(res$padj <0.05)
 res <- res[order(res$padj),]
-resdata <- merge(as.data.frame(res), as.data.frame(counts(dds, normalized=TRUE)),by="row.names",sort=FALSE)
+#resdata <- merge(as.data.frame(res), as.data.frame(counts(dds, normalized=TRUE)),by="row.names",sort=FALSE)
 #resdata2=resdata[resdata$log2FoldChange > 1|resdata$log2FoldChange < -1, ]
 ### set output_name
-output_name <- paste0("Deseq2_group_",group_id_1, "_",group_id_2)
-write.csv(resdata, file = paste0(output_name, ".csv"))
+output_name <- paste0("DESeq2_group_",group_id_1, "_",group_id_2)
+write.csv(res, file = paste0(output_name, ".csv"))
 #write.csv(resdata2,file = paste0(output_name, "_log2.csv"),row.names =FALSE)

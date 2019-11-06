@@ -19,7 +19,7 @@ done
 mkdir ${out_dir}
 
 # Define the function of MSPC runing for different situations
-function mergebed_for_BioRepeat()
+function mergebedForBio()
 {
     prefix_id=$1
     out_prefix=$2
@@ -28,13 +28,13 @@ function mergebed_for_BioRepeat()
     ln Bio_$prefix_id/ConsensusPeaks.bed ${out_prefix}.bed
     awk 'NR>1{OFS="\t";$5=10^-$5;print $1,$2,$3,$1":"$2"-"$3,$5}' Bio_$prefix_id/ConsensusPeaks.bed |sortBed -i - > ${out_dir}/${out_prefix}.bed
 }
-function mergebed_for_TecRepeat()
+function mergebedForTec()
 {
     prefix_id=$1
     out_prefix=$2
     peakCalling_tools_count=$3
     bedfile_array=$(ls *_${prefix_id}_*.bed | awk '{ORS=" "}{print "-i",$0}')
-    dotnet CLI.dll $bedfile_array -r tec -c $peakCalling_tools_count -s 1E-4 -w 1E-2 -o Tec_$prefix_id
+    dotnet CLI.dll $bedfile_array -r tec -s 1E-2 -w 1E-1 -o Tec_$prefix_id 
     ln Tec_$prefix_id/ConsensusPeaks.bed ${out_prefix}.bed
     awk 'NR>1{OFS="\t";$5=10^-$5;print $1,$2,$3,$1":"$2"-"$3,$5}' Tec_$prefix_id/ConsensusPeaks.bed |sortBed -i - > ${out_dir}/${out_prefix}.bed
 }
@@ -60,7 +60,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
     read -u 9
     {
         if [ $peakCalling_tools_count -gt 1 ]; then
-            mergebed_for_TecRepeat ${group_id} mspc_merged_group_${group_id}
+            mergebedForTec ${group_id} mspc_merged_group_${group_id}
         else
             ln *${group_id}*.bed mspc_merged_group_${group_id}
             awk '{OFS="\t";$5=10^-$5;print }' *${group_id}*.bed |sortBed -i - > ${out_dir}/mspc_merged_group_${group_id}.bed
@@ -69,7 +69,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
     }&
     done
     wait
-    mergebed_for_BioRepeat merged_group mspc_merged_allpeaks
+    mergebedForBio merged_group mspc_merged_allpeaks
 else
     sampleinfo_list=$(awk 'BEGIN{FS=","}NR>1{print $1","$4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for sample_group_id in ${sampleinfo_list}
@@ -84,7 +84,7 @@ else
             mv $samplefile ${samplefile/_normalized.bed/}_${group_id}_normalized.bed
         done
         if [ $peakCalling_tools_count -gt 1 ]; then
-            mergebed_for_TecRepeat ${sample_id} mspc_merged_sample_${group_id}_${sample_id} $peakCalling_tools_count
+            mergebedForTec ${sample_id} mspc_merged_sample_${group_id}_${sample_id} $peakCalling_tools_count
         else
             awk '{OFS="\t";$5=10^-$5;print }' *_${sample_id}_*normalized.bed |sortBed -i - > ${out_dir}/mspc_merged_sample_${group_id}_${sample_id}.bed
         fi
@@ -97,16 +97,17 @@ else
     do
     read -u 9
     {
-        mergebed_for_BioRepeat merged_sample_${group_id} mspc_merged_group_${group_id}
+        mergebedForBio merged_sample_${group_id} mspc_merged_group_${group_id}
         echo >&9
     }&
     done
     wait
-    #mergebed_for_BioRepeat merged_sample mspc_merged_allpeaks
+    #mergebedForBio merged_sample mspc_merged_allpeaks
     cat ${out_dir}/*_merged_sample_*.bed | sortBed -i - |mergeBed -i - -c 4,5 -o count,mean | awk '$4>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"$5}' > ${out_dir}/mspc_merged_allpeaks.bed
 fi
 rm -rf Bio_* Tec_*
 rm mspc_merged_*
+mv ${out_dir}/*.bed ./
 echo "MSPC merged peaks done"
 
 
