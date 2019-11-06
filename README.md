@@ -19,15 +19,15 @@ A full tutorial of m6APipe can be found at Wiki page of this project. plz go to 
 m6APipe allows you to run pipelines skip the tools by your params.
 You can skip the tools by using `--skip_ToolsName` or not(default).
 
-| Step                                    | Pipeline                        | Pipeline(skip_mode)             |
-|-----------------------------------------|---------------------------------|---------------------------------|
-| Raw Data QC                             | Fastp, FastQC                   |---------------------------------|
-| Reads Mapping                           | star, bwa, tophat, hisat2       |------  --aligners "star"  ------|
-| Sort BAM file AND Post-alignment QC     | samtools, RSeQC                 |---------------------------------|
-| Peak Calling                            | MeTPeak, MACS2, MATK, meyer     |---  --skip_peakCalling true  ---|
-| Combines Peaks information              | RobustRankAggreg, BEDtools      |---------------------------------|
-| Methylation analysis                    | MeTDiff, QNB, MATK, Wilcox-test |-  --skip_diffpeakCalling true  -|
-| Expression analysis                     | htseq, deseq2, edgeR, cufflinks |---  --skip_expressiion true  ---|
+| Step                                    | Pipeline                                       | Pipeline(skip_mode)             |
+|-----------------------------------------|------------------------------------------------|---------------------------------|
+| Raw Data QC                             | Fastp, FastQC                                  |---------------------------------|
+| Reads Mapping                           | star, bwa, tophat, hisat2                      |------  --aligners "star"  ------|
+| Sort BAM file AND Post-alignment QC     | samtools, RSeQC                                |---------------------------------|
+| Peak Calling                            | MeTPeak, MACS2, MATK, meyer                    |---  --skip_peakCalling true  ---|
+| Combines Peaks information              | RobustRankAggreg, BEDtools, MSPC               |---------------------------------|
+| Methylation analysis                    | MeTDiff, QNB, MATK, Wilcox-test, DESeq2, edgeR |-  --skip_diffpeakCalling true  -|
+| Expression analysis                     | htseq, deseq2, edgeR, cufflinks                |---  --skip_expressiion true  ---|
 
 
 ### Dependencies
