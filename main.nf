@@ -1342,7 +1342,7 @@ process PeaksQuantification{
     fi
     head -1 *_quantification.matrix |sed 's/^\\t//'  |awk -F "\\t" '{print "ID\\tGene_symbol\\t"\$0}' > tmp.header.file
     sed '1d' *_quantification.matrix | sort > tmp.quantification.file
-    awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}'  bedtools_merged_allpeaks.anno.txt | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
+    awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}'  ${annotation_file} | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
     join -t \$'\t' tmp.annotation.file tmp.quantification.file | cat tmp.header.file - > *_quantification.matrix 
     """
 }
