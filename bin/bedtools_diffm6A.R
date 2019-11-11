@@ -44,7 +44,7 @@ cat("peak number ",dim(quantification_matrix)[1],"\n")
 
 # Run the Wilcoxon test for the quantifacative value of every peak
 test_mode=""
-res_wix_lst <- apply(quantification_matrix,1,function(x) row_wilcox(design.matrix,group_id_1,group_id_2,x,test_mode))
+res_wix_lst <- apply(quantification_matrix[,3:ncol(quantification_matrix)],1,function(x) row_wilcox(design.matrix,group_id_1,group_id_2,x,test_mode))
 res_wix_lst = as.data.frame(t(res_wix_lst)) 
 res_wix_lst$padj = p.adjust(res_wix_lst$pvalue,method = "BH")
 res_wix_lst$BY = p.adjust(res_wix_lst$pvalue,method = "bonferroni")
