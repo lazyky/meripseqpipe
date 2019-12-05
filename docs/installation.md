@@ -110,3 +110,5 @@ Note that you will need to specify your UPPMAX project ID when running a pipelin
 ```nextflow
 params.project = 'project_ID' // eg. b2017123
 ```
+wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/latest/download/linux-x64.zip"
+unzip mspc.zip -d mspc

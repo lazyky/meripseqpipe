@@ -25,7 +25,7 @@ colnames(QC.reads.stats)  <- QC.reads.stats[1,]
 QC.reads.stats <- QC.reads.stats[-1,]
 
 QC.reads.distribution.file <- dir(".",pattern = "multiqc_rseqc_read_distribution.txt",recursive = TRUE)
-QC.reads.distribution <- read.table(QC.reads.distribution.file, header =F, check.names=F)
+QC.reads.distribution <- read.table(QC.reads.distribution.file, sep = "\t", header =F, check.names=F)
 colnames(QC.reads.distribution)  <- QC.reads.distribution[1,]
 QC.reads.distribution <- QC.reads.distribution[-1,]
 rownames(QC.reads.distribution)=QC.reads.distribution[,1]
@@ -35,7 +35,7 @@ QC.reads.distribution <- QC.reads.distribution[, grep("tag_pct",colnames(QC.read
 QC.peaks.filelist <- grep("unanno.txt",grep(".anno.txt", list.files(pattern = "merged_group"), value = T), value = T, invert = T)
 QC.peaks.list <- NULL
 for( file in QC.peaks.filelist ){
-  tmp.QC <-  read.table(file , header = F, sep = "\t", quote = "")[,c(1,2,3,15,11,12,13,14,17)]
+  tmp.QC <-  read.table(file, header = F, sep = "\t", quote = "")[,c(1,2,3,15,11,12,13,14,17)]
   colnames(tmp.QC) <- c("Chr","ChrStart","ChrEnd","ID","Gene_symbol","Coding","Location","Relative_distance","RNA_type")
   name.QC <- strsplit(strsplit(file,"_group_")[[1]][2],".anno.txt")[[1]][1]
   QC.peaks.list[[name.QC]] <- tmp.QC
@@ -81,10 +81,9 @@ if (rnaseq_mode != "none"){
   ## generate expression matrix
   htseq.filelist = grep("htseq",list.files(path = "./",pattern = "input.count"), value = T)
   for( file in htseq.filelist ){
-    tmp.expression.table <- as.matrix(read.table(file, header = TRUE, row.names = 1, check.names=F))
+    tmp.expression.table <- as.matrix(read.table(file, sep = "\t", header = TRUE, row.names = 1, check.names=F))
     expression.matrix <- cbind(expression.matrix, tmp.expression.table)
   }
-  expression.matrix <- expression.matrix[c(-nrow(expression.matrix):-(nrow(expression.matrix)-4)),]
   colnames(expression.matrix) <- as.matrix(lapply(strsplit(colnames(expression.matrix),".input"), function(x){ x[1]}))
   
   ## generate diff_expression list
@@ -96,24 +95,23 @@ if (rnaseq_mode != "none"){
 }
 
 ## generate m6A matrix
-m6a.matrix <- read.table(file = grep("quantification.matrix",x = list.files(),value = T), header = T, row.names = 1, check.names=F)
-m6a.anno.matrix <- data.frame(PeakRegion = row.names(m6a.matrix),m6a.matrix)
+m6a.anno.matrix <- read.table(file = grep("quantification.matrix",x = list.files(),value = T), header = T, sep = "\t", row.names = 1, check.names=F)
+m6a.anno.matrix <- cbind(PeakRegion = row.names(m6a.anno.matrix), m6a.anno.matrix)
 
 ## generate diffm6A list
 diffm6A.filelist <- grep("_diffm6A_",list.files(pattern = ".txt"), value = T)
 diffm6A.list <- NULL
-diffm6A.anno.list <-NULL
 for( compare_str in compare.list ){
   diffm6A.list[[compare_str]] <- read.table(grep(sub("_vs_","_",compare_str), diffm6A.filelist, value = T),header = T,row.names = 1, check.names=F)
   if( diffm6A_mode == "QNB" ){
     colnames(diffm6A.list[[compare_str]]) <- c("p.treated","p.control","log2FC","log2.OR","pvalue","qvalue","padj")
-    diffm6A.list[[compare_str]]$PeakRegion <- rownames(diffm6A.list[[compare_str]])
-    diffm6A.list[[compare_str]] <- merge(x = annotation.info,y = diffm6A.list[[compare_str]],by = "PeakRegion", all.y = TRUE)
   }else if( diffm6A_mode == "MATK" ){
     diffm6A.list[[compare_str]]$padj = p.adjust(diffm6A.list[[compare_str]]$pvalue, method = "BH")
   }
-  
+  diffm6A.list[[compare_str]]$PeakRegion <- rownames(diffm6A.list[[compare_str]])
+  diffm6A.list[[compare_str]] <- merge(x = annotation.info,y = diffm6A.list[[compare_str]],by = "PeakRegion", all.y = TRUE)
 }
+
 ## save variable for m6Aviewer
 write.table(expression.matrix,file = "expression.matrix",quote=F)
 write.table(m6a.anno.matrix,file= "m6a.anno.matrix",quote=F)
@@ -121,10 +119,10 @@ write.table(m6a.anno.matrix,file= "m6a.anno.matrix",quote=F)
 #write.table(diffm6A.anno.list, file = "diffm6A.anno.list")
 
 save(design.matrix, compare.list, 
-    QC.reads.stats, QC.reads.distribution,
-    QC.motif.list, QC.motif.pvalue,QC.peaks.list,
-    m6a.peaks.table, m6a.sites.table,
-    expression.matrix, m6a.anno.matrix, 
-    diffexpression.list, diffm6A.list,
-    file = paste0(peakMerged_mode,"_",diffm6A_mode,"_",rnaseq_mode,"_arranged_results_",Sys.Date(),".m6APipe"))
+     QC.reads.stats, QC.reads.distribution,
+     QC.motif.list, QC.motif.pvalue,QC.peaks.list,
+     m6a.peaks.table, m6a.sites.table,
+     expression.matrix, m6a.anno.matrix, 
+     diffexpression.list, diffm6A.list,
+     file = paste0(peakMerged_mode,"_",diffm6A_mode,"_",rnaseq_mode,"_arranged_results_",Sys.Date(),".m6APipe"))
 

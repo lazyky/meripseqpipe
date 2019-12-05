@@ -14,6 +14,7 @@ library(stringr)
 library(knitr)
 library(reshape2)
 library(ggseqlogo)
+load("macs2_QNB_edgeR_arranged_results_2019-11-11.m6APipe")
 options(stringsAsFactors=F)
 
 server <- function(input, output, session) {

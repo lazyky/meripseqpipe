@@ -54,3 +54,5 @@ dependencies:
   - r-knitr=1.24=r35h6115d3f_0
   - r-stringr=1.4.0=r35h6115d3f_1
   - r-ggseqlogo=0.1=r35_1002
+  - pandoc=2.7.3
+  - r-rmarkdown=1.10

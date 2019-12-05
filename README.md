@@ -2,8 +2,7 @@
 **MeRIP-seq analysis pipeline**
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A50.32.0-brightgreen.svg)](https://www.nextflow.io/)
-![Singularity Container available](
-https://img.shields.io/badge/singularity-available-7E4C74.svg)
+[!Singularity Container available](https://img.shields.io/badge/singularity-available-7E4C74.svg)
 
 ### Introduction
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It comes with docker / singularity containers making installation trivial and results highly reproducible. N6-methyladenosine (m6A) is the most prevalent modification in the mRNA of many eukaryotic species, including yeast, plants, flies, and mammals. In order to analyze m6A-seq data, we developed a user-friendly, integrated analysis pipeline called m6APipe based on Nextflow. It integrated ten main functional modules including preprocessing, QC, read mapping, peak calling, merging peaks, differential methylation analysis, differential expression analysis, motif search, annotation, and data visualization. 

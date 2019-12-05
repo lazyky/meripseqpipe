@@ -1,3 +1,5 @@
+source("server.R")
+source("functions.R")
 
 ui<-dashboardPage(skin = "black",
   dashboardHeader(title = "m6A Report"),

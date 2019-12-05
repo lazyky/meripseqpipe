@@ -19,8 +19,6 @@ test_human/H1A_Endoderm_cells_no_IP_input_RNA.fastq
 test_human/H1B_ES_cell_RNA_IP_against_m6A.fastq
 test_human/H1B_Endoderm_cells_RNA_IP_against_m6A.fastq
 test_human/H1B_Endoderm_cells_no_IP_input_RNA.fastq
-bin/meyer_m6A_peak_call.sh
-bin/meyer_m6A_peak_call(2).sh
 test_human/designfile_ESC.txt
 test_human_bam/H1A_Endoderm_cells_no_IP_input_RNA.bam
 test_human_bam/H1A_ES_cell_RNA_IP_against_m6A.bam
@@ -79,3 +77,5 @@ Report/www/refGene.hg19.bed.gz.tbi
 Report/www/shGFPa5491.input_shGFPa549_sort.bigWig
 Report/www/shGFPa5491.ip_shGFPa549_sort.bigwig
 Report/www/SRR5194806.bw
+CMD_1.sh
+loop_test.sh

@@ -36,6 +36,5 @@ for( file in htseq.filelist ){
   tmp.expression.table <- as.matrix(read.table(file, header = TRUE, row.names = 1, check.names=F))
   expression.matrix <- cbind(expression.matrix, tmp.expression.table)
 }
-expression.matrix <- expression.matrix[c(-nrow(expression.matrix):-(nrow(expression.matrix)-4)),]
 colnames(expression.matrix) <- as.matrix(lapply(strsplit(colnames(expression.matrix),".input"), function(x){ x[1]}))
 write.table(expression.matrix,file = "expression.matrix",quote=F)
