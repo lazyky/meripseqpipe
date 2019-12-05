@@ -6,7 +6,6 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-load("DiffReport.RData")
 library(grid)
 library(pheatmap)
 ```

@@ -8,6 +8,12 @@ matk_jar=$1
 designfile=$2
 flag_peakCallingbygroup=$3
 
+### check if the file matk.jar exists
+if [ ! -f "$matk_jar" ]; then
+    echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
+    exit 1
+fi
+
 # Check the mode of peakcalling
 if [ $flag_peakCallingbygroup -gt 0 ]; then
     ## Running the peakcalling mode of MATK per group

@@ -61,4 +61,5 @@ unmeth2 = countlist[[paste0(group_id_2,"_input")]]
 output_name <- paste0("QNB_diffm6A_",group_id_1, "_",group_id_2)
 dir.create(output_name)
 result <- qnbtest(meth1, meth2, unmeth1, unmeth2, mode="auto", output.dir = output_name)
-write.table(result,file = paste0(output_name,".txt"))
+colnames(result) <- c("p.treated","p.control","log2FC","log2.OR","pvalue","qvalue","padj")
+write.table(result, file = paste0(output_name,".txt"), sep = "\t", quote = F)

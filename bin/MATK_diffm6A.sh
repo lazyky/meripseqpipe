@@ -6,12 +6,18 @@
 ## $4 argv 4 : compare_str
 ### designfile: Sample_id, Input_filename, IP_filename, group_id
 ### compare_str: Compairision design (eg: A_vs_B)
-
 matk_jar=$1
 designfile=$2
 gtf_file=$3
 compare_str=$4
 merged_bed=$5
+
+### check if the file matk.jar exists
+if [ ! -f "$matk_jar" ]; then
+    echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
+    exit 1
+fi
+
 # setting the function of Running the quantification mode of MATK by two names of groups
 function matk_diffm6a_by_two_id()
 {
@@ -32,7 +38,7 @@ function matk_diffm6a_by_two_id()
                     -treated_bed $merged_bed \
                     -gtf ${gtf_file} \
                     -out tmp.${group_id_1}_${group_id_2}.txt
-    awk 'BEGIN{print "ID","GeneName","ControlScore","TreatScore","log2FC","pvalue","qvalue"} \
+    awk 'BEGIN{print "ID","Gene_symbol","ControlScore","TreatScore","log2FC","pvalue","qvalue"} \
         NR>1{print $1":"$2"-"$3,$4,$5,$6,$7,log($8)/log(2),$9,$10}' tmp.${group_id_1}_${group_id_2}.txt  > MATK_diffm6A_${group_id_1}_${group_id_2}.txt
 }
 
