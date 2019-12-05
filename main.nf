@@ -591,7 +591,7 @@ process Fastqc{
 process Tophat2Align {
     label 'aligners'
     tag "$sample_name"
-    publishDir "${params.outdir}/aligners/tophat2", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/alignment/tophat2", mode: 'link', overwrite: true
 
     input:
     val sample_name from pair_id_tophat2
@@ -639,7 +639,7 @@ process Tophat2Align {
 process Hisat2Align {
     label 'aligners'
     tag "$sample_name"
-    publishDir "${params.outdir}/aligners/hisat2", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/alignment/hisat2", mode: 'link', overwrite: true
 
     input:
     val sample_name from pair_id_hisat2
@@ -681,7 +681,7 @@ process Hisat2Align {
 process BWAAlign{
     label 'aligners'
     tag "$sample_name"
-    publishDir "${params.outdir}/aligners/bwa", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/alignment/bwa", mode: 'link', overwrite: true
     
     input:
     val sample_name from pair_id_bwa
@@ -735,7 +735,7 @@ process BWAAlign{
 process StarAlign {
     label 'aligners'
     tag "$sample_name"
-    publishDir "${params.outdir}/aligners/star", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/alignment/star", mode: 'link', overwrite: true
     
     input:
     val sample_name from pair_id_star
@@ -852,7 +852,7 @@ process Sort {
 }
 
 process RenameByDesignfile{
-    publishDir "${params.outdir}/samtoolsSort/", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/alignment/samtoolsSort/", mode: 'link', overwrite: true
 
     input:
     file (reads) from rename_bam_file.collect()
@@ -1116,9 +1116,9 @@ process Meyer{
                         Step 5 Differential expression analysis
 ========================================================================================
 */
-process Htseq_count{
+process HtseqCount{
     label 'analysis'
-    publishDir "${params.outdir}/diffExp/htseq_count", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/expressionAnalysis/htseq-count", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from sort_bam.collect()
@@ -1145,7 +1145,7 @@ process DESeq2{
     label 'analysis'
     tag "$compare_str"
 
-    publishDir "${params.outdir}/diffExp/DESeq2", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/expressionAnalysis/DESeq2", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_deseq2
@@ -1168,7 +1168,7 @@ process DESeq2{
 process EdgeR{
     label 'analysis'
     tag "$compare_str"
-    publishDir "${params.outdir}/diffExp/edgeR", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/expressionAnalysis/edgeR", mode: 'link', overwrite: true
 
     input:
     file reads_count_input from htseq_count_input_to_edgeR
@@ -1190,7 +1190,7 @@ process EdgeR{
 
 process Cufflinks{
     label 'analysis'
-    publishDir "${params.outdir}/diffExp/cufflinks", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/expressionAnalysis/cufflinks", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from sort_bam.collect()
@@ -1268,7 +1268,7 @@ Channel
 
 process BedAnnotated{
     label 'analysis'
-    publishDir "${params.outdir}/annotatedPeaks", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/m6AAnalysis/AnnotatedPeaks", mode: 'link', overwrite: true
     
     input:
     file all_bed from bed_for_annotation.collect()
@@ -1296,7 +1296,7 @@ process BedAnnotated{
 }
 process MotifSearching {
     label 'analysis'
-    publishDir "${params.outdir}/motif", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/m6AAnalysis/motif", mode: 'link', overwrite: true
     
     input:
     file group_bed from motif_collection.collect()
@@ -1332,17 +1332,19 @@ process QCPeaksReport {
     file "*.{html,pdf}" into qcPeaksReport
 
     script:
-    peakMerged_mode = params.peakMerged_mode
+    peakMerged_mode = params.peakMerged_mode 
+    peakCalling_mode = params.peakCalling_mode
+    qcPeaksRData = "QCPeakPlot.RData"
     """
     cp $baseDir/bin/QC_Peaks_Report.rmd ./
-    Rscript $baseDir/bin/QC_Peaks_Report.R $formatted_designfile $peakMerged_mode
-    R -e "rmarkdown::render('QC_Peaks_Report.rmd',output_file='QC_Peaks_Report_${peakMerged_mode}.html')"
+    Rscript $baseDir/bin/QC_Peaks_Report.R $formatted_designfile $peakMerged_mode $peakCalling_mode $qcPeaksRData
+    R -e "load(\\"$qcPeaksRData\\");rmarkdown::render('QC_Peaks_Report.rmd',output_file='QC_Peaks_Report_${peakMerged_mode}.html')"
     """
 }
 
 process PeaksQuantification{
     label 'analysis'
-    publishDir "${params.outdir}/m6AQuantification", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/m6AAnalysis/m6AQuantification", mode: 'link', overwrite: true
     
     input:
     file merged_bed from all_merged_bed.collect()
@@ -1398,7 +1400,7 @@ process PeaksQuantification{
 process diffm6APeak{
     label 'analysis'
     tag "$compare_str"
-    publishDir "${params.outdir}/diffm6A", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/m6AAnalysis/diffm6A", mode: 'link', overwrite: true
     
     input:
     //file peak_bed from group_merged_bed.collect()
@@ -1449,7 +1451,7 @@ process diffm6APeak{
 
 process SingleNucleotidePrediction{
     label 'analysis'
-    publishDir "${params.outdir}/m6APredictionSites", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/m6AAnalysis/m6APredictionSites", mode: 'link', overwrite: true
     
     input:
     file peak_bed from group_merged_bed.collect()
@@ -1490,7 +1492,7 @@ process DiffReport {
         saveAs: {filename ->
                  if (filename.indexOf(".html") > 0)  "diffReport/$filename"
                  else if (filename.indexOf(".pdf") > 0)  "diffReport/$filename"
-                 else "final_results/$filename"
+                 else "ReportRData/$filename"
         }        
     input:
     file results from results_arrange.collect()
@@ -1508,6 +1510,7 @@ process DiffReport {
     methylation_analysis_mode = params.methylation_analysis_mode
     expression_analysis_mode = params.expression_analysis_mode
     peakMerged_mode = params.peakMerged_mode
+    diffReportRData = "DiffReport.RData"
     """
     cp $baseDir/bin/DiffReport.rmd ./
     if [ "$compare_info" != "[two_group]" ]; then
@@ -1516,8 +1519,8 @@ process DiffReport {
         echo \$(awk 'BEGIN{FS=","}NR>1{print \$4}' $formatted_designfile |sort|uniq|awk 'NR==1{printf \$0"_vs_"}NR==2{print \$0}') > compare_info
     fi
     Rscript $baseDir/bin/arranged_results.R $formatted_designfile compare_info $methylation_analysis_mode $expression_analysis_mode $peakMerged_mode
-    Rscript $baseDir/bin/DiffReport.R *.m6APipe DiffReport.RData
-    R -e "rmarkdown::render('DiffReport.rmd',output_file='DiffReport_${peakMerged_mode}_${methylation_analysis_mode}_${expression_analysis_mode}.html')"
+    Rscript $baseDir/bin/DiffReport.R *.m6APipe $diffReportRData
+    R -e "load(\\"$diffReportRData\\");rmarkdown::render('DiffReport.rmd',output_file='DiffReport_${peakMerged_mode}_${methylation_analysis_mode}_${expression_analysis_mode}.html')"
     rm Rplots.pdf
     """
 }

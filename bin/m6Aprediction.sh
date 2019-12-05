@@ -9,6 +9,12 @@ designfile=$2
 fasta_file=$3
 gtf_file=$4
 
+### check if the file matk.jar exists
+if [ ! -f "$matk_jar" ]; then
+    echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
+    exit 1
+fi
+
 faToTwoBit ${fasta_file} ${fasta_file/.fa/.2bit}
 group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
 for group_id in $group_list

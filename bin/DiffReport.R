@@ -50,9 +50,8 @@ ECDF_plot <- function(df,value_var,group,plot_title="",test_result=""){
   p <-  ggplot(df,aes(x=value_var,group=group,color=group))+theme_test()+
     stat_ecdf(size = 1)+theme(legend.position=c(0.85,.15))+
     annotate("text",x=-Inf,y=Inf,vjust=1.5,hjust=-.12,label=test_anno)+ 
-    scale_y_continuous(expand = c(0,0))+scale_x_continuous(expand = c(0,0))+
+    scale_y_continuous(expand = c(0,0))+scale_x_continuous(expand = c(0,0),limits = c(0,1.02))+
     labs(title= plot_title, y="Cumulative fraction" , x = "Peaks intensity")+
-    scale_x_continuous(limits = c(0,1))+
     theme(plot.title = element_text(size = 15, angle = 0, face = "plain", colour = "black"),
           axis.title.x = element_text(size = 15, angle = 0, face = "plain", colour = "black"),
           axis.title.y = element_text(size = 15, angle = 90, face = "plain", colour = "black"),
@@ -69,7 +68,7 @@ volcano_plot_dm = function(res, Sample_1 = "A", Sample_2 = "B", lfc = 0.58, pval
   tab$threshold <- "C"
   tab$threshold[tab$logFC >= lfc & tab$negLogPval > -log10(pval)] <- "B"
   tab$threshold[tab$logFC <=-lfc & tab$negLogPval > -log10(pval)] <- "A"
-  #tab<-tab%>%mutate(threshold = ifelse(logFC >= 0.58 & negLogPval > -log10(0.05) ,"B", ifelse(logFC<=-0.58 & negLogPval > -log10(0.05), "A", "C")))
+  #tab<-tab%>%mutate(threshold = ifelse(logFC >= lfc & negLogPval > -log10(pval) ,"B", ifelse(logFC<=-lfc & negLogPval > -log10(pval), "A", "C")))
   n_up = length(which(tab$threshold=="B"))
   n_down = length(which(tab$threshold=="A"))
   tab_order = tab[order(tab$negLogPval, decreasing = T),]
@@ -77,9 +76,9 @@ volcano_plot_dm = function(res, Sample_1 = "A", Sample_2 = "B", lfc = 0.58, pval
     geom_point(aes(colour = threshold)) +
     scale_colour_manual(values = c("A"= "#619cff", "B"="#f8766d",  "C"= "#c8c8c8"),
                         labels=c(paste("Down: ", n_down, sep=""),paste("Up: ", n_up, sep = "") , "No sig"), name = NULL) +
-    geom_hline(aes(yintercept=-log10(0.05)), linetype="dashed") +
-    geom_vline(aes(xintercept=-0.58), linetype="dashed") +
-    geom_vline(aes(xintercept=0.58), linetype="dashed") +
+    geom_hline(aes(yintercept=-log10(pval)), linetype="dashed") +
+    geom_vline(aes(xintercept=-lfc), linetype="dashed") +
+    geom_vline(aes(xintercept=lfc), linetype="dashed") +
     ggtitle(paste("Volcano Plot of Different Methylation in", groupname))+
     xlab(expression(paste(Log[2], " fold change", sep = ""))) +
     ylab(expression(paste(-Log[10], " adjusted P value", sep = ""))) +
@@ -134,14 +133,15 @@ ecdf.list <- NULL
 quadrant.list <- NULL
 ecdf.data <- NULL
 ecdf.group.data <- melt(m6a.anno.matrix,ID="PeakRegion")
-for( group in compare.list ){
+for( group in as.character(compare.list) ){
   group1 = strsplit(group, "_vs_")[[1]][1]
   group2 = strsplit(group, "_vs_")[[1]][2]
   coldata = subset(as.data.frame(design.matrix), Type==group1|Type==group2)
   coldata$Type = as.factor(coldata$Type)
   ## dm
   dmres = diffm6A.list[[which(names(diffm6A.list)==group)]]
-  dmg = subset(dmres, abs(log2FC)> 0.58)
+  dmg = subset(dmres, abs(log2FC) > 0.58 & pvalue < 0.05)
+  if (!nrow(dmg)) dmg = dmres
   matrix.dm = m6a.anno.matrix[,-c(1:3)]
   dm_mat = matrix.dm[dmg$PeakRegion,rownames(coldata)]
   select <- dmg[order(dmg$log2FC, decreasing = TRUE),] 
@@ -151,7 +151,8 @@ for( group in compare.list ){
   heatmap_dm.list[[group]] <- heatmap_dm(dm_mat,coldata)
   ## de
   deres = diffexpression.list[[which(names(diffexpression.list)==group)]]
-  deg = subset(deres, abs(log2FoldChange)> 0.58)
+  deg = subset(deres, abs(log2FoldChange)> 0.58 & pvalue < 0.05)
+  if (!nrow(dmg)) deg = deres
   rownames(deg) = deg$ID
   de_mat = expression.matrix[row.names(deg),rownames(coldata)]
   select <- deg[order(deg$log2FoldChange, decreasing = TRUE), ] 
@@ -159,6 +160,7 @@ for( group in compare.list ){
   de_mat = de_mat[rownames(select),]
   de_mat = na.omit(de_mat)
   heatmap_de.list[[group]] <- heatmap_de(de_mat,coldata)
+  
   ## ecdf
   ecdf.group.data.tmp = subset(ecdf.group.data,variable %in% rownames(coldata))
   ecdf.group.data.tmp$group <- group1
@@ -180,11 +182,8 @@ for( group in compare.list ){
                               exp = diffexp.results[diffm6a.results$ID,"log2FoldChange"],
                               exp.p = diffexp.results[diffm6a.results$ID,"pvalue"])
   quadrant.list[[group]] <-quadrant_plot(quadrant.data,lfc = 0.58,pval = 0.05,groupname = group)
-}
-ecdf.data <- na.omit(ecdf.data)
-ecdf.data <- ecdf.data[is.finite(ecdf.data$data),]
-ecdf.list[["combined"]] <- ECDF_plot(ecdf.data,ecdf.data$data,ecdf.data$group)
-for( group in compare.list ){
+  
+  ## plot
   pdf(file = paste0("heatmap_dm_",group,".pdf"),paper = "USr")
   print(heatmap_dm.list[[group]])
   dev.off()
@@ -201,6 +200,9 @@ for( group in compare.list ){
   print(quadrant.list[[group]])
   dev.off()
 }
+ecdf.data <- na.omit(ecdf.data)
+ecdf.data <- ecdf.data[is.finite(ecdf.data$data),]
+ecdf.list[["combined"]] <- ECDF_plot(ecdf.data,ecdf.data$data,ecdf.data$group)
 pdf(file = paste0("ecdf_","combined.pdf"),paper = "USr")
 print(ecdf.list[["combined"]])
 dev.off()

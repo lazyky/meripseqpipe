@@ -7,8 +7,11 @@ library(reshape2)
 options(stringsAsFactors = FALSE)
 
 args <- commandArgs(T) 
+#args <- c("formatted_designfile.txt", "rank", "group","QCPeaksPlot.RData")
 designfile <- args[1] #"formatted_designfile.txt"
 peakMerged.mode <- args[2]#rank
+peakCalling.mode <- args[3]#"group"
+output.Rdata <- args[4]#"QCPeaksPlot.RData"
 designtable <- read.csv(designfile, head = TRUE, colClasses = c("character"))
 
 ## Peaks Distribution
@@ -35,6 +38,7 @@ PlotPeaksDitr <- function(files.list, suffix = "[.]anno[.]txt"){
           axis.title.y = element_text(size = 15, angle = 90, face = "plain", colour = "black"),
           axis.ticks.x = element_blank()) #remove ticks
 }
+
 anno.files.list <- dir(pattern = "[.]anno[.]txt")
 ### barplot
 total.distribute <- NULL
@@ -50,7 +54,7 @@ for( file in anno.files.list ){
 distribute.table <- melt(table(total.distribute))
 distribute.table$Location <- factor(distribute.table$Location,levels = c("intron","3UTR","Stop Codon","CDS","5UTR"))
 col <- c('plum1','pink2','#58B2DC',"#51A8DD","#005CAF")
-distribute.brplot <- ggplot(distribute.table,aes(group, value, fill = Location)) +
+distribute.barplot <- ggplot(distribute.table,aes(group, value, fill = Location)) +
                         geom_bar(stat="identity",position = 'fill') + coord_flip() +
                         ggtitle("Peaks Distribution") +
                         scale_y_continuous(expand = c(0, 0)) +
@@ -61,11 +65,12 @@ distribute.brplot <- ggplot(distribute.table,aes(group, value, fill = Location))
                               panel.background = element_rect(fill = "transparent",colour = NA),
                               axis.title = element_blank(),
                               axis.ticks.x = element_blank()) #remove ticks
-print(distribute.brplot)
+print(distribute.barplot)
 ### Curve
-for( sample in designtable$Sample_ID ){
-  sample.plots.list <- NULL
-  sample.files.list <- grep(sample, anno.files.list, value = T)
+sample.plots.list <- NULL
+sample.list <- if(peakCalling.mode == "group") designtable$Group else designtable$Sample_ID
+for( sample in sample.list ){
+  sample.files.list <- grep(paste0("_",sample,"_normalized"), anno.files.list, value = T)
   sample.plots.list[[sample]] <- PlotPeaksDitr(sample.files.list, "_normalized[.]anno[.]txt")
   print(sample.plots.list[[sample]])
 }
@@ -127,3 +132,4 @@ for( peakfile.name in motif.peakfiles ){
   ggplot2.multiplot(plotlist = QC.motif.list[[peakfile.name]] ,cols = 1)
 }
 dev.off()
+save(distribute.barplot,sample.plots.list,merged.plot,QC.motif.list,file = output.Rdata)

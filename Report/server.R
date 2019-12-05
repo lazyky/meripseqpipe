@@ -14,12 +14,17 @@ library(stringr)
 library(knitr)
 library(reshape2)
 library(ggseqlogo)
-load("macs2_QNB_edgeR_arranged_results_2019-11-11.m6APipe")
+load("initial.m6APipe")
 options(stringsAsFactors=F)
 
 server <- function(input, output, session) {
-
+  
 #qc peaks-----------------------------------------  
+  reactive({
+    inFile <- input$file1
+    if (is.null(inFile)) return(NULL)
+    load(inFile$datapath)
+  })
   
   peak_dt <- eventReactive(input$peakbutton, {
     tabledt = QC.peaks.list[[which(names(QC.peaks.list)==input$peak)]]

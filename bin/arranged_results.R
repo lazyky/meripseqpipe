@@ -103,10 +103,9 @@ diffm6A.filelist <- grep("_diffm6A_",list.files(pattern = ".txt"), value = T)
 diffm6A.list <- NULL
 for( compare_str in compare.list ){
   diffm6A.list[[compare_str]] <- read.table(grep(sub("_vs_","_",compare_str), diffm6A.filelist, value = T),header = T,row.names = 1, check.names=F)
-  if( diffm6A_mode == "QNB" ){
-    colnames(diffm6A.list[[compare_str]]) <- c("p.treated","p.control","log2FC","log2.OR","pvalue","qvalue","padj")
-  }else if( diffm6A_mode == "MATK" ){
+  if( diffm6A_mode == "MATK" ){
     diffm6A.list[[compare_str]]$padj = p.adjust(diffm6A.list[[compare_str]]$pvalue, method = "BH")
+    diffm6A.list[[compare_str]] <- diffm6A.list[[compare_str]][,-seq(1,2)]
   }
   diffm6A.list[[compare_str]]$PeakRegion <- rownames(diffm6A.list[[compare_str]])
   diffm6A.list[[compare_str]] <- merge(x = annotation.info,y = diffm6A.list[[compare_str]],by = "PeakRegion", all.y = TRUE)
