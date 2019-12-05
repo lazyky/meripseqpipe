@@ -27,11 +27,11 @@ if(length(unique(design.matrix$Condition)) < 2){
   group_id_2 <- strsplit(as.character(compare_str), "_vs_")[[1]][2]
 }
 design.matrix <- subset(design.matrix, Condition == group_id_1 | Condition == group_id_2 )
-design.matrix$Condition <- factor(design.matrix$Condition,labels = c("control","treatment"))
+design.matrix$Condition <- factor(design.matrix$Condition, levels = c(group_id_1,group_id_2), labels = c("control","treatment"))
 filelist = list.files(path = ".",pattern = ".count",full.names = T)
 ## Generate the matrix of peaks count
 rpkm_peaks_list <- NULL
-for(sample_id in row.names(design.matrix)){
+for(sample_id in rownames(design.matrix)){
   input_count_file <- grep(paste0("[.]",sample_id,"[.]input"),filelist,value = TRUE)
   input_count_table <- read.table(file = input_count_file, sep = "\t", row.names = NULL,header = T)
 
