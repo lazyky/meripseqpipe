@@ -1,26 +1,30 @@
 ## Install m6APipe
-There are two [Installation methods](https://github.com/kingzhuky/m6APipe/wiki/Installation) for m6APipe.
+There are two [Installation](https://github.com/kingzhuky/m6APipe/wiki/Installation) methods for m6APipe.
 
 ## Running test
-### Conda
 In the directory of m6APipe
+### Conda
 ```
-nextflow main.nf -c nextflow.config --readPaths test_human --designfile designfile_test_single.csv -resume
+nextflow main.nf -c nextflow.config --readPaths test_data --designfile test_data/designfile_test.csv --comparefile test_data/comparefile.txt -resume
 ```
-
+### Docker
+Before running the command, you need to pull the image ( kingzhuky/m6apipe ) from docker hub.
+```
+nextflow main.nf -c nextflow.config -profile docker --readPaths test_data --designfile test_data/designfile_test.csv --comparefile test_data/comparefile.txt -resume
+```
 ## Running your own data
 ### Modify nextflow.config
 #### General parameter
-Edit the nextflow.config, modify genome file, analysis mode and aligners' index.
+Edit parameters that change infrequently in nextflow.config, just list 'fasta', 'gtf' and the main parameters of analysis mode 
 ```
   fasta = "/home/zky/m6apipe/Genome/hg38/hg38_genome.fa"
   gtf = "/home/zky/m6apipe/Genome/hg38/hg38_genes.gtf"
-
-  aligners = "star" // "star" OR "bwa" OR "tophat2" OR "hisat2" OR "none"
-  peakCalling_mode = "independence" // "group" OR "independence"
-  peakMerged_mode = "rank" // "rank" OR "macs2" OR "MATK" OR "metpeak" OR "mspc"
-  expression_analysis_mode = "DESeq2" // "DESeq2" OR "EdgeR" OR "none"
-  methylation_analysis_mode = "QNB" // "MATK" OR "QNB" OR "Wilcox-test" OR "MeTDiff"
+  // Setting main parameters of analysis mode 
+  aligners = "star"   // "star" OR "bwa" OR "tophat2" OR "hisat2" OR "none"
+  peakCalling_mode = "independence" // "group" OR "independence"
+  peakMerged_mode = "rank" // "rank" OR "macs2" OR "MATK" OR "metpeak" OR "mspc"
+  expression_analysis_mode = "DESeq2" // "DESeq2" OR "edgeR" OR "none"
+  methylation_analysis_mode = "QNB" // "MATK" OR "QNB" OR "Wilcox-test" OR "MeTDiff" OR "edgeR" OR "DESeq2"
 ```
 #### Option parameter
 Setting aligners' index according to aligner you chose( Default: "star" )
