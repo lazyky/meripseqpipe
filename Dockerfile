@@ -6,6 +6,7 @@ COPY environment.yml ./
 ENV PATH /opt/conda/bin:$PATH
 RUN conda env create -f /environment.yml && conda clean -a
 ENV PATH /opt/conda/envs/nf-core-m6APipe-1.0dev/bin:$PATH
+ENV PATH /mspc:$PATH
 
 # install MATK
 RUN wget http://matk.renlab.org/download/MATK-1.0.jar
@@ -26,3 +27,8 @@ RUN git clone https://github.com/compgenomics/MeTPeak.git && \
     R CMD build MeTPeak/ && \
     R CMD INSTALL MeTPeak_1.0.0.tar.gz && \
     rm -rf MeTPeak*
+
+# install MSPC
+RUN wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/latest/download/mspc.zip" && \
+    unzip mspc.zip -d mspc && \
+    rm mspc.zip
