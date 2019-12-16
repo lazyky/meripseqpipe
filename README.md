@@ -27,6 +27,14 @@ Or Building environment by conda. See [details](https://github.com/kingzhu
 ```
 nextflow run path/to/m6APipe/main.nf -c nextflow.config -profile docker
 ```
+##### Launch Report builded by R-Shiny
+```
+docker pull kingzhuky/m6areport:v0.1
+m6APipe_result="/path/to/results.m6APipe"
+docker run -p 3838:3838 -v $m6APipe_result:/initial.m6APipe m6areport:v0.1
+```
+Then access the report by https://<Your.Server.IP>:3838
+
 ### Pipeline Description
 #### Input files
 The m6APipe pipeline needs as the input following files:

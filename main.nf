@@ -145,19 +145,21 @@ if( params.designfile ) {
     exit 1, LikeletUtils.print_red("No Design file specified!")
 }
 if( params.comparefile == "two_group" ){
+    comparefile = false
     compareLines = Channel.from("two_group")
 }else if( params.comparefile){
-    File comparefile = new File(params.comparefile)
+    comparefile = file(params.comparefile)
     if( !comparefile.exists() ) exit 1, print_red("Compare file not found: ${params.comparefile}")
     compareLines = Channel.from(comparefile.readLines())
 }else {
+    comparefile = false
     compareLines = Channel.from("")
 }
 compareLines.into{
     compareLines_for_DESeq2; compareLines_for_edgeR; compareLines_for_plot;
     compareLines_for_diffm6A; compareLines_for_arranged_result
 }
-
+compareLines_for_plot.subscribe{print it}
 // Validate the params of skipping Aligners Tools Setting
 if( params.aligners == "none" ){
     skip_aligners = true
@@ -862,16 +864,28 @@ process RenameByDesignfile{
     file "*.{input,ip}_*.{bam,bai}" into sort_bam
     file ("formatted_designfile.txt") into formatted_designfile
     file "*" into rename_results
-    
-    when:
-    true
 
     script:
     println LikeletUtils.print_purple("Rename the files for downstream analysis")
     aligners_name = params.aligners
     """
-    #Windows and linux newline ^M conversion
+    # Windows and linux newline ^M conversion
     cat $designfile | dos2unix |sed '1s/.*/Sample_ID,input_FileName,ip_FileName,Group/g' > formatted_designfile.txt
+    # Check the consistency of designfile and comparefile
+    if [ "$comparefile" != "false" ]; then 
+        ## get groups' name in comparefile
+        cat $comparefile | dos2unix | awk -F "_vs_" '{print \$1"\\n"\$2}' | sort | uniq > tmp.compare.group
+        ## get groups' name in designfile
+        awk -F, 'NR>1{print \$4}' formatted_designfile.txt | sort | uniq > tmp.design.group
+        intersection_num=\$(join tmp.compare.group tmp.design.group | wc -l)
+        if [[ \$intersection_num  != \$(cat tmp.compare.group| wc -l) ]] ;then 
+            echo "The groups' name of comparefile and designfile are inconsistent."
+            echo "Please check your comparefile: "$comparefile
+            echo "The groups' name of comparefile in designfile: "\$(join tmp.compare.group tmp.design.group)
+            exit 1
+        fi
+        rm tmp.compare.group tmp.design.group
+    fi
     bash $baseDir/bin/rename.sh $aligners_name formatted_designfile.txt
     bash $baseDir/bin/rename_for_resume.sh formatted_designfile.txt
     """
@@ -919,7 +933,10 @@ process RSeQC {
 }
 
 process CreateBigWig {
-    publishDir "${params.outdir}/QC/rseqc/bigwig", mode: 'link', overwrite: true 
+    publishDir "${params.outdir}/QC/rseqc/", mode: 'link', overwrite: true ,
+        saveAs: {filename ->
+            if (filename.indexOf("bigwig") > 0) "bigwig/$filename"
+        }
 
     input:
     file bam from sort_bam.collect()
@@ -1225,7 +1242,10 @@ Channel
 
 process PeakMerge {
     label 'analysis'
-    publishDir "${params.outdir}/peakCalling/mergedBed", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/peakCalling/mergedBed", mode: 'link', overwrite: true,
+        saveAs: {filename ->
+            if (filename.indexOf("bed") > 0) "$filename"
+        }
     
     input:
     file peak_bed from merged_bed.collect()
@@ -1522,6 +1542,41 @@ process DiffReport {
     Rscript $baseDir/bin/DiffReport.R *.m6APipe $diffReportRData
     R -e "load(\\"$diffReportRData\\");rmarkdown::render('DiffReport.rmd',output_file='DiffReport_${peakMerged_mode}_${methylation_analysis_mode}_${expression_analysis_mode}.html')"
     rm Rplots.pdf
+    """
+}
+
+process CreateIGVjs {
+    label 'report'
+    publishDir "${params.outdir}/Report" , mode: 'link', overwrite: true,
+        saveAs: {filename ->
+                 if (filename.indexOf(".html") > 0)  "Igv_js/$filename"
+                 else if (filename.indexOf(".pdf") > 0)  "Igv_js/$filename"
+                 else "Igv_js/$filename"
+        }        
+    input:
+    file m6APipe_result from m6APipe_result
+    file fasta 
+    file gtf
+    file formatted_designfile from formatted_designfile.collect()
+    file group_bed from group_merged_bed.collect()
+    file all_bed from all_merged_bed.collect()
+    file bigwig from bigwig_for_genebody.collect()
+    
+    output:
+    file "*" into igv_js
+
+    script:    
+    igv_fasta = fasta.baseName.toString() + ".igv.fa"
+    igv_gtf = gtf.baseName.toString() + ".igv.gtf"
+    merged_allpeaks_igvfile = all_bed.baseName.toString() + ".igv.bed"
+    """
+    ls -l $fasta | awk -F "> " '{print "ln "\$2" ./'$igv_fasta'"}' | bash
+    ls -l $gtf | awk -F "> " '{print "ln "\$2" ./'$igv_gtf'"}' | bash
+    ls -l $m6APipe_result | awk '{print "ln "\$11" initial.m6APipe"}' | bash
+    ls -l $group_bed $all_bed | awk '{sub(".bed\$",".igv.bed",\$9);print "ln "\$11,\$9}' | bash
+    ls -l $bigwig | awk '{sub(".bigwig\$",".igv.bigwig",\$9);print "ln "\$11,\$9}' | bash
+    samtools faidx $igv_fasta
+    bash $baseDir/bin/create_IGV_js.sh $fasta $gtf $merged_allpeaks_igvfile $formatted_designfile
     """
 }
 

@@ -3,7 +3,7 @@
 ### designfile: Sample_id, Input_filename, IP_filename, group_id
 ### compare_str: Compairision design (eg: A_vs_B)
 args <- commandArgs(T)
-#args <- c("mspc_Wilcox-test_DESeq2_arranged_results_2019-12-05.m6APipe", "DiffReport.RData")
+#args <- c("macs2_MeTDiff_DESeq2_arranged_results_2019-12-11.m6APipe", "DiffReport.RData")
 m6APipe.data <- args[1]#"formatted_designfile.txt"
 output.Rdata <- args[2]#"compare_info"
 
@@ -33,7 +33,6 @@ heatmap_de <- function(mat, coldt){
            color = colorRampPalette(c(rep('#1C2B6F',1),'black', rep('#E31E26',1)))(50),
            main = "Heatmap of Different Expression", scale = "row")
 }
-
 
 ECDF_plot <- function(df,value_var,group,plot_title="",test_result=""){
   if (test_result !=""){
@@ -124,7 +123,25 @@ quadrant_plot <- function(quadrant.data, lfc = 0.58 , pval = 0.05, groupname = "
                  aes_string(x= "exp" ,y="m6A", color="threshold"),size = 1.5)
 
 }
-
+matrixcluster <- function(matrixData, cluster_rows = TRUE, cluster_cols = TRUE, cmethod = "complete"){
+  if(cluster_rows == TRUE){
+    ht <- hclust(dist(matrixData), method = cmethod)          #对行进行聚类
+    rowInd <- ht$order                                       #将聚类后行的顺序存为rowInd 
+  }else{
+    rowInd <- 1:nrow(matrixData)
+  }
+  
+  if(cluster_cols == TRUE){
+    ht <- hclust(dist(t(matrixData)), method = cmethod)       #对矩阵进行转置，对原本的列进行聚类
+    colInd <- ht$order                                       #将聚类后列的顺序存为colInd 
+  }else{
+    colInd <- 1:ncol(matrixData)
+  }
+  
+  matrixDataNew <-matrixData[rowInd,colInd]                #将数据按照聚类结果重排行和列
+  print(c("ward.D", "ward.D2", "single", "complete", "average", "mcquitty", "median", "centroid"))
+  return(matrixDataNew)
+}
 ## dm & de & ecdf
 heatmap_dm.list <- NULL
 heatmap_de.list <- NULL
@@ -134,7 +151,7 @@ quadrant.list <- NULL
 ecdf.data <- NULL
 ecdf.group.data <- melt(m6a.anno.matrix,ID="PeakRegion")
 for( group in as.character(compare.list) ){
-  group1 = strsplit(group, "_vs_")[[1]][1]
+  group1 = strsplit(group, "_vs_")[[1]][1] 
   group2 = strsplit(group, "_vs_")[[1]][2]
   coldata = subset(as.data.frame(design.matrix), Type==group1|Type==group2)
   coldata$Type = as.factor(coldata$Type)
@@ -148,7 +165,8 @@ for( group in as.character(compare.list) ){
   dm_mat = log2(dm_mat+1)
   dm_mat = dm_mat[select$PeakRegion,]
   dm_mat = na.omit(dm_mat)
-  heatmap_dm.list[[group]] <- heatmap_dm(dm_mat,coldata)
+  dm_mat_new <- matrixcluster(dm_mat,cmethod = "single")
+  heatmap_dm.list[[group]] <- heatmap_dm(dm_mat_new,coldata)
   ## de
   deres = diffexpression.list[[which(names(diffexpression.list)==group)]]
   deg = subset(deres, abs(log2FoldChange)> 0.58 & pvalue < 0.05)
@@ -159,7 +177,8 @@ for( group in as.character(compare.list) ){
   de_mat = log2(de_mat+1)
   de_mat = de_mat[rownames(select),]
   de_mat = na.omit(de_mat)
-  heatmap_de.list[[group]] <- heatmap_de(de_mat,coldata)
+  de_mat_new <- matrixcluster(de_mat,cmethod = "single")
+  heatmap_de.list[[group]] <- heatmap_de(de_mat_new,coldata)
   
   ## ecdf
   ecdf.group.data.tmp = subset(ecdf.group.data,variable %in% rownames(coldata))
