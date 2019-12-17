@@ -170,7 +170,7 @@ for( group in as.character(compare.list) ){
   ## de
   deres = diffexpression.list[[which(names(diffexpression.list)==group)]]
   deg = subset(deres, abs(log2FoldChange)> 0.58 & pvalue < 0.05)
-  if (!nrow(dmg)) deg = deres
+  if (!nrow(deg)) deg = deres
   rownames(deg) = deg$ID
   de_mat = expression.matrix[row.names(deg),rownames(coldata)]
   select <- deg[order(deg$log2FoldChange, decreasing = TRUE), ] 

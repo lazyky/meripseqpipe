@@ -40,30 +40,3 @@ m6Am=na.omit(temp.utr5)
 m6Am=m6Am[grep(">",m6Am$V1),]
 m6Am=gsub(">","",m6Am$V1)
 m6Am=strsplit2(m6Am,split="[(]")[,1]
-docker run -e PASSWORD=88418669 -p23333:8388 -p23333:8388/udp -d shadowsocks/shadowsocks-libev
-docker run -ti --name=kcptun-socks5-ss-server-2 \
--p 8848:8848 \
--p 8848:8848/udp \
--p 34567:34567/udp \
--p 23333:23333/udp \
--e RUNENV=kcptunsocks-kcptunss \
--e SS_SERVER_ADDR=127.0.0.1 \
--e SS_SERVER_PORT=8848 \
--e SS_PASSWORD=woshizhu \
--e SS_METHOD=aes-256-cfb \
--e SS_DNS_ADDR=8.8.8.8 \
--e SS_UDP=true \
--e SS_ONETIME_AUTH=true \
--e SS_FAST_OPEN=true \
--e KCPTUN_LISTEN=23333 \
--e KCPTUN_SS_LISTEN=34567 \
--e KCPTUN_SOCKS5_PORT=12948 \
--e KCPTUN_KEY=woshizhu \
--e KCPTUN_CRYPT=aes \
--e KCPTUN_MODE=fast2 \
--e KCPTUN_MTU=1350 \
--e KCPTUN_SNDWND=1024 \
--e KCPTUN_RCVWND=1024 \
--e KCPTUN_NOCOMP=false \
-cndocker/kcptun-socks5-ss-server:latest
-overlap.
