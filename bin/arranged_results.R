@@ -95,7 +95,7 @@ if (rnaseq_mode != "none"){
 }
 
 ## generate m6A matrix
-m6a.anno.matrix <- read.table(file = grep("quantification.matrix",x = list.files(),value = T), header = T, sep = "\t", row.names = 1, check.names=F)
+m6a.anno.matrix <- read.delim(file = grep("quantification.matrix",x = list.files(),value = T), header = T, sep = "\t", row.names = 1, check.names=F)
 m6a.anno.matrix <- cbind(PeakRegion = row.names(m6a.anno.matrix), m6a.anno.matrix)
 
 ## generate diffm6A list

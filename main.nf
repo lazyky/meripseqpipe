@@ -935,21 +935,21 @@ process RSeQC {
 process CreateBigWig {
     publishDir "${params.outdir}/QC/rseqc/", mode: 'link', overwrite: true ,
         saveAs: {filename ->
-            if (filename.indexOf("bigwig") > 0) "bigwig/$filename"
+            if (filename.indexOf("bedgraph") > 0) "bedgraph/$filename"
         }
 
     input:
     file bam from sort_bam.collect()
 
     output:
-    file "*.bigwig" into bigwig_for_genebody
+    file "*.bedgraph" into bedgraph_for_genebody
 
     when:
-    !params.skip_createbigwig
+    !params.skip_createbedgraph
 
     script:
     """
-    bash $baseDir/bin/create_bigwig.sh ${task.cpus}
+    bash $baseDir/bin/create_bedgraph.sh ${task.cpus}
     """
 }
 
@@ -967,7 +967,7 @@ process GenebodyCoverage {
     !params.skip_rseqc && !params.skip_genebody_coverage
 
     input:
-    file bigwig from bigwig_for_genebody
+    file bedgraph from bedgraph_for_genebody
     file bed12 from bed_genebody_coverage.collect()
 
     output:
@@ -1560,7 +1560,7 @@ process CreateIGVjs {
     file formatted_designfile from formatted_designfile.collect()
     file group_bed from group_merged_bed.collect()
     file all_bed from all_merged_bed.collect()
-    file bigwig from bigwig_for_genebody.collect()
+    file bedgraph from bedgraph_for_genebody.collect()
     
     output:
     file "*" into igv_js
@@ -1574,9 +1574,9 @@ process CreateIGVjs {
     ls -l $gtf | awk -F "> " '{print "ln "\$2" ./'$igv_gtf'"}' | bash
     ls -l $m6APipe_result | awk '{print "ln "\$11" initial.m6APipe"}' | bash
     ls -l $group_bed $all_bed | awk '{sub(".bed\$",".igv.bed",\$9);print "ln "\$11,\$9}' | bash
-    ls -l $bigwig | awk '{sub(".bigwig\$",".igv.bigwig",\$9);print "ln "\$11,\$9}' | bash
+    ls -l $bedgraph | awk '{sub(".bedgraph\$",".igv.bedgraph",\$9);print "ln "\$11,\$9}' | bash
     samtools faidx $igv_fasta
-    bash $baseDir/bin/create_IGV_js.sh $fasta $gtf $merged_allpeaks_igvfile $formatted_designfile
+    bash $baseDir/bin/create_IGV_js.sh $igv_fasta $igv_gtf $merged_allpeaks_igvfile $formatted_designfile
     """
 }
 
