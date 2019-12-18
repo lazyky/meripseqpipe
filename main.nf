@@ -1043,6 +1043,7 @@ process Macs2{
     publishDir "${params.outdir}/peakCalling/macs2", mode: 'link', overwrite: true
 
     input:
+    file fasta
     file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
 
@@ -1054,6 +1055,7 @@ process Macs2{
     !params.skip_macs2 && !params.skip_peakCalling
 
     script:
+    inputformat = params.singleEnd ? "BAM" : "BAMPE"
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
     if( flag_peakCallingbygroup ){
         println LikeletUtils.print_purple("Peak Calling performed by Macs2 in group mode")
@@ -1061,7 +1063,8 @@ process Macs2{
         println LikeletUtils.print_purple("Peak Calling performed by Macs2 in independent mode")
     }
     """
-    bash $baseDir/bin/macs2.sh $formatted_designfile ${task.cpus} $flag_peakCallingbygroup;
+    genome_size=\$(faCount $fasta | tail -1 | awk '{print \$2-\$7}')
+    bash $baseDir/bin/macs2.sh $formatted_designfile $inputformat \$genome_size $flag_peakCallingbygroup ${task.cpus};
     """ 
 }
 

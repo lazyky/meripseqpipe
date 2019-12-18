@@ -15,6 +15,7 @@ dependencies:
   - bedtools=2.27.1=he860b03_3
   - ucsc-gtftogenepred=357=1
   - ucsc-fatotwobit=377=h199ee4e_1
+  - ucsc-facount=377=h199ee4e_0
   - hisat2=2.1.0=py27h6bb024c_3
   - bowtie2=2.2.5=py27h6bb024c_4
   - bwa=0.7.17=h84994c4_5
