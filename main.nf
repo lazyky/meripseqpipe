@@ -318,10 +318,7 @@ process makeBED12 {
  * PREPROCESSING - Create chromsizesfile for meyer
  * NEED genome.fa
  */
-if( params.chromsizesfile ) {
-    chromsizesfile = file(params.chromsizesfile)
-    if( !chromsizesfile.exists() ) exit 1, LikeletUtils.print_red("Chromsizes file not found: ${params.chromsizesfile}")
-}else if( params.fasta ){
+if( params.fasta ){
     process MeyerPrepration{
         label 'build_index'
         tag "MeyerPrepration"
@@ -333,7 +330,7 @@ if( params.chromsizesfile ) {
         file "chromsizes.file" into chromsizesfile
 
         when:
-        !params.chromsizesfile && !params.skip_meyer && !params.skip_peakCalling
+        !params.skip_meyer && !params.skip_peakCalling
 
         shell:
         '''
@@ -517,8 +514,6 @@ process Fastp{
     skip_fastp = params.skip_fastp
     gzip = params.gzip
     if ( params.singleEnd ){
-        if ( skip_fastp )  println LikeletUtils.print_purple("fastp is skipped")
-        else println LikeletUtils.print_purple("fastp is on going for single-end data")
         filename = reads.toString() - ~/(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners = sample_name + "_aligners.fastq"
@@ -533,8 +528,6 @@ process Fastp{
         fi
         """
     } else {
-        if ( skip_fastp )  println LikeletUtils.print_purple("fastp is skipped")
-        else println LikeletUtils.print_purple("fastp is on going for pair-end data")
         filename = reads[0].toString() - ~/(_R[0-9])?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners_1 = sample_name + "_1_aligners.fastq"
@@ -571,13 +564,11 @@ process Fastqc{
     shell:
     skip_fastqc = params.skip_fastqc
     if ( params.singleEnd ){
-        println LikeletUtils.print_purple("Fastqc is on going for single-end data")
         """
         mkdir fastqc
         fastqc -o fastqc --noextract ${reads}
         """       
     } else {
-        println LikeletUtils.print_purple("Fastqc is on going for pair-end data")
         """
         mkdir fastqc   
         fastqc -o fastqc --noextract ${reads[0]}
@@ -612,7 +603,6 @@ process Tophat2Align {
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.fa)?(\.bt2)?$/
     strand_info = params.stranded == "no" ? "fr-unstranded" : params.stranded == "reverse" ? "fr-secondstrand" : "fr-firststrand"
     if (params.singleEnd) {
-        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Tophat2 in single-end mode")
         """
         tophat  -p ${task.cpus} \
                 -G $gtf \
@@ -624,7 +614,6 @@ process Tophat2Align {
         mv $sample_name/accepted_hits.bam ${sample_name}_tophat2.bam
         """
     } else {
-        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Tophat2 in paired-end mode")
         """
         tophat -p ${task.cpus} \
                 -G $gtf \
@@ -658,7 +647,6 @@ process Hisat2Align {
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
     if (params.singleEnd) {
-        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Hisat2 in single-end mode")
         """
         hisat2  -p ${task.cpus} --dta \
                 -x $index_base \
@@ -668,7 +656,6 @@ process Hisat2Align {
         rm *.sam
         """
     } else {
-        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by Hisat2 in paired-end mode")
         """
         hisat2  -p ${task.cpus} --dta \
                 -x $index_base \
@@ -700,7 +687,6 @@ process BWAAlign{
     script:
     index_base = index[0].toString() - ~/(\.pac)?(\.bwt)?(\.ann)?(\.amb)?(\.sa)?(\.fa)?$/
     if (params.singleEnd) {
-        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by BWA in single-end mode")
         """
         bwa aln -t ${task.cpus} \
                 -f ${reads.baseName}.sai \
@@ -714,7 +700,6 @@ process BWAAlign{
         rm *.sam
         """
     } else {
-        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by BWA in paired-end mode")
         """
         bwa aln -t ${task.cpus} \
                 -f ${reads[1].baseName}.sai \
@@ -753,7 +738,6 @@ process StarAlign {
 
     script:
     if (params.singleEnd) {
-        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by STAR in single-end mode")
         """
         STAR --runThreadN ${task.cpus} \
             --twopassMode Basic \
@@ -770,7 +754,6 @@ process StarAlign {
         mv ${sample_name}Aligned.out.bam ${sample_name}_star.bam
         """
     } else {
-        println LikeletUtils.print_purple("Initial reads mapping of " + sample_name + " performed by STAR in paired-end mode")
         """
         STAR --runThreadN ${task.cpus} \
             --twopassMode Basic \
@@ -824,8 +807,6 @@ process Sort {
     output = sample_name + "_sort.bam"
     keep_unique = (params.mapq_cutoff).toInteger() 
     if (!params.skip_sort){
-        println LikeletUtils.print_purple("Samtools sorting the bam files now")
-        if(keep_unique) println LikeletUtils.print_purple("Keeping unique reads")
         """
         if [ "$keep_unique" -gt "0" ]; then
             samtools view -bq $keep_unique $bam_file | samtools sort -@ ${task.cpus} -O BAM -o $output -
@@ -835,8 +816,6 @@ process Sort {
         samtools index -@ ${task.cpus} $output
         """
     } else {
-        println LikeletUtils.print_purple("The step of samtools sort is skipped")
-        if(keep_unique) println LikeletUtils.print_purple("Keeping unique reads")
         """
         for bam_file in *.bam
         do
@@ -923,7 +902,7 @@ process RSeQC {
     file bed12 from bed_rseqc.collect()
 
     output:
-    file "*.{txt,pdf,r,xls}" into rseqc_results
+    file "*" into rseqc_results
     file "*.bam_stat.txt" into bam_stat_for_normlization
     script:
 
@@ -932,7 +911,7 @@ process RSeQC {
     """
 }
 
-process CreateBigWig {
+process CreateBedgraph{
     publishDir "${params.outdir}/QC/rseqc/", mode: 'link', overwrite: true ,
         saveAs: {filename ->
             if (filename.indexOf("bedgraph") > 0) "bedgraph/$filename"
@@ -1055,7 +1034,6 @@ process Macs2{
     !params.skip_macs2 && !params.skip_peakCalling
 
     script:
-    inputformat = params.singleEnd ? "BAM" : "BAMPE"
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
     if( flag_peakCallingbygroup ){
         println LikeletUtils.print_purple("Peak Calling performed by Macs2 in group mode")
@@ -1064,7 +1042,7 @@ process Macs2{
     }
     """
     genome_size=\$(faCount $fasta | tail -1 | awk '{print \$2-\$7}')
-    bash $baseDir/bin/macs2.sh $formatted_designfile $inputformat \$genome_size $flag_peakCallingbygroup ${task.cpus};
+    bash $baseDir/bin/macs2.sh $formatted_designfile \$genome_size $flag_peakCallingbygroup ${task.cpus};
     """ 
 }
 
@@ -1146,7 +1124,7 @@ process HtseqCount{
     file gtf
 
     output:
-    file "*input*.count" into htseq_count_input_to_deseq2, htseq_count_input_to_edgeR, htseq_count_input_to_arrange
+    file "*input*.count" into htseq_count_input, htseq_count_input_to_arrange
     file "expression.matrix" into htseq_results
 
     when:
@@ -1168,7 +1146,7 @@ process DESeq2{
     publishDir "${params.outdir}/expressionAnalysis/DESeq2", mode: 'link', overwrite: true
 
     input:
-    file reads_count_input from htseq_count_input_to_deseq2
+    file reads_count_input from htseq_count_input.collect()
     file formatted_designfile from formatted_designfile.collect()
     val compare_str from compareLines_for_DESeq2
 
@@ -1191,7 +1169,7 @@ process EdgeR{
     publishDir "${params.outdir}/expressionAnalysis/edgeR", mode: 'link', overwrite: true
 
     input:
-    file reads_count_input from htseq_count_input_to_edgeR
+    file reads_count_input from htseq_count_input.collect()
     file formatted_designfile from formatted_designfile.collect()
     val compare_str from compareLines_for_edgeR
 
@@ -1371,6 +1349,7 @@ process PeaksQuantification{
     
     input:
     file merged_bed from all_merged_bed.collect()
+    file htseq_count_file from htseq_count_input.collect()
     file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
     file annotation_file from methylation_annotaion_file.collect()
@@ -1396,27 +1375,33 @@ process PeaksQuantification{
     else if ( methylation_analysis_mode == "DESeq2" )
         println LikeletUtils.print_purple("Generate m6A quantification matrix by DESeq2")
     """
-    if [ ${methylation_analysis_mode} == "Wilcox-test" ]; then 
-        # PeaksQuantification by bedtools
-        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${merged_bed} bam_stat_summary.txt
-        Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
-    elif [ ${methylation_analysis_mode} == "QNB" ]||[ ${methylation_analysis_mode} == "MeTDiff" ]; then 
-        # PeaksQuantification by QNB
-        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${merged_bed} bam_stat_summary.txt
-        Rscript $baseDir/bin/QNB_quantification.R $formatted_designfile ${task.cpus}
-    elif [ ${methylation_analysis_mode} == "MATK" ]; then 
-        # PeaksQuantification by MATK
-        export OMP_NUM_THREADS=${task.cpus}
-        bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${merged_bed} 1
-    elif [ ${methylation_analysis_mode} == "DESeq2" ]||[ ${methylation_analysis_mode} == "edgeR" ]; then 
+    if [ ${methylation_analysis_mode} == "DESeq2" ]||[ ${methylation_analysis_mode} == "edgeR" ]; then 
         # PeaksQuantification by LRT
-        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${merged_bed} bam_stat_summary.txt
-        Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
+        
+    else
+        case ${methylation_analysis_mode} in 
+        Wilcox-test)
+            bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${merged_bed} bam_stat_summary.txt
+            Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
+            ;;
+        QNB|MeTDiff)
+            bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${merged_bed} bam_stat_summary.txt
+            Rscript $baseDir/bin/QNB_quantification.R $formatted_designfile ${task.cpus}
+            ;;
+        MATK)
+            export OMP_NUM_THREADS=${task.cpus}
+            bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${merged_bed} 1
+            ;;
+        *)
+            echo ${methylation_analysis_mode}" is not Wilcox-test, QNB, MATK, DESeq2 or edgeR"
+            exit 1
+            ;;
+        esac
+        head -1 *_quantification.matrix |sed 's/^\\t//'  |awk -F "\\t" '{print "ID\\tGene_symbol\\t"\$0}' > tmp.header.file
+        sed '1d' *_quantification.matrix | sort > tmp.quantification.file
+        awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}' ${annotation_file} | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
+        join -t \$'\t' tmp.annotation.file tmp.quantification.file | cat tmp.header.file - > *_quantification.matrix 
     fi
-    head -1 *_quantification.matrix |sed 's/^\\t//'  |awk -F "\\t" '{print "ID\\tGene_symbol\\t"\$0}' > tmp.header.file
-    sed '1d' *_quantification.matrix | sort > tmp.quantification.file
-    awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}' ${annotation_file} | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
-    join -t \$'\t' tmp.annotation.file tmp.quantification.file | cat tmp.header.file - > *_quantification.matrix 
     """
 }
 
@@ -1454,21 +1439,30 @@ process diffm6APeak{
     else if ( methylation_analysis_mode == "DESeq2" )
         println LikeletUtils.print_purple("Differential m6A analysis is going on by DESeq2")
     """
-    if [ ${methylation_analysis_mode} == "Wilcox-test" ]; then 
-        Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile bedtools_quantification.matrix $compare_str
-    elif [ ${methylation_analysis_mode} == "QNB" ]; then 
-        Rscript $baseDir/bin/QNB_diffm6A.R $formatted_designfile ${merged_bed} $compare_str     
-    elif [ ${methylation_analysis_mode} == "MeTDiff" ]; then
-        Rscript $baseDir/bin/MeTDiff_diffm6A.R $formatted_designfile $compare_str 
-    elif [ ${methylation_analysis_mode} == "MATK" ]; then 
-        export OMP_NUM_THREADS=${task.cpus}
-        bash $baseDir/bin/MATK_diffm6A.sh $matk_jar $formatted_designfile $gtf $compare_str $merged_bed
-    elif [ ${methylation_analysis_mode} == "edgeR" ]; then
-        Rscript $baseDir/bin/GLM_edgeR_DM.R $formatted_designfile $compare_str 
-    elif [ ${methylation_analysis_mode} == "DESeq2" ]; then 
-        Rscript $baseDir/bin/GLM_DESeq2_DM.R $formatted_designfile $compare_str ${task.cpus}
-    fi
-
+    case ${methylation_analysis_mode} in 
+        Wilcox-test)
+            Rscript $baseDir/bin/bedtools_diffm6A.R $formatted_designfile bedtools_quantification.matrix $compare_str
+            ;;
+        QNB)
+            Rscript $baseDir/bin/QNB_diffm6A.R $formatted_designfile ${merged_bed} $compare_str   
+            ;;
+        MeTDiff)
+            Rscript $baseDir/bin/MeTDiff_diffm6A.R $formatted_designfile $compare_str 
+            ;;
+        MATK)
+            export OMP_NUM_THREADS=${task.cpus}
+            bash $baseDir/bin/MATK_diffm6A.sh $matk_jar $formatted_designfile $gtf $compare_str $merged_bed
+            ;;
+        edgeR)
+            Rscript $baseDir/bin/GLM_edgeR_DM.R $formatted_designfile $compare_str 
+            ;;
+        DESeq2)
+            Rscript $baseDir/bin/GLM_DESeq2_DM.R $formatted_designfile $compare_str ${task.cpus}
+            ;;
+        *)
+            echo ${methylation_analysis_mode}" is not Wilcox-test, QNB, MeTDiff, MATK, DESeq2 or edgeR"
+            exit 1
+            ;;   
     """ 
 }
 

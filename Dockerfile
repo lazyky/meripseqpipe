@@ -29,6 +29,8 @@ RUN git clone https://github.com/compgenomics/MeTPeak.git && \
     rm -rf MeTPeak*
 
 # install MSPC
-RUN wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/latest/download/mspc.zip" && \
+RUN conda install -y unzip 
+RUN wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/download/v4.0.0/linux-x64.zip" && \
     unzip mspc.zip -d mspc && \
+    chmod 775 mspc/mspc && \ 
     rm mspc.zip
