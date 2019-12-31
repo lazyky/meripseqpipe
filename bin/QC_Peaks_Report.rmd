@@ -7,13 +7,13 @@ output: html_document
 
 ```{r setup, include=TRUE, echo=FALSE}
 require(grid)
-#load("QCPeaksPlot.RData")
 ```
 
 ## Peaks Distribution
   Compare different distribution of different PeakCalling tools.
 ```{r Distribution, echo=FALSE}
 print(distribute.barplot)
+print(distribute.barplot.count)
 ## Curve
 for( sample in names(sample.plots.list) ){
   print(sample)

@@ -1,11 +1,11 @@
+
 ## m6APipe
 **MeRIP-seq analysis pipeline**
-
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A50.32.0-brightgreen.svg)](https://www.nextflow.io/)
 ![Singularity Container available](https://img.shields.io/badge/singularity-available-7E4C74.svg)
 ### Introduction
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It comes with docker/singularity containers making installation trivial and results highly reproducible. N6-methyladenosine (m6A) is the most prevalent modification in the mRNA of many eukaryotic species, including yeast, plants, flies, and mammals. In order to analyze m6A-seq data, we developed a user-friendly, integrated analysis pipeline called m6APipe based on Nextflow. It integrated ten main functional modules including preprocessing, QC, read mapping, peak calling, merging peaks, differential methylation analysis, differential expression analysis, motif search, annotation, and data visualization. 
-### Documentation   
+### Documentation   
 A full tutorial of m6APipe can be found at Wiki page of this project. plz go to the https://github.com/kingzhuky/m6APipe/wiki
 #### Quickstart
 ##### Install Nextflow
@@ -24,16 +24,23 @@ docker pull kingzhuky/m6apipe
 ```
 Or Building environment by conda. See [details](https://github.com/kingzhuky/m6APipe/wiki/Installation) in Installation.
 ##### Launch m6APipe
+Running m6APipe by docker:
 ```
 nextflow run path/to/m6APipe/main.nf -c nextflow.config -profile docker
 ```
-##### Launch Report builded by R-Shiny
+Running m6APipe by conda:
 ```
-docker pull kingzhuky/m6areport:v0.1
-m6APipe_result="/path/to/results.m6APipe"
-docker run -p 3838:3838 -v $m6APipe_result:/initial.m6APipe m6areport:v0.1
+nextflow run path/to/m6APipe/main.nf -c nextflow.config
 ```
-Then access the report by https://<Your.Server.IP>:3838
+
+##### Launch Report builded by R-Shiny
+```
+docker pull kingzhuky/m6areport
+m6APipe_result="/path/to/results.m6APipe"              
+m6APipe_igv_js="/path/to/results/Report/Igv_js"         # eg. /data1/m6Apipe/results/Report/Igv_js
+docker run -p 3838:3838 -v $m6APipe_result:/initial.m6APipe -v  $m6APipe_igv_js:/data m6areport
+```
+Then access the report by https://<Your.Server.IP>:3838
 
 ### Pipeline Description
 #### Input files
@@ -67,18 +74,18 @@ https://github.com/kingzhuky/m6APipe/blob/master/test_data/comparefile.txt). 
 >group_Endo_vs_group_ES
 #### Pipeline Steps
 m6APipe allows you to run pipelines skip the tools by your params.
-You can skip the tools by using `--skip_ToolsName` or not(default), just list `--skip_metpeak`
-
+You can skip the tools by using `--skip_ToolsName` or not(default), just like `--skip_metpeak`.
+And you can change the mode parameter by using `--Parameter  Selection`, just like `--peakMerged_mode mspc`
 
 | Step  | Pipeline |  Mode Parameter | Selection|
 | :-: | :-: | :-: | :-: |
-| Raw Data QC  | Fastp, FastQC  |-|-|
+| Raw Data QC  | Fastp, FastQC  |-|-|
 | Reads Mapping      | star, bwa, tophat, hisat2  |aligners|"star" OR "bwa" OR "tophat2" OR "hisat2" OR "none"|
 | Sort BAM file AND Post-alignment QC  | samtools, RSeQC     |-|-|
 | Peak Calling | MeTPeak, MACS2, MATK, meyer|peakCalling_mode |"group" OR "independence"|
 | Combines Peaks information   | RobustRankAggreg, BEDtools, MSPC  |peakMerged_mode |"rank" OR "macs2" OR "MATK" OR "metpeak" OR "mspc"|
 | Methylation analysis  | MeTDiff, QNB, MATK, Wilcox-test, DESeq2, edgeR |methylation_analysis_mode|"MATK" OR "QNB" OR "Wilcox-test" OR "MeTDiff" OR "edgeR" OR "DESeq2"|
-| Expression analysis    | htseq, DESeq2, edgeR, cufflinks |expression_analysis_mode |"DESeq2" OR "edgeR" OR "none"|
+| Expression analysis    | htseq, DESeq2, edgeR |expression_analysis_mode |"DESeq2" OR "edgeR" OR "none"|
 
 ### Dependencies
 * Softwares
@@ -103,6 +110,5 @@ You can skip the tools by using `--skip_ToolsName` or not(default), ju
     * [htseq](https://github.com/simon-anders/htseq)
     * [deseq2](http://bioconductor.org/packages/DESeq2/)
     * [edgeR](http://bioconductor.org/packages/edgeR/)
-    * [cufflinks](http://cole-trapnell-lab.github.io/cufflinks/)
     * Several R packages for downstream analysis.
 

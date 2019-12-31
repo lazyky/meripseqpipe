@@ -5,12 +5,20 @@ There are two [Installation](https://github.com/kingzhuky/m6APipe/wiki/Installat
 In the directory of m6APipe
 ### Conda
 ```
-nextflow main.nf -c nextflow.config --readPaths test_data --designfile test_data/designfile_test.csv --comparefile test_data/comparefile.txt -resume
+nextflow main.nf -c nextflow.config \
+  --readPaths test_data \
+  --designfile test_data/designfile_test.csv \
+  --comparefile test_data/comparefile.txt \
+  -resume
 ```
 ### Docker
 Before running the command, you need to pull the image ( kingzhuky/m6apipe ) from docker hub.
 ```
-nextflow main.nf -c nextflow.config -profile docker --readPaths test_data --designfile test_data/designfile_test.csv --comparefile test_data/comparefile.txt -resume
+nextflow main.nf -c nextflow.config -profile docker \
+  --readPaths test_data \
+  --designfile test_data/designfile_test.csv \
+  --comparefile test_data/comparefile.txt \
+  -resume
 ```
 ## Running your own data
 ### Modify nextflow.config
@@ -58,13 +66,28 @@ Comparefile is just like the following text which is a "\_vs\_" between two grou
 ### Running command
 #### data: fastq.gz
 ```
-nextflow /path/to/m6APipe/main.nf -c /path/to/m6APipe/nextflow.config --readPaths /path/to/data/ --designfile /your/designfile.csv --comparefile /your/comparefile --gzip
+nextflow /path/to/m6APipe/main.nf -c /path/to/m6APipe/nextflow.config \
+  --readPaths /path/to/data/ \
+  --designfile /your/designfile.csv \
+  --comparefile /your/comparefile \
+  --gzip \
+  -resume
 ```
 #### data: fastq
 ```
-nextflow /path/to/m6APipe/main.nf -c /path/to/m6APipe/nextflow.config --readPaths /path/to/data/ --designfile /your/designfile.csv --comparefile /your/comparefile --gzip false
+nextflow /path/to/m6APipe/main.nf -c /path/to/m6APipe/nextflow.config \
+  --readPaths /path/to/data/ \
+  --designfile /your/designfile.csv \
+  --comparefile /your/comparefile \
+  --gzip false\
+  -resume
 ```
 #### data: bam
 ```
-nextflow /path/to/m6APipe/main.nf -c /path/to/m6APipe/nextflow.config --readPaths /path/to/data/ --designfile /your/designfile.csv --comparefile /your/comparefile --aligners none
+nextflow /path/to/m6APipe/main.nf -c /path/to/m6APipe/nextflow.config \
+  --readPaths /path/to/data/ \
+  --designfile /your/designfile.csv \
+  --comparefile /your/comparefile \
+  --aligners none \
+  -resume
 ```

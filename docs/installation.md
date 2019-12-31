@@ -49,11 +49,11 @@ git clone https://github.com/compgenomics/MeTDiff.git && \
     rm -rf MeTDiff*
 ```
 
-##### Install MSPC
+##### install MSPC
 Download [MSPC](https://github.com/Genometric/MSPC) and Add it into enviroment variable $PATH
 ```
-wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/latest/download/mspc.zip" && \
+wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/download/v4.0.0/linux-x64.zip" && \
     unzip mspc.zip -d mspc
-# Add MSPC into enviroment variable $PATH
-echo "export PATH=`pwd`/mspc:\$PATH" > ~/.bashrc
+chmod +x mspc/mspc
+echo "export PATH=`pwd`/mspc:\$PATH" >> ~/.bashrc
 ```

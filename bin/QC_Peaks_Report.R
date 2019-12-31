@@ -7,7 +7,7 @@ library(reshape2)
 options(stringsAsFactors = FALSE)
 
 args <- commandArgs(T) 
-#args <- c("formatted_designfile.txt", "rank", "group","QCPeaksPlot.RData")
+#args <- c("formatted_designfile.txt", "mspc", "group","QCPeaksPlot.RData")
 designfile <- args[1] #"formatted_designfile.txt"
 peakMerged.mode <- args[2]#rank
 peakCalling.mode <- args[3]#"group"
@@ -65,7 +65,19 @@ distribute.barplot <- ggplot(distribute.table,aes(group, value, fill = Location)
                               panel.background = element_rect(fill = "transparent",colour = NA),
                               axis.title = element_blank(),
                               axis.ticks.x = element_blank()) #remove ticks
+distribute.barplot.count <- ggplot(distribute.table,aes(group, value, fill = Location)) +
+                            geom_bar(stat="identity") + coord_flip() +
+                            ggtitle("Peaks Distribution") +
+                            scale_y_continuous(expand = c(0, 0)) +
+                            guides(fill = guide_legend(reverse = TRUE)) +
+                            scale_fill_brewer() +
+                            theme(panel.grid =element_blank(), #remove grid line
+                                  title = element_text(size = 15, angle = 0, face = "plain", colour = "black"),
+                                  panel.background = element_rect(fill = "transparent",colour = NA),
+                                  axis.title = element_blank(),
+                                  axis.ticks.x = element_blank()) #remove ticks
 print(distribute.barplot)
+print(distribute.barplot.count)
 ### Curve
 sample.plots.list <- NULL
 sample.list <- if(peakCalling.mode == "group") designtable$Group else designtable$Sample_ID
@@ -132,4 +144,4 @@ for( peakfile.name in motif.peakfiles ){
   ggplot2.multiplot(plotlist = QC.motif.list[[peakfile.name]] ,cols = 1)
 }
 dev.off()
-save(distribute.barplot,sample.plots.list,merged.plot,QC.motif.list,file = output.Rdata)
+save(distribute.barplot.count,distribute.barplot,sample.plots.list,merged.plot,QC.motif.list,file = output.Rdata)
