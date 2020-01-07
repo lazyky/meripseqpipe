@@ -63,3 +63,4 @@ Report/www/SRR5194806.bw
 CMD_1.sh
 loop_test.sh
 Report/.Rproj.user/2A715A5B/sources/s-8F2E4D5D/lock_file
+bin/feature_count.R

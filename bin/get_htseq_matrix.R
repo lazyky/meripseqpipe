@@ -7,7 +7,7 @@ args<-commandArgs(T)
 designfile <- args[1]
 THREAD_NUM <- as.numeric(args[2])
 
-designtable <- read.csv(designfile,head = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
+designtable <- read.csv(designfile,header = TRUE,stringsAsFactors=FALSE, colClasses = c("character"))
 #Generate gene count matrix
 htseq.files <- list.files("./",pattern = ".txt")
 mclapply(unique(designtable$Group),function(x){

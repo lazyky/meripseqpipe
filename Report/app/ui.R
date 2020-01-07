@@ -1,13 +1,9 @@
 source("server.R")
 source("functions.R")
 
-options(shiny.maxRequestSize=30*1024^2)
 ui<-dashboardPage(skin = "black",
   dashboardHeader(title = "m6A Report"),
   dashboardSidebar(
-    fileInput("m6APipeRData", "Upload your .m6APipe file",
-          accept = c("text/RData",
-                      ".m6APipe")),
     sidebarMenu(
       menuItem("Introduction", tabName = "introduction",icon = icon("bullseye")),
       menuItem("Quality Control", tabName = "qc",icon = icon("th"),

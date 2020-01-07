@@ -809,7 +809,7 @@ process Sort {
     if (!params.skip_sort){
         """
         if [ "$keep_unique" -gt "0" ]; then
-            samtools view -bq $keep_unique $bam_file | samtools sort -@ ${task.cpus} -O BAM -o $output -
+            samtools view -hubq $keep_unique $bam_file | samtools sort -@ ${task.cpus} -O BAM -o $output -
         else
             samtools sort -@ ${task.cpus} -O BAM -o $output $bam_file
         fi
@@ -821,7 +821,7 @@ process Sort {
         do
         {
             if [ "$keep_unique" -gt "0" ]; then
-                samtools view -bq $keep_unique $bam_file > $output
+                samtools view -hubq $keep_unique $bam_file > $output
             else
                 mv $bam_file $output
             fi
@@ -1133,9 +1133,11 @@ process HtseqCount{
     script:
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
     strand_info = params.stranded == "no" ? "no" : params.stranded == "reverse" ? "reverse" : "yes"
+   // strand_info = params.singleEnd ? " " : " -p"
     """
-    bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus} 
-    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile  ${task.cpus} 
+    bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus}
+    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile ${task.cpus} 
+    # Rscript $baseDir/bin/feature_count.R $formatted_designfile $gtf $strand_info ${task.cpus}
     """ 
 }
 
@@ -1259,6 +1261,12 @@ process PeakMerge {
     else
         echo -e "Please check your value of peakMerged_mode: $peakMerged_mode"
     fi
+    whether_nopeaks=\$(wc -l *merged*.bed | awk '\$1==0{print "error"}' | uniq)
+    if [[ \$whether_nopeaks == "error" ]] ;then 
+        echo "There is no peaks in one of the merged peaks files"
+        echo "Merge Peaks by "${peakMerged_mode}" may not be suitable for your data."
+        exit 1
+    fi
     """
 }
 
@@ -1377,7 +1385,12 @@ process PeaksQuantification{
     """
     if [ ${methylation_analysis_mode} == "DESeq2" ]||[ ${methylation_analysis_mode} == "edgeR" ]; then 
         # PeaksQuantification by LRT
-        
+        bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${merged_bed} bam_stat_summary.txt
+        Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
+        head -1 *_quantification.matrix |sed 's/^\\t//'  |awk -F "\\t" '{print "ID\\tGene_symbol\\t"\$0}' > tmp.header.file
+        sed '1d' *_quantification.matrix | sort > tmp.quantification.file
+        awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}' ${annotation_file} | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
+        join -t \$'\t' tmp.annotation.file tmp.quantification.file | cat tmp.header.file - > *_quantification.matrix 
     else
         case ${methylation_analysis_mode} in 
         Wilcox-test)
@@ -1416,6 +1429,7 @@ process diffm6APeak{
     file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
     file count_matrix from quantification_matrix.collect()
+    file exp_matrix from htseq_results.collect()
     file gtf
     val compare_str from compareLines_for_diffm6A
 
@@ -1454,15 +1468,16 @@ process diffm6APeak{
             bash $baseDir/bin/MATK_diffm6A.sh $matk_jar $formatted_designfile $gtf $compare_str $merged_bed
             ;;
         edgeR)
-            Rscript $baseDir/bin/GLM_edgeR_DM.R $formatted_designfile $compare_str 
+            Rscript $baseDir/bin/GLM_edgeR_DM.R $formatted_designfile $compare_str bedtools_quantification.matrix $exp_matrix   
             ;;
         DESeq2)
-            Rscript $baseDir/bin/GLM_DESeq2_DM.R $formatted_designfile $compare_str ${task.cpus}
+            Rscript $baseDir/bin/GLM_DESeq2_DM.R $formatted_designfile $compare_str ${task.cpus} bedtools_quantification.matrix $exp_matrix 
             ;;
         *)
             echo ${methylation_analysis_mode}" is not Wilcox-test, QNB, MeTDiff, MATK, DESeq2 or edgeR"
             exit 1
-            ;;   
+            ;;
+    esac   
     """ 
 }
 

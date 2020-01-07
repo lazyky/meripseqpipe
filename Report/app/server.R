@@ -14,18 +14,12 @@ library(stringr)
 library(knitr)
 library(reshape2)
 library(ggseqlogo)
-load("initial.m6APipe")
+load("/initial.m6APipe")
 options(stringsAsFactors=F)
 
 server <- function(input, output, session) {
   
 #qc peaks-----------------------------------------  
-  reactive({
-    inFile <- input$file1
-    if (is.null(inFile)) return(NULL)
-    load(inFile$datapath)
-  })
-  
   peak_dt <- eventReactive(input$peakbutton, {
     tabledt = QC.peaks.list[[which(names(QC.peaks.list)==input$peak)]]
     motif1 = t(apply(QC.motif.list[[which(names(QC.motif.list)==input$peak)]][[1]], 1, function(x)as.numeric(x)))
