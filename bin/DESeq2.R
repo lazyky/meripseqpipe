@@ -29,13 +29,13 @@ treated_database = read.table(paste0("htseq_group_", group_id_2, "_input.count")
 combined_database <- cbind(control_database,treated_database)
 condition <- factor(c(rep(group_id_1,ncol(control_database)), rep(group_id_2,ncol(treated_database)))) #setting factors
 ### assign gene names
-colData <- data.frame(row.names=colnames(combined_database), condition)
-dds <- DESeqDataSetFromMatrix(countData = combined_database,colData = colData,design = ~ condition)
+colData <- data.frame(row.names=colnames(combined_database), group = condition)
+dds <- DESeqDataSetFromMatrix(countData = combined_database,colData = colData,design = ~ group)
 rownames(dds) <- rownames(combined_database)
 #dds <- dds[ rowSums(counts(dds)) > 1, ]
 dds <- DESeq(dds)
 ## FoldChange = group_id_2 / group_id_1
-res <- results(object = dds, contrast = c("condition",group_id_2,group_id_1))
+res <- results(object = dds, contrast = c("group",group_id_2,group_id_1))
 table(res$padj <0.05)
 res <- res[order(res$padj),]
 #resdata <- merge(as.data.frame(res), as.data.frame(counts(dds, normalized=TRUE)),by="row.names",sort=FALSE)

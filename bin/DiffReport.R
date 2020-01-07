@@ -158,7 +158,7 @@ for( group in as.character(compare.list) ){
   ## dm
   dmres = diffm6A.list[[which(names(diffm6A.list)==group)]]
   dmg = subset(dmres, abs(log2FC) > 0.58 & pvalue < 0.05)
-  if (!nrow(dmg)) dmg = dmres
+  if (nrow(dmg)<=1) dmg = dmres
   matrix.dm = m6a.anno.matrix[,-c(1:3)]
   dm_mat = matrix.dm[dmg$PeakRegion,rownames(coldata)]
   select <- dmg[order(dmg$log2FC, decreasing = TRUE),] 
@@ -170,7 +170,7 @@ for( group in as.character(compare.list) ){
   ## de
   deres = diffexpression.list[[which(names(diffexpression.list)==group)]]
   deg = subset(deres, abs(log2FoldChange)> 0.58 & pvalue < 0.05)
-  if (!nrow(deg)) deg = deres
+  if (nrow(deg)<=1) deg = deres
   rownames(deg) = deg$ID
   de_mat = expression.matrix[row.names(deg),rownames(coldata)]
   select <- deg[order(deg$log2FoldChange, decreasing = TRUE), ] 

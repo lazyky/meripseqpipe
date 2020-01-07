@@ -11,6 +11,8 @@ library(edgeR)
 args <- commandArgs(T)
 designfile <- args[1]
 compare_str <- args[2]
+annotation.file <- args[3]
+input.count.matrix.file <- args[4]
 
 designtable <- read.csv(designfile, head = TRUE, stringsAsFactors=FALSE, colClasses = c("character"), check.names=F)
 design.matrix <- as.data.frame(designtable$Group)
@@ -33,7 +35,7 @@ design.matrix <- subset(design.matrix, Condition == group_id_1 | Condition == gr
 design.matrix$Condition <- factor(design.matrix$Condition, levels = c(group_id_1,group_id_2), labels = c("control","treatment"))
 filelist = list.files(path = ".",pattern = ".count",full.names = T)
 ## Generate the matrix of peaks count
-rpkm_peaks_list <- NULL
+peaks.count.list <- NULL
 for(sample_id in row.names(design.matrix)){
   input_count_file <- grep(paste0("[.]",sample_id,"[.]input"),filelist,value = TRUE)
   input_count_table <- read.table(file = input_count_file, sep = "\t", row.names = NULL,header = T)
@@ -42,9 +44,9 @@ for(sample_id in row.names(design.matrix)){
   ip_count_table <- read.table(file = ip_count_file, sep = "\t", row.names = NULL, header = T)
   rpkm <- cbind(input_count_table[,5],ip_count_table[,5])
   colnames(rpkm) <- c(paste0(sample_id,".input"),paste0(sample_id,".ip"))
-  rpkm_peaks_list <- cbind(rpkm_peaks_list,rpkm)
+  peaks.count.list <- cbind(peaks.count.list,rpkm)
 }
-rownames(rpkm_peaks_list) <- ip_count_table$PeakName
+rownames(peaks.count.list) <- ip_count_table$PeakName
 
 ## generate design matrix
 design.matrix$m6A <- "input"
@@ -55,7 +57,7 @@ design.matrix_ip$sample_id <- paste0(rownames(design.matrix_ip),".ip")
 design.matrix <- rbind(design.matrix,design.matrix_ip)
 rownames(design.matrix) <- design.matrix$sample_id
 design.matrix$m6A <- factor(design.matrix$m6A)
-design.matrix <- design.matrix[colnames(rpkm_peaks_list),]
+design.matrix <- design.matrix[colnames(peaks.count.list),]
 
 run.edger <- function(cnts,meta){
   #add count filter?
@@ -70,6 +72,29 @@ run.edger <- function(cnts,meta){
   colnames(results) <- c("log2FC","logCPM","LR","pvalue","padj")
   return(results)
 }
-results <- run.edger(rpkm_peaks_list,design.matrix)
+run.deseq2.4l2fc <- function(cnts,meta,label){
+  dds <- DESeq2::DESeqDataSetFromMatrix(cnts,meta,formula(~Condition))
+  dds$Condition <- factor(dds$Condition, levels=c('control','treatment'))
+  gene.col2check <- meta$Condition
+  dds$Condition <- droplevels(dds$Condition)
+  gene.deseq <- DESeq2::DESeq(dds)
+  gene.deseq <- DESeq2::results(gene.deseq)
+  gene.results <- gene.deseq[,c("log2FoldChange","pvalue","padj")]
+  colnames(gene.results) <- paste0(label,c(".l2fc",".p",".padj"))
+  return(gene.results)
+}
+
+results <- run.edger(peaks.count.list,design.matrix)
+ip.peaks.count <- read.table(annotation.file,sep = "\t", row.names = 1, check.names = F)
+input.gene.count <- read.table(input.count.matrix.file,sep = " ",row.names = 1, check.names = F)
+colnames(input.gene.count) <- paste0(colnames(input.gene.count),".input")
+peaks.de <- run.deseq2.4l2fc(peaks.count.list[,rownames(design.matrix)[design.matrix$m6A == "IP"]],
+                             design.matrix[rownames(design.matrix)[design.matrix$m6A == "IP"],],'peak')
+gene.de <- run.deseq2.4l2fc(input.gene.count[,rownames(design.matrix)[design.matrix$m6A == "input"]],
+                            design.matrix[rownames(design.matrix)[design.matrix$m6A == "input"],],'gene')
+peaks.de$gene_id <- ip.peaks.count[rownames(peaks.de),"ID"]
+peaks.de$gene.l2fc <- gene.de[peaks.de$gene_id,]$gene.l2fc
+peaks.de$diff.l2fc <- peaks.de$peak.l2fc - peaks.de$gene.l2fc
+results$diff.l2fc <-  peaks.de[rownames(results),]$diff.l2fc
 write.table(results,file = paste0("edgeR_diffm6A_",group_id_1, "_",group_id_2,".txt") ,sep = "\t",quote = F)
 
