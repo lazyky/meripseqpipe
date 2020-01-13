@@ -1,4 +1,4 @@
-#!/bin/bash
+#$/bin/bash
 #bash geneBody_coverage2.sh <gtf> <THREAD_NUM>
 #$1 argv 1 : gtf file
 #$2 argv 2 : THREAD_NUM
@@ -21,4 +21,4 @@ read -u 9
 }& 
 done
 wait
-echo "执行结束"
+echo "Calculate coverage of data is finish"

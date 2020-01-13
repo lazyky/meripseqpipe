@@ -159,7 +159,6 @@ compareLines.into{
     compareLines_for_DESeq2; compareLines_for_edgeR; compareLines_for_plot;
     compareLines_for_diffm6A; compareLines_for_arranged_result
 }
-compareLines_for_plot.subscribe{print it}
 // Validate the params of skipping Aligners Tools Setting
 if( params.aligners == "none" ){
     skip_aligners = true
@@ -307,39 +306,16 @@ process makeBED12 {
     file gtf
     
     output:
-    file "${gtf.baseName}.bed" into bed_rseqc, bed_genebody_coverage
+    file "${gtf.baseName}.bed" into bed12file
 
-    script:      
-    """
-    bash ${baseDir}/bin/gtf2bed12.sh $gtf
-    """
+    shell:      
+    '''
+    gtf_file=!{gtf}
+    gtfToGenePred -genePredExt -geneNameAsName2 $gtf_file ${gtf_file/.gtf/.tmp}
+    genePredToBed ${gtf_file/.gtf/.tmp} ${gtf_file/.gtf/.bed}
+    '''
 }
-/*
- * PREPROCESSING - Create chromsizesfile for meyer
- * NEED genome.fa
- */
-if( params.fasta ){
-    process MeyerPrepration{
-        label 'build_index'
-        tag "MeyerPrepration"
 
-        input:
-        file fasta
-
-        output:
-        file "chromsizes.file" into chromsizesfile
-
-        when:
-        !params.skip_meyer && !params.skip_peakCalling
-
-        shell:
-        '''
-        cat !{fasta} | awk 'BEGIN{len=""}{if($0~">"){split($0,ID,"[> ]");printf len"ABC"ID[2]"\\t";len=0}else{len=len+length($0)}}END{print len}' |sed 's/ABC/\\n/g' |awk NF > chromsizes.file
-        '''
-    }
-}else {
-    exit 1, println LikeletUtils.print_red("Chromsizes file cannot build due to lack of ")
-}
 /*
  * PREPROCESSING - Build TOPHAT2 index
  * NEED genome.fa
@@ -402,10 +378,10 @@ if( params.hisat2_index && !skip_hisat2 ){
         script:
         """
         mkdir Hisat2Index
-        hisat2_extract_exons.py $gtf > Hisat2Index/${gtf.baseName}.exon
-        hisat2_extract_splice_sites.py $gtf > Hisat2Index/${gtf.baseName}.ss
-        #hisat2_extract_splice_sites.py ${params.snp} > Hisat2Index/${gtf.baseName}.snp
-        hisat2-build -p ${task.cpus} -f $fasta --exon Hisat2Index/${gtf.baseName}.exon --ss Hisat2Index/${gtf.baseName}.ss Hisat2Index/${fasta.baseName}
+        hisat2_extract_exons.py $gtf > Hisat2Index/${fasta.baseName}.exon
+        hisat2_extract_splice_sites.py $gtf > Hisat2Index/${fasta.baseName}.ss
+        #hisat2_extract_splice_sites.py ${params.snp} > Hisat2Index/${fasta.baseName}.snp
+        hisat2-build -p ${task.cpus} -f $fasta --exon Hisat2Index/${fasta.baseName}.exon --ss Hisat2Index/${fasta.baseName}.ss Hisat2Index/${fasta.baseName}
         """
     }
 }else {
@@ -440,7 +416,7 @@ if( params.bwa_index && !skip_bwa ){
         """
         mkdir BWAIndex
         cd BWAIndex/
-        bwa index -b ${task.cpus} -p ${fasta.baseName} -abwtsw ../$fasta
+        bwa index -p ${fasta.baseName} -a bwtsw ../$fasta
         cd ../
         """
     }
@@ -648,21 +624,19 @@ process Hisat2Align {
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
     if (params.singleEnd) {
         """
-        hisat2  -p ${task.cpus} --dta \
+        hisat2  --summary-file ${sample_name}_hisat2_summary.txt\
+                -p ${task.cpus} --dta \
                 -x $index_base \
-                -U $reads \
-                -S ${sample_name}_hisat2.sam &> ${sample_name}_hisat2_summary.txt
-        samtools view -@ ${task.cpus} -h -bS ${sample_name}_hisat2.sam >${sample_name}_hisat2.bam
-        rm *.sam
+                -U $reads | \
+                samtools view -@ ${task.cpus} -hbS - > ${sample_name}_hisat2.bam 
         """
     } else {
         """
-        hisat2  -p ${task.cpus} --dta \
+        hisat2  --summary-file ${sample_name}_hisat2_summary.txt \
+                -p ${task.cpus} --dta \
                 -x $index_base \
-                -1 ${reads[0]} -2 ${reads[1]} \
-                -S ${sample_name}_hisat2.sam &> ${sample_name}_hisat2_summary.txt
-        samtools view -@ ${task.cpus} -h -bS ${sample_name}_hisat2.sam > ${sample_name}_hisat2.bam
-        rm *.sam
+                -1 ${reads[0]} -2 ${reads[1]} | \
+                samtools view -@ ${task.cpus} -hbS - > ${sample_name}_hisat2.bam
         """
     }
 }
@@ -702,7 +676,7 @@ process BWAAlign{
     } else {
         """
         bwa aln -t ${task.cpus} \
-                -f ${reads[1].baseName}.sai \
+                -f ${reads[0].baseName}.sai \
                 $index_base \
                 ${reads[0]}
         bwa aln -t ${task.cpus} \
@@ -711,7 +685,7 @@ process BWAAlign{
                 ${reads[1]}
         bwa sampe -f ${sample_name}_bwa.sam \
                 $index_base \
-                ${reads[1].baseName}.sai ${reads[1].baseName}.sai \
+                ${reads[0].baseName}.sai ${reads[1].baseName}.sai \
                 ${reads[0]} ${reads[1]} &> ${sample_name}_log.txt
         samtools view -@ ${task.cpus} -h -bS ${sample_name}_bwa.sam > ${sample_name}_bwa.bam
         rm *.sam
@@ -899,7 +873,7 @@ process RSeQC {
 
     input:
     file bam_rseqc from sort_bam.collect()
-    file bed12 from bed_rseqc.collect()
+    file bed12 from bed12file.collect()
 
     output:
     file "*" into rseqc_results
@@ -947,7 +921,7 @@ process GenebodyCoverage {
 
     input:
     file bedgraph from bedgraph_for_genebody
-    file bed12 from bed_genebody_coverage.collect()
+    file bed12 from bed12file.collect()
 
     output:
     file "*.{txt,pdf,r}" into genebody_coverage_results
@@ -1076,6 +1050,43 @@ process MATKpeakCalling {
     """    
 }
 
+/*
+ * PREPROCESSING - Create chromsizesfile for meyer
+ * NEED genome.fa
+ */
+if( params.fasta ){
+    process MeyerPrepration{
+        label 'build_index'
+        tag "MeyerPrepration"
+        publishDir path: { params.saveReference ? "${params.outdir}/Genome/meyerPrepration" : params.outdir },
+                saveAs: { params.saveReference ? it : null }, mode: 'copy'       
+
+        input:
+        file fasta
+
+        output:
+        file "chromsizes.file" into chromsizesfile
+        file "chrName.txt" into chrNamefile
+        file "genome.bin25.bed" into bin25file
+        file "genomebin" into genomebin
+
+        when:
+        !params.skip_meyer && !params.skip_peakCalling
+
+        shell:
+        '''
+        cat !{fasta} | awk 'BEGIN{len=""}{if($0~">"){split($0,ID,"[> ]");printf len"ABC"ID[2]"\\t";len=0}else{len=len+length($0)}}END{print len}' |sed 's/ABC/\\n/g' |awk NF > chromsizes.file
+        samtools faidx !{fasta}
+        cut -f1,2 !{fasta}.fai > chromsizes.file
+        awk '{print $1}' chromsizes.file > chrName.txt
+        mkdir genomebin
+        bedtools makewindows -g chromsizes.file -w 25 > genome.bin25.bed
+        awk '{print "cat genome.bin25.bed | grep "$1" > genomebin/"$1".bin25.bed"}' chrName.txt | xargs -iCMD -P!{task.cpus} bash -c CMD
+        '''
+    }
+}else {
+    exit 1, println LikeletUtils.print_red("Chromsizes file cannot build due to lack of " + params.fasta)
+}
 process Meyer{
     label 'peak_calling'
     publishDir "${params.outdir}/peakCalling/meyer", mode: 'link', overwrite: true
@@ -1083,7 +1094,9 @@ process Meyer{
     input:
     file bam_bai_file from sort_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
-    file chromsizesfile from chromsizesfile
+    file chrNamefile from chrNamefile
+    file bin25file from bin25file
+    file genomebin from genomebin
 
     output:
     file "meyer*.bed" into meyer_results
@@ -1101,12 +1114,8 @@ process Meyer{
     }
     '''
     cp !{baseDir}/bin/meyer.py ./
-    awk '{print $1}' !{chromsizesfile} > chrName.txt
-    mkdir genomebin
-    bedtools makewindows -g !{chromsizesfile} -w 25 > genome.bin25.bed
-    peak_windows_number=$(wc -l genome.bin25.bed| cut -d " " -f 1)
-    awk '{print "cat genome.bin25.bed | grep "$1" > genomebin/"$1".bin25.bed"}' chrName.txt | xargs -iCMD -P!{task.cpus} bash -c CMD
-    bash !{baseDir}/bin/meyer_peakCalling.sh !{formatted_designfile} chrName.txt genomebin/ ${peak_windows_number} !{task.cpus} !{flag_peakCallingbygroup}
+    peak_windows_number=$(wc -l !{bin25file}| cut -d " " -f 1)
+    bash !{baseDir}/bin/meyer_peakCalling.sh !{formatted_designfile} !{chrNamefile} genomebin/ ${peak_windows_number} !{task.cpus} !{flag_peakCallingbygroup}
     ''' 
 }
 /*
@@ -1310,6 +1319,7 @@ process MotifSearching {
     input:
     file group_bed from motif_collection.collect()
     file formatted_designfile from formatted_designfile.collect()
+    file bed12 from bed12file.collect()
     file fasta
     file gtf
 
@@ -1324,7 +1334,7 @@ process MotifSearching {
     println LikeletUtils.print_purple("Motif analysis is going on by DREME and Homer")
     """
     cp ${motif_file_dir}/m6A_motif.meme ./
-    bash $baseDir/bin/motif_searching.sh $fasta $gtf m6A_motif.meme ${task.cpus}
+    bash $baseDir/bin/motif_searching.sh $fasta $gtf $bed12 m6A_motif.meme ${task.cpus}
     """
 }
 
