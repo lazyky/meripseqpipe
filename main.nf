@@ -33,7 +33,6 @@ def helpMessage() {
     log.info nfcoreHeader()
     log.info"""
 
->>>>>>> TEMPLATE
     Usage:
 
     The typical command for running the pipeline is as follows:

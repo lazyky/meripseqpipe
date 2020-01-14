@@ -1,4 +1,4 @@
-name: nf-core-m6APipe-1.0dev
+name: nf-core-meripseqpipe-1.0dev
 channels:
   - bioconda
   - conda-forge
