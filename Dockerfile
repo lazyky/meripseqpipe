@@ -1,11 +1,11 @@
-FROM nfcore/base
-LABEL description="Docker image containing all requirements for nf-core/m6APipe pipeline"
+FROM nfcore/base:1.7
+LABEL authors="Kaiyu Zhu, Yu Sun" \
+      description="Docker image containing all requirements for nf-core/meripseqpipe pipeline"
 
-COPY environment.yml ./
-
-ENV PATH /opt/conda/bin:$PATH
+COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
-ENV PATH /opt/conda/envs/nf-core-m6APipe-1.0dev/bin:$PATH
+ENV PATH /opt/conda/envs/nf-core-meripseqpipe-1.0dev/bin:$PATH
+ENV PATH /opt/conda/bin:$PATH
 ENV PATH /mspc:$PATH
 
 # install MATK
