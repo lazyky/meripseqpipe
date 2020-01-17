@@ -256,40 +256,6 @@ else{
     println LikeletUtils.print_red("readPaths was empty: ${params.readPaths}")
 }
 
-// Header log info
-// log.info nfcoreHeader()
-def summary = [:]
-if (workflow.revision) summary['Pipeline Release'] = workflow.revision
-summary['Run Name']         = custom_runName ?: workflow.runName
-// TODO nf-core: Report custom parameters here
-summary['Reads']            = params.reads
-summary['Fasta Ref']        = params.fasta
-summary['Data Type']        = params.singleEnd ? 'Single-End' : 'Paired-End'
-summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
-if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
-summary['Output dir']       = params.outdir
-summary['Launch dir']       = workflow.launchDir
-summary['Working dir']      = workflow.workDir
-summary['Script dir']       = workflow.projectDir
-summary['User']             = workflow.userName
-if (workflow.profile == 'awsbatch') {
-  summary['AWS Region']     = params.awsregion
-  summary['AWS Queue']      = params.awsqueue
-}
-summary['Config Profile'] = workflow.profile
-if (params.config_profile_description) summary['Config Description'] = params.config_profile_description
-if (params.config_profile_contact)     summary['Config Contact']     = params.config_profile_contact
-if (params.config_profile_url)         summary['Config URL']         = params.config_profile_url
-if (params.email || params.email_on_fail) {
-  summary['E-mail Address']    = params.email
-  summary['E-mail on failure'] = params.email_on_fail
-  summary['MultiQC maxsize']   = params.maxMultiqcEmailFileSize
-}
-log.info summary.collect { k,v -> "${k.padRight(18)}: $v" }.join("\n")
-log.info "-\033[2m--------------------------------------------------\033[0m-"
-
-// Check the hostnames against configured profiles
-checkHostname()
 
 /*
                          showing the process and files
@@ -298,38 +264,59 @@ checkHostname()
 println LikeletUtils.sysucc_ascii()
 println LikeletUtils.print_purple("============You are running m6APipe with the following parameters===============")
 println LikeletUtils.print_purple("Checking parameters ...")
-
+println LikeletUtils.print_yellow("===================================Pipeline summary=============================")
+println (LikeletUtils.print_yellow("Max Resources                   : ") + LikeletUtils.print_green("$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"))
+if (workflow.containerEngine){
+    println (LikeletUtils.print_yellow("Container                       : ") + LikeletUtils.print_green("$workflow.containerEngine - $workflow.container"))
+}
+println (LikeletUtils.print_yellow("Output dir                      : ") + LikeletUtils.print_green(params.outdir))
+println (LikeletUtils.print_yellow("Launch dir                      : ") + LikeletUtils.print_green(workflow.launchDir))
+println (LikeletUtils.print_yellow("Working dir                     : ") + LikeletUtils.print_green(workflow.workDir))
+println (LikeletUtils.print_yellow("Script dir                      : ") + LikeletUtils.print_green(workflow.projectDir))
+println (LikeletUtils.print_yellow("User                            : ") + LikeletUtils.print_green(workflow.userName))
+if (workflow.profile == 'awsbatch') {
+    println (LikeletUtils.print_yellow("AWS Region                      : ") + LikeletUtils.print_green(params.awsregion))
+    println (LikeletUtils.print_yellow("AWS Queue                       : ") + LikeletUtils.print_green(params.awsqueue))
+}
+println (LikeletUtils.print_yellow("Config Profile                  : ") + LikeletUtils.print_green(workflow.profile))
+if (params.config_profile_description) summary['Config Description'] = params.config_profile_description
+if (params.config_profile_contact)     summary['Config Contact']     = params.config_profile_contact
+if (params.config_profile_url)         summary['Config URL']         = params.config_profile_url
+if (params.email || params.email_on_fail) {
+  summary['E-mail Address']    = params.email
+  summary['E-mail on failure'] = params.email_on_fail
+  summary['MultiQC maxsize']   = params.maxMultiqcEmailFileSize
+}
 println LikeletUtils.print_yellow("=====================================Reads types================================")
-println (LikeletUtils.print_yellow("SingleEnd :                     ") + LikeletUtils.print_green(params.singleEnd))
-println (LikeletUtils.print_yellow("Stranded :                      ") + LikeletUtils.print_green(params.stranded))
-println (LikeletUtils.print_yellow("gzip :                          ") + LikeletUtils.print_green(params.gzip))
+println (LikeletUtils.print_yellow("SingleEnd                      : ") + LikeletUtils.print_green(params.singleEnd ? 'Single-End' : 'Paired-End'))
+println (LikeletUtils.print_yellow("Stranded                       : ") + LikeletUtils.print_green(params.stranded))
+println (LikeletUtils.print_yellow("gzip                           : ") + LikeletUtils.print_green(params.gzip))
 
 println LikeletUtils.print_yellow("====================================Mode selected==============================")
-println (LikeletUtils.print_yellow("aligners :                      ") + LikeletUtils.print_green(params.aligners))
-println (LikeletUtils.print_yellow("peakCalling_mode :              ") + LikeletUtils.print_green(params.peakCalling_mode))
-println (LikeletUtils.print_yellow("peakMerged_mode :               ") + LikeletUtils.print_green(params.peakMerged_mode))
-println (LikeletUtils.print_yellow("expression_analysis_mode :      ") + LikeletUtils.print_green(params.expression_analysis_mode))
-println (LikeletUtils.print_yellow("methylation_analysis_mode :     ") + LikeletUtils.print_green(params.methylation_analysis_mode))
+println (LikeletUtils.print_yellow("aligners                       : ") + LikeletUtils.print_green(params.aligners))
+println (LikeletUtils.print_yellow("peakCalling_mode               : ") + LikeletUtils.print_green(params.peakCalling_mode))
+println (LikeletUtils.print_yellow("peakMerged_mode                : ") + LikeletUtils.print_green(params.peakMerged_mode))
+println (LikeletUtils.print_yellow("expression_analysis_mode       : ") + LikeletUtils.print_green(params.expression_analysis_mode))
+println (LikeletUtils.print_yellow("methylation_analysis_mode      : ") + LikeletUtils.print_green(params.methylation_analysis_mode))
 
 println LikeletUtils.print_yellow("==================================Input files selected==========================")
-println (LikeletUtils.print_yellow("Reads Path :                    ") + LikeletUtils.print_green(params.readPaths))
-println (LikeletUtils.print_yellow("fasta file :                    ") + LikeletUtils.print_green(params.fasta))
-println (LikeletUtils.print_yellow("Gtf file :                      ") + LikeletUtils.print_green(params.gtf))
-println (LikeletUtils.print_yellow("Design file :                   ") + LikeletUtils.print_green(params.designfile))
-println (LikeletUtils.print_yellow("Compare file :                  ") + LikeletUtils.print_green(params.comparefile))
+println (LikeletUtils.print_yellow("Reads Path                     : ") + LikeletUtils.print_green(params.reads ? "github" : params.readPaths))
+println (LikeletUtils.print_yellow("fasta file                     : ") + LikeletUtils.print_green(params.fasta))
+println (LikeletUtils.print_yellow("Gtf file                       : ") + LikeletUtils.print_green(params.gtf))
+println (LikeletUtils.print_yellow("Design file                    : ") + LikeletUtils.print_green(params.designfile))
+println (LikeletUtils.print_yellow("Compare file                   : ") + LikeletUtils.print_green(params.comparefile))
 
 println LikeletUtils.print_yellow("==================================Skip model selected==========================")
-println (LikeletUtils.print_yellow("Skip samtools sort :            ") + LikeletUtils.print_green(params.skip_sort))
-println (LikeletUtils.print_yellow("Skip expression analysis :      ") + LikeletUtils.print_green(params.skip_expression))
-println (LikeletUtils.print_yellow("Skip peakCalling :              ") + LikeletUtils.print_green(params.skip_peakCalling))
-println (LikeletUtils.print_yellow("Skip diffpeakCalling :          ") + LikeletUtils.print_green(params.skip_diffpeakCalling))
-println (LikeletUtils.print_yellow("Skip annotation :               ") + LikeletUtils.print_green(params.skip_annotation))
-println (LikeletUtils.print_yellow("Skip qc :                       ") + LikeletUtils.print_green(params.skip_qc))
+println (LikeletUtils.print_yellow("Skip samtools sort             : ") + LikeletUtils.print_green(params.skip_sort))
+println (LikeletUtils.print_yellow("Skip expression analysis       : ") + LikeletUtils.print_green(params.skip_expression))
+println (LikeletUtils.print_yellow("Skip peakCalling               : ") + LikeletUtils.print_green(params.skip_peakCalling))
+println (LikeletUtils.print_yellow("Skip diffpeakCalling           : ") + LikeletUtils.print_green(params.skip_diffpeakCalling))
+println (LikeletUtils.print_yellow("Skip annotation                : ") + LikeletUtils.print_green(params.skip_annotation))
+println (LikeletUtils.print_yellow("Skip qc                        : ") + LikeletUtils.print_green(params.skip_qc))
 
-println LikeletUtils.print_yellow("==================================Output files directory========================")
-println (LikeletUtils.print_yellow("Output directory :              ") + LikeletUtils.print_green(params.outdir))
-
-
+// log.info summary.collect { k,v -> "${k.padRight(18)}: $v" }.join("\n")
+// // Check the hostnames against configured profiles
+// checkHostname()
 /*
 ========================================================================================
                              check or build the index
@@ -553,10 +540,10 @@ process Fastp{
     output:
     val sample_name into pair_id_fastqc, pair_id_tophat2, pair_id_hisat2, pair_id_bwa, pair_id_star, pair_id_rRNA
     file "*_aligners.fastq" into fastqc_reads ,tophat2_reads, hisat2_reads, bwa_reads, star_reads, rRNA_reads
-    file "*" into fastp_results
+    file "*.{html,json}" into fastp_results
 
     when:
-     aligner != "none"
+    aligner != "none"
 
     shell:
     skip_fastp = params.skip_fastp
@@ -931,6 +918,7 @@ process RenameByDesignfile{
     input:
     file (reads) from rename_bam_file.collect()
     file designfile  // designfile:filename,control_treated,input_ip
+    file comparefile
 
     output:
     file "*.{input,ip}_*.{bam,bai}" into sort_bam
@@ -1069,7 +1057,6 @@ process multiqc{
     file "multiqc*" into multiqc_results
 
     script:
-    aligner =  aligner
     """
     multiqc -n multiqc_$aligner .
     """
