@@ -215,7 +215,7 @@ if( params.expression_analysis_mode == "edgeR" ){
 }
 /*
  * Create a channel for input read files
- */
+*/
 if ( params.reads ){
     if (params.singleEnd) {
         Channel
@@ -236,14 +236,12 @@ if ( params.reads ){
             .fromFilePairs( "${params.readPaths}/*.{fastq,fastq.gz}", size: 1 ) 
             .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.readPaths}")}
             .into{ raw_data; raw_bam }
-    }
-    else if ( !params.singleEnd ){
+    }else if ( !params.singleEnd ){
         Channel
             .fromFilePairs( "${params.readPaths}/*{1,2}.{fastq,fastq.gz}", size: 2 ) 
             .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.readPaths}") }
             .into{ raw_data; raw_bam }
-    }
-    else {
+    }else {
         exit 1, println LikeletUtils.print_red("The param 'singleEnd' was not defined!")
     }
 }else if( params.readPaths &&  aligner == "none" ){
@@ -261,6 +259,7 @@ else{
                          showing the process and files
 ========================================================================================
 */
+// Header log info	
 println LikeletUtils.sysucc_ascii()
 println LikeletUtils.print_purple("============You are running m6APipe with the following parameters===============")
 println LikeletUtils.print_purple("Checking parameters ...")
@@ -279,13 +278,19 @@ if (workflow.profile == 'awsbatch') {
     println (LikeletUtils.print_yellow("AWS Queue                       : ") + LikeletUtils.print_green(params.awsqueue))
 }
 println (LikeletUtils.print_yellow("Config Profile                  : ") + LikeletUtils.print_green(workflow.profile))
-if (params.config_profile_description) summary['Config Description'] = params.config_profile_description
-if (params.config_profile_contact)     summary['Config Contact']     = params.config_profile_contact
-if (params.config_profile_url)         summary['Config URL']         = params.config_profile_url
+if (params.config_profile_description){
+    println (LikeletUtils.print_yellow("Config Description              : ") + LikeletUtils.print_green(params.config_profile_description))
+}
+if (params.config_profile_contact){
+    println (LikeletUtils.print_yellow("Config Contact                  : ") + LikeletUtils.print_green(params.config_profile_contact))
+}
+if (params.config_profile_url){
+    println (LikeletUtils.print_yellow("Config URL                      : ") + LikeletUtils.print_green(params.config_profile_url))
+}
 if (params.email || params.email_on_fail) {
-  summary['E-mail Address']    = params.email
-  summary['E-mail on failure'] = params.email_on_fail
-  summary['MultiQC maxsize']   = params.maxMultiqcEmailFileSize
+    println (LikeletUtils.print_yellow("E-mail Address                  : ") + LikeletUtils.print_green(params.email))
+    println (LikeletUtils.print_yellow("E-mail on failure               : ") + LikeletUtils.print_green(params.email_on_fail))
+    println (LikeletUtils.print_yellow("MultiQC maxsize                 : ") + LikeletUtils.print_green(params.maxMultiqcEmailFileSize))
 }
 println LikeletUtils.print_yellow("=====================================Reads types================================")
 println (LikeletUtils.print_yellow("SingleEnd                      : ") + LikeletUtils.print_green(params.singleEnd ? 'Single-End' : 'Paired-End'))
@@ -1181,7 +1186,7 @@ if( params.fasta ){
 
         shell:
         '''
-        cat !{fasta} | awk 'BEGIN{len=""}{if($0~">"){split($0,ID,"[> ]");printf len"ABC"ID[2]"\\t";len=0}else{len=len+length($0)}}END{print len}' |sed 's/ABC/\\n/g' |awk NF > chromsizes.file
+        #cat !{fasta} | awk 'BEGIN{len=""}{if($0~">"){split($0,ID,"[> ]");printf len"ABC"ID[2]"\\t";len=0}else{len=len+length($0)}}END{print len}' |sed 's/ABC/\\n/g' |awk NF > chromsizes.file
         samtools faidx !{fasta}
         cut -f1,2 !{fasta}.fai > chromsizes.file
         awk '{print $1}' chromsizes.file > chrName.txt
@@ -1787,6 +1792,28 @@ process get_software_versions {
 /*
  * Completion e-mail notification
  */
+def summary = [:]
+if (workflow.revision) summary['Pipeline Release'] = workflow.revision
+summary['Run Name']         = custom_runName ?: workflow.runName
+// TODO nf-core: Report custom parameters here
+summary['Reads']            = params.reads
+summary['Fasta Ref']        = params.fasta
+summary['Data Type']        = params.singleEnd ? 'Single-End' : 'Paired-End'
+summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
+if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
+summary['Output dir']       = params.outdir
+summary['Launch dir']       = workflow.launchDir
+summary['Working dir']      = workflow.workDir
+summary['Script dir']       = workflow.projectDir
+summary['User']             = workflow.userName
+if (params.config_profile_description) summary['Config Description'] = params.config_profile_description
+if (params.config_profile_contact)     summary['Config Contact']     = params.config_profile_contact
+if (params.config_profile_url)         summary['Config URL']         = params.config_profile_url
+if (params.email || params.email_on_fail) {
+  summary['E-mail Address']    = params.email
+  summary['E-mail on failure'] = params.email_on_fail
+  summary['MultiQC maxsize']   = params.maxMultiqcEmailFileSize
+}
 workflow.onComplete {
 
     // Set up the e-mail variables
