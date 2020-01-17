@@ -160,8 +160,8 @@ if( params.gtf ){
 if ( params.rRNA_fasta ){
     rRNA_fasta = file(params.rRNA_fasta, checkIfExists: true)
     if( !rRNA_fasta.exists() ) exit 1, LikeletUtils.print_red("Fasta file not found: ${params.rRNA_fasta}")
-}else {
-    exit 1, LikeletUtils.print_red("No reference genome specified!")
+}else{
+    rRNA_fasta = Channel.from("")
 }
 if( params.designfile ) {
     designfile = file(params.designfile, checkIfExists: true)
@@ -521,13 +521,13 @@ process MakerRNAindex {
     publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
                 saveAs: { params.saveReference ? it : null }, mode: 'copy'
     input:
-    file rRNA_fasta
+    file rRNA_fasta from rRNA_fasta
 
     output:
     file "rRNAindex" into rRNA_index
 
     when:
-    !params.rRNA_fasta && !params.skip_filterrRNA
+    params.rRNA_fasta && !params.skip_filterrRNA
 
     script:
     """
@@ -569,6 +569,7 @@ process Fastp{
         if [ $gzip == "true" ]; then
             zcat ${reads} > ${sample_name}.fastq
         fi
+        if [ -f "${sample_name}.fastq" ]; then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; exit 1; fi 
         if [ $skip_fastp == "false" ]; then
             fastp -i ${sample_name}.fastq -o ${add_aligners} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
         else
@@ -585,6 +586,7 @@ process Fastp{
             zcat ${reads[0]} > ${sample_name}_1.fastq
             zcat ${reads[1]} > ${sample_name}_2.fastq
         fi
+        if [ -f "${sample_name}*1.fastq" ]; then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; exit 1; fi 
         if [ $skip_fastp == "false" ]; then  
             fastp -i ${sample_name}*1.fastq -o ${add_aligners_1} -I ${sample_name}*2.fastq -O ${add_aligners_2} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
         else
@@ -846,8 +848,8 @@ process FilterrRNA {
                 samtools view -@ ${task.cpus} -Shub - | \
                 samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
         picard MarkDuplicates I=${sample_name}_rRNA_sort.bam \
-	O=${sample_name}_rRNA_sort.bam M=\$hisat2_out_dir/\$$label/\$$label.\$hisat2_index_name.${rmRep}align.sorted.dupmark.dup.qc \\
-	VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
+	    O=${sample_name}_rRNA_sort.bam M=\$hisat2_out_dir/\$$label/\$$label.\$hisat2_index_name.${rmRep}align.sorted.dupmark.dup.qc \
+	    VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
         """
     } else {
         """
