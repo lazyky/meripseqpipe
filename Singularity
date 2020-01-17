@@ -1,5 +1,5 @@
-From:nfcore/base:1.7
-Bootstrap:docker
+Bootstrap: docker
+From: nfcore/base:1.7
 
 %labels
     DESCRIPTION Singularity image containing all requirements for the nf-core/meripseqpipe pipeline

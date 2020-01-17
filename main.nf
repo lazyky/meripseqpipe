@@ -264,20 +264,20 @@ println LikeletUtils.sysucc_ascii()
 println LikeletUtils.print_purple("============You are running m6APipe with the following parameters===============")
 println LikeletUtils.print_purple("Checking parameters ...")
 println LikeletUtils.print_yellow("===================================Pipeline summary=============================")
-println (LikeletUtils.print_yellow("Max Resources                   : ") + LikeletUtils.print_green("$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"))
+println (LikeletUtils.print_yellow("Max Resources                  : ") + LikeletUtils.print_green("$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"))
 if (workflow.containerEngine){
     println (LikeletUtils.print_yellow("Container                       : ") + LikeletUtils.print_green("$workflow.containerEngine - $workflow.container"))
 }
-println (LikeletUtils.print_yellow("Output dir                      : ") + LikeletUtils.print_green(params.outdir))
-println (LikeletUtils.print_yellow("Launch dir                      : ") + LikeletUtils.print_green(workflow.launchDir))
-println (LikeletUtils.print_yellow("Working dir                     : ") + LikeletUtils.print_green(workflow.workDir))
-println (LikeletUtils.print_yellow("Script dir                      : ") + LikeletUtils.print_green(workflow.projectDir))
-println (LikeletUtils.print_yellow("User                            : ") + LikeletUtils.print_green(workflow.userName))
+println (LikeletUtils.print_yellow("Output dir                     : ") + LikeletUtils.print_green(params.outdir))
+println (LikeletUtils.print_yellow("Launch dir                     : ") + LikeletUtils.print_green(workflow.launchDir))
+println (LikeletUtils.print_yellow("Working dir                    : ") + LikeletUtils.print_green(workflow.workDir))
+println (LikeletUtils.print_yellow("Script dir                     : ") + LikeletUtils.print_green(workflow.projectDir))
+println (LikeletUtils.print_yellow("User                           : ") + LikeletUtils.print_green(workflow.userName))
 if (workflow.profile == 'awsbatch') {
     println (LikeletUtils.print_yellow("AWS Region                      : ") + LikeletUtils.print_green(params.awsregion))
     println (LikeletUtils.print_yellow("AWS Queue                       : ") + LikeletUtils.print_green(params.awsqueue))
 }
-println (LikeletUtils.print_yellow("Config Profile                  : ") + LikeletUtils.print_green(workflow.profile))
+println (LikeletUtils.print_yellow("Config Profile                 : ") + LikeletUtils.print_green(workflow.profile))
 if (params.config_profile_description){
     println (LikeletUtils.print_yellow("Config Description              : ") + LikeletUtils.print_green(params.config_profile_description))
 }
@@ -375,13 +375,14 @@ if( params.tophat2_index &&  aligner == "tophat2" ){
         file "Tophat2Index/*" into tophat2_index
 
         when:
-         aligner == "tophat2"
+        aligner == "tophat2"
 
         script:
         tophat2_index = "Tophat2Index/" + fasta.baseName.toString()
         """
         mkdir Tophat2Index
-        bowtie2-build -f $params.fasta $tophat2_index
+        ln $fasta Tophat2Index
+        bowtie2-build -f $fasta $tophat2_index
         """
     }
 }else {
@@ -405,7 +406,6 @@ if( params.hisat2_index &&  aligner == "hisat2" ){
         input:
         file fasta
         file gtf
-        //file params.snp
 
         output:
         file "Hisat2Index/*" into hisat2_index
@@ -418,7 +418,6 @@ if( params.hisat2_index &&  aligner == "hisat2" ){
         mkdir Hisat2Index
         hisat2_extract_exons.py $gtf > Hisat2Index/${fasta.baseName}.exon
         hisat2_extract_splice_sites.py $gtf > Hisat2Index/${fasta.baseName}.ss
-        #hisat2_extract_splice_sites.py ${params.snp} > Hisat2Index/${fasta.baseName}.snp
         hisat2-build -p ${task.cpus} -f $fasta --exon Hisat2Index/${fasta.baseName}.exon --ss Hisat2Index/${fasta.baseName}.ss Hisat2Index/${fasta.baseName}
         """
     }
@@ -487,7 +486,7 @@ if( params.star_index &&  aligner == "star"){
          aligner == "star"
 
         script:
-        readLength = 200
+        readLength = 50
         overhang = readLength - 1
         """
         mkdir StarIndex
@@ -788,7 +787,7 @@ process StarAlign {
             --outFilterIntronMotifs RemoveNoncanonical \
             --outFilterMultimapNmax 20 \
             --alignIntronMin 20 \
-            --alignIntronMax 1000000 \
+            --alignIntronMax 100000 \
             --alignMatesGapMax 1000000 \
             --outFileNamePrefix ${sample_name}  &> ${sample_name}_log.txt
         mv ${sample_name}Aligned.out.bam ${sample_name}_star.bam
@@ -832,26 +831,31 @@ process FilterrRNA {
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
     if (params.singleEnd) {
         """
-        hisat2  --summary-file ${sample_name}_rRNA_summary.txt \
-                --no-spliced-alignment --no-softclip --norc --no-unal \
-                -p ${task.cpus} --dta \
-                -x $index_base \
-                -U $reads | \
-                samtools view -@ ${task.cpus} -Shub - | \
-                samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
+        hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
+            --no-spliced-alignment --no-softclip --norc --no-unal \
+            -p ${task.cpus} --dta \
+            -x $index_base \
+            -U $reads | \
+            samtools view -@ ${task.cpus} -Shub - | \
+            samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
         picard MarkDuplicates I=${sample_name}_rRNA_sort.bam \
-	    O=${sample_name}_rRNA_sort.bam M=\$hisat2_out_dir/\$$label/\$$label.\$hisat2_index_name.${rmRep}align.sorted.dupmark.dup.qc \
-	    VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
+	        O=${sample_name}_mDuprRNA_sort.bam \
+            M=${sample_name}_mDuprRNA_sort.dupmark.log \
+	        VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
         """
     } else {
         """
-        hisat2  --summary-file ${sample_name}_rRNA_summary.txt \
-                --no-spliced-alignment --no-softclip --norc --no-unal \
-                -p ${task.cpus} --dta \
-                -x $index_base \
-                -1 ${reads[0]} -2 ${reads[1]} | \
-                samtools view -@ ${task.cpus} -Shub - | \
-                samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
+        hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
+            --no-spliced-alignment --no-softclip --norc --no-unal \
+            -p ${task.cpus} --dta \
+            -x $index_base \
+            -1 ${reads[0]} -2 ${reads[1]} | \
+            samtools view -@ ${task.cpus} -Shub - | \
+            samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
+        picard MarkDuplicates I=${sample_name}_rRNA_sort.bam \
+	        O=${sample_name}_mDuprRNA_sort.bam \
+            M=${sample_name}_mDuprRNA_sort.dupmark.log \
+	        VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
         """
     }
 }
