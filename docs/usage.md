@@ -27,6 +27,8 @@
     - [`--tophat2_index`, `hisat2_index`, `--bwa_index`, `--star_index`](#tophat2index-hisat2index---bwaindex---starindex)
     - [`--rRNA_fasta`](#rrnafasta)
     - [`--igenomesIgnore`](#igenomesignore)
+  - [Skipping steps](#skipping-steps)
+    - [`--skip_metpeak`, `--skip_macs2`, `--skip_matk`, `--skip_meyer`](#skipmetpeak---skipmacs2---skipmatk---skipmeyer)
   - [Job resources](#job-resources)
     - [Automatic resubmission](#automatic-resubmission)
     - [Custom resource requests](#custom-resource-requests)
@@ -294,6 +296,19 @@ If you want to fiter the reads of rRNA, you need to offer the fasta of rRNA. For
 ### `--igenomesIgnore`
 
 Do not load `igenomes.config` when running the pipeline. You may choose this option if you observe clashes between custom parameters and those supplied in `igenomes.config`.
+
+## Skipping steps
+
+### `--skip_metpeak`, `--skip_macs2`, `--skip_matk`, `--skip_meyer`
+
+The pipeline contains four tools for PeakCalling. Sometimes, it may not be desirable to run all of them if results of .
+The following options make this easy:
+
+* `--skip_metpeak` -          Skip MeTPeak
+* `--skip_macs2` -            Skip MACS2
+* `--skip_matk` -             Skip MATK
+* `--skip_meyer` -            Skip Meyer
+
 
 ## Job resources
 
