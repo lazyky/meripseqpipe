@@ -219,7 +219,7 @@ if( params.expression_analysis_mode == "edgeR" ){
 if ( params.reads ){
     if (aligner == 'none') {
         Channel
-            .from( params.reads )
+            .fromPath( params.reads )
             .ifEmpty { exit 1, "params.reads was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     } else if ( params.singleEnd ) {
@@ -876,15 +876,13 @@ if(  aligner != "none"){
     Channel
         .from()
         .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam)
-        .into {merge_bam_file; test_channel1}
+        .set{ merge_bam_file }
 }else{
     Channel
         .from()
-        .concat(raw_bam)
-        .into {merge_bam_file; test_channel1}
+        .concat( raw_bam )
+        .set{ merge_bam_file }
 }
-
-//test_channel1.subscribe{ println it }
 /*
  * STEP 3-1 - Sort BAM file
 */

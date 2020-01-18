@@ -9,7 +9,7 @@ ENV PATH /opt/conda/envs/nf-core-meripseqpipe-1.0dev/bin:$PATH
 ENV PATH /mspc:$PATH
 
 # install MATK
-RUN wget http://matk.renlab.org/download/MATK-1.0.jar
+RUN wget https://github.com/kingzhuky/MATK_backup/releases/download/v0.1dev/MATK-1.0.jar
 
 # install QNB
 RUN wget https://cran.r-project.org/src/contrib/Archive/QNB/QNB_1.1.11.tar.gz && \ 
