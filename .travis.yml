@@ -41,8 +41,23 @@ script:
   # Run the pipeline with the test profile
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker
   # Run, build reference genome with HISAT2
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners hisat2
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners hisat2 -resume
   # Run, build reference genome with BWA
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners bwa
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners bwa -resume
   # Run, build reference genome with Tophat2
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners tophat2
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners tophat2 -resume
+  # Run, input date of the suffix of bam
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker -resume
+  # Run, test PeakCalling mode 'group'
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakCalling_mode group  -resume
+  # Run, test PeakMerged mode 'rank'
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode rank -resume
+  # Run, test PeakMerged mode 'bedtools'
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode metpeak -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode macs2 -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode MATK -resume
+  # Run, test Methylation Analysis mode
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode QNB -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode MATK -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode DESeq2 -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode MeTDiff -resume
