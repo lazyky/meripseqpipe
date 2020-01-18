@@ -40,3 +40,9 @@ script:
   - markdownlint ${TRAVIS_BUILD_DIR} -c ${TRAVIS_BUILD_DIR}/.github/markdownlint.yml
   # Run the pipeline with the test profile
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker
+  # Run, build reference genome with HISAT2
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners hisat2
+  # Run, build reference genome with BWA
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners bwa
+  # Run, build reference genome with Tophat2
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners tophat2
