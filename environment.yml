@@ -6,8 +6,7 @@ channels:
   - defaults
   - r
 dependencies:
-  - openjdk=10.0.2=h14c3975_1015
-  - java-jdk=8.0.92=1
+  - openjdk=8.0.152=h46b5887_1
   - r-base=3.5.1=he45234b_1005
   - python=2.7.15=h938d71a_1006
   - fastqc=0.11.8=1
