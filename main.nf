@@ -217,16 +217,21 @@ if( params.expression_analysis_mode == "edgeR" ){
  * Create a channel for input read files
 */
 if ( params.reads ){
-    if (params.singleEnd) {
+    if (aligner == 'none') {
         Channel
-            .from(params.reads)
-            .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
+            .from( params.reads )
+            .ifEmpty { exit 1, "params.reads was empty - no input files supplied" }
+            .into{ raw_data; raw_bam }
+    } else if ( params.singleEnd ) {
+        Channel
+            .from( params.reads )
+            .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, "params.reads was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     } else {
         Channel
-            .from(params.reads)
-            .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
+            .from( params.reads )
+            .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, "params.reads was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     }
@@ -234,11 +239,13 @@ if ( params.reads ){
     if( params.singleEnd ){
         Channel
             .fromFilePairs( "${params.readPaths}/*.{fastq,fastq.gz}", size: 1 ) 
+            .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.readPaths}")}
             .into{ raw_data; raw_bam }
     }else if ( !params.singleEnd ){
         Channel
             .fromFilePairs( "${params.readPaths}/*{1,2}.{fastq,fastq.gz}", size: 2 ) 
+            .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.readPaths}") }
             .into{ raw_data; raw_bam }
     }else {
