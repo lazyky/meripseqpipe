@@ -105,11 +105,8 @@ else
     #mergebedForBio merged_sample mspc_merged_allpeaks
     cat ${out_dir}/*_merged_sample_*.bed | sortBed -i - |mergeBed -i - -c 4,5 -o count,mean | awk '$4>1{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"$5}' > ${out_dir}/mspc_merged_allpeaks.bed
 fi
-rm -rf Bio_* Tec_*
-rm mspc_merged_*
 judge_chr=$(cat *.bed |cut -f 1 |sort |uniq| awk '$0~"chr"{print "includeChr"}' |uniq)
 if [ "$judge_chr" != "includeChr" ]; then sed -i 's/chr//g' ${out_dir}/*.bed ;fi
 mv ${out_dir}/*.bed ./
+exec 9<>-
 echo "MSPC merged peaks done"
-
-

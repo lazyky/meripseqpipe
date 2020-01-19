@@ -216,51 +216,39 @@ if( params.expression_analysis_mode == "edgeR" ){
 /*
  * Create a channel for input read files
 */
-if ( params.reads ){
+if ( params.readPaths ){
     if (aligner == 'none') {
         Channel
-            .fromPath( params.reads )
-            .ifEmpty { exit 1, "params.reads was empty - no input files supplied" }
+            .fromPath( params.readPaths )
+            .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     } else if ( params.singleEnd ) {
         Channel
-            .from( params.reads )
+            .from( params.readPaths )
             .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, "params.reads was empty - no input files supplied" }
+            .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     } else {
         Channel
-            .from( params.reads )
+            .from( params.readPaths )
             .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, "params.reads was empty - no input files supplied" }
+            .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     }
-}else if( params.readPaths &&  aligner != "none" ){
-    if( params.singleEnd ){
-        Channel
-            .fromFilePairs( "${params.readPaths}/*.{fastq,fastq.gz}", size: 1 ) 
-            .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.readPaths}")}
-            .into{ raw_data; raw_bam }
-    }else if ( !params.singleEnd ){
-        Channel
-            .fromFilePairs( "${params.readPaths}/*{1,2}.{fastq,fastq.gz}", size: 2 ) 
-            .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.readPaths}") }
-            .into{ raw_data; raw_bam }
-    }else {
-        exit 1, println LikeletUtils.print_red("The param 'singleEnd' was not defined!")
-    }
-}else if( params.readPaths &&  aligner == "none" ){
+}else if( params.reads &&  aligner != "none" ){
     Channel
-        .fromPath( "${params.readPaths}/*.bam") 
-        .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no bam files supplied: ${params.readPaths}")}
+        .fromFilePairs( "${params.reads}", size: params.singleEnd ? 1 : 2 )
+        .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.reads}")}
+        .into{ raw_data; raw_bam }
+}else if( params.reads &&  aligner == "none" ){
+    Channel
+        .fromPath( params.reads ) 
+        .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no bam files supplied: ${params.reads}")}
         .into{ raw_data; raw_bam }
 } 
 else{
-    println LikeletUtils.print_red("readPaths was empty: ${params.readPaths}")
+    println LikeletUtils.print_red("reads was empty: ${params.reads}")
 }
-
 
 /*
                          showing the process and files
@@ -312,7 +300,7 @@ println (LikeletUtils.print_yellow("expression_analysis_mode       : ") + Likele
 println (LikeletUtils.print_yellow("methylation_analysis_mode      : ") + LikeletUtils.print_green(params.methylation_analysis_mode))
 
 println LikeletUtils.print_yellow("==================================Input files selected==========================")
-println (LikeletUtils.print_yellow("Reads Path                     : ") + LikeletUtils.print_green(params.reads ? "github" : params.readPaths))
+println (LikeletUtils.print_yellow("Reads Path                     : ") + LikeletUtils.print_green(params.reads ? "github" : params.reads))
 println (LikeletUtils.print_yellow("fasta file                     : ") + LikeletUtils.print_green(params.fasta))
 println (LikeletUtils.print_yellow("Gtf file                       : ") + LikeletUtils.print_green(params.gtf))
 println (LikeletUtils.print_yellow("Design file                    : ") + LikeletUtils.print_green(params.designfile))
@@ -1665,9 +1653,9 @@ process DiffReport {
     file "*.m6APipe" into m6APipe_result
     file "*.{html,pdf}" into diffReport_result
 
-    // when:
-    // !params.skip_annotation && !params.skip_expression && !skip_diffpeakCalling
-
+    when:
+    !params.skip_annotation && !params.skip_expression && !params.skip_diffpeakCalling && !params.skip_peakCalling
+    
     script:
     methylation_analysis_mode = params.methylation_analysis_mode
     expression_analysis_mode = params.expression_analysis_mode

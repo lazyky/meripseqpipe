@@ -29,6 +29,7 @@
     - [`--igenomesIgnore`](#igenomesignore)
   - [Skipping steps](#skipping-steps)
     - [`--skip_metpeak`, `--skip_macs2`, `--skip_matk`, `--skip_meyer`](#skipmetpeak---skipmacs2---skipmatk---skipmeyer)
+    - [`--skip_fastp`, `--skip_fastqc`, `--skip_rseqc`, `--skip_createbedgraph`](#skipfastp---skipfastqc---skiprseqc---skipcreatebedgraph)
   - [Job resources](#job-resources)
     - [Automatic resubmission](#automatic-resubmission)
     - [Custom resource requests](#custom-resource-requests)
@@ -301,13 +302,23 @@ Do not load `igenomes.config` when running the pipeline. You may choose this opt
 
 ### `--skip_metpeak`, `--skip_macs2`, `--skip_matk`, `--skip_meyer`
 
-The pipeline contains four tools for PeakCalling. Sometimes, it may not be desirable to run all of them if results of .
+The pipeline contains four tools for PeakCalling. Sometimes, it may not be desirable to run all of them.
 The following options make this easy:
 
 * `--skip_metpeak` -          Skip MeTPeak
 * `--skip_macs2` -            Skip MACS2
 * `--skip_matk` -             Skip MATK
 * `--skip_meyer` -            Skip Meyer
+
+### `--skip_fastp`, `--skip_fastqc`, `--skip_rseqc`, `--skip_createbedgraph`
+
+The pipeline contains multiple tools for QC. Sometimes, it may not be desirable to run all of them.
+The following options make this easy:
+
+* `--skip_fastp` -             Skip MeTPeak
+* `--skip_fastqc` -            Skip MACS2
+* `--skip_rseqc` -             Skip MATK
+* `--skip_createbedgraph` -    Skip Meyer
 
 
 ## Job resources
