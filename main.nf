@@ -1712,11 +1712,11 @@ process CreateIGVjs {
     igv_gtf = gtf.baseName.toString() + ".igv.gtf"
     merged_allpeaks_igvfile = all_bed.baseName.toString() + ".igv.bed"
     """
-    ls -l $fasta | awk -F "> " '{print "ln "\$2" ./'$igv_fasta'"}' | bash
-    ls -l $gtf | awk -F "> " '{print "ln "\$2" ./'$igv_gtf'"}' | bash
-    ls -l $m6APipe_result | awk '{print "ln "\$11" initial.m6APipe"}' | bash
-    ls -l $group_bed $all_bed | awk '{sub(".bed\$",".igv.bed",\$9);print "ln "\$11,\$9}' | bash
-    ls -l $bedgraph | awk '{sub(".bedgraph\$",".igv.bedgraph",\$9);print "ln "\$11,\$9}' | bash
+    ls -l $fasta | awk -F "> " '{print "ln -s "\$2" ./'$igv_fasta'"}' | bash
+    ls -l $gtf | awk -F "> " '{print "ln -s "\$2" ./'$igv_gtf'"}' | bash
+    ls -l $m6APipe_result | awk '{print "ln -s "\$11" initial.m6APipe"}' | bash
+    ls -l $group_bed $all_bed | awk '{sub(".bed\$",".igv.bed",\$9);print "ln -s "\$11,\$9}' | bash
+    ls -l $bedgraph | awk '{sub(".bedgraph\$",".igv.bedgraph",\$9);print "ln -s "\$11,\$9}' | bash
     samtools faidx $igv_fasta
     bash $baseDir/bin/create_IGV_js.sh $igv_fasta $igv_gtf $merged_allpeaks_igvfile $formatted_designfile
     """
