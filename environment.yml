@@ -8,6 +8,7 @@ channels:
 dependencies:
   - openjdk=8.0.152
   - python=2.7.15
+  - picard=2.21.6
   - fastqc=0.11.8
   - fastp=0.19.7
   - bedtools=2.27.1

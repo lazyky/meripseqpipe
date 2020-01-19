@@ -510,7 +510,7 @@ process MakerRNAindex {
     file rRNA_fasta from rRNA_fasta
 
     output:
-    file "rRNAindex" into rRNA_index
+    file "rRNAindex/*" into rRNA_index
 
     when:
     params.rRNA_fasta && !params.skip_filterrRNA
@@ -813,14 +813,14 @@ process FilterrRNA {
     input:
     val sample_name from pair_id_rRNA
     file(reads) from rRNA_reads
-    file rRNA_index from rRNA_index.collect()
+    file index from rRNA_index.collect()
 
     output:
     file "*_rRNA_sort.bam" into rRNA_bam
     file "*_summary.txt" into rRNA_log
 
     when:
-    !params.rRNA_fasta && !params.skip_filterrRNA
+    params.rRNA_fasta && !params.skip_filterrRNA
 
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
