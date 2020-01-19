@@ -1392,8 +1392,8 @@ process PeakMerge {
     fi
     whether_nopeaks=\$(wc -l *merged*.bed | awk '\$1==0{print "error"}' | uniq)
     if [[ \$whether_nopeaks == "error" ]] ;then 
-        echo "There is no peaks in one of the merged peaks files"
-        echo "Merge Peaks by "${peakMerged_mode}" may not be suitable for your data."
+        echo "There is no peaks in one of the merged peaks files" 1>&2
+        echo "Merge Peaks by "${peakMerged_mode}" may not be suitable for your data." 1>&2
         exit 1
     fi
     """
