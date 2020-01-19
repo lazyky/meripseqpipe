@@ -39,23 +39,20 @@ script:
   # Lint the documentation
   # markdownlint ${TRAVIS_BUILD_DIR} -c ${TRAVIS_BUILD_DIR}/.github/markdownlint.yml
   # Run the pipeline with the test profile
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --skip_peakCalling --skip_expression
   # Run, build reference genome with HISAT2
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners hisat2 --skip_peakCalling --skip_expression -resume
   # Run, build reference genome with BWA
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners bwa --skip_peakCalling --skip_expression -resume
-  # Run, build reference genome with Tophat2
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker --aligners tophat2 --skip_peakCalling --skip_expression -resume
   # Run, test PeakCalling mode 'group'
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakCalling_mode group --skip_diffpeakCalling -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakCalling_mode group --skip_expression --skip_diffpeakCalling -resume
   # Run, test PeakMerged mode 'rank'
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode rank --skip_diffpeakCalling -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode mspc --skip_expression --skip_diffpeakCalling -resume
   # Run, test one of PeakMerged mode 'bedtools'
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode macs2 --skip_diffpeakCalling -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode macs2 --skip_expression --skip_diffpeakCalling -resume
   # Run, input date of the suffix of bam
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker -resume
   # Run, test Methylation Analysis mode
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode QNB -resume
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode MATK -resume
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode DESeq2 -resume
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode MeTDiff -resume
