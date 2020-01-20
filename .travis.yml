@@ -53,6 +53,6 @@ script:
   # Run, input date of the suffix of bam
   - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker -resume
   # Run, test Methylation Analysis mode
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode QNB -resume
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode MATK -resume
-  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --peakMerged_mode DESeq2 -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --methylation_analysis_mode QNB -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --methylation_analysis_mode MATK -resume
+  - nextflow run ${TRAVIS_BUILD_DIR} -profile test_bam,docker --methylation_analysis_mode DESeq2 -resume
