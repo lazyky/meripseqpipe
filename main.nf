@@ -1,14 +1,13 @@
-#!/usr/bin/env nextflow 
-
+#!/usr/bin/env nextflow
 /*
 ========================================================================================
-                            m6APipe
+                         nf-core/meripseqpipe
 ========================================================================================
- * m6Apipe
- * Homepage / Documentation
-
- */
-
+ nf-core/meripseqpipe Analysis Pipeline.
+ #### Homepage / Documentation
+ https://github.com/nf-core/meripseqpipe
+----------------------------------------------------------------------------------------
+*/
 /*
  * to be added
  *
@@ -29,14 +28,11 @@
 // - SRAMP/MATK
 // - igvtools
 
-//pre-defined functions for render command
-//=======================================================================================
 def helpMessage() {
-    println LikeletUtils.sysucc_ascii()
+    // TODO nf-core: Add to this help message with new command line parameters
+//    log.info nfcoreHeader()
     log.info"""
-    =========================================
-     nf-core/m6Apipe v${workflow.manifest.version}
-    =========================================
+
     Usage:
 
     The typical command for running the pipeline is as follows:
@@ -47,6 +43,7 @@ def helpMessage() {
       --readPaths                   Path to input data (must be surrounded with quotes)
       --genome                      Name of iGenomes reference
       --designfile                  format:filename,control_or_treated,ip_or_input,tag_id
+      --comparefile
       -profile                      Configuration profile to use. Can use multiple (comma separated)
                                     Available: standard, conda, docker, singularity, awsbatch, test
     
@@ -91,11 +88,15 @@ def helpMessage() {
     """.stripIndent()
 }
 
-// Show help emssage
-if (params.help){
+// Show help message
+if (params.help) {
     helpMessage()
     exit 0
 }
+// Stage config files
+ch_multiqc_config = file(params.multiqc_config, checkIfExists: true)
+ch_output_docs = file("$baseDir/docs/output.md", checkIfExists: true)
+
 
 /*
  * SET UP CONFIGURATION VARIABLES
@@ -111,35 +112,59 @@ params.plaintext_email = false
 params.seqCenter = false
 params.help = false
 
-
-// Preset trimming options
-/*params.pico = false
-if (params.pico){
-    clip_r1 = 3
-    clip_r2 = 0
-    three_prime_clip_r1 = 0
-    three_prime_clip_r2 = 3
-    forward_stranded = true
-    reverse_stranded = false
-    unstranded = false
-}
-*/
 // Validate inputs
+// Check if genome exists in the config file
+if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
+    exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
+}
+
+// TODO nf-core: Add any reference files that are needed
+// Configurable reference genomes
+//
+// NOTE - THIS IS NOT USED IN THIS PIPELINE, EXAMPLE ONLY
+// If you want to use the channel below in a process, define the following:
+//   input:
+//   file fasta from ch_fasta
+//
+params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
+
+// Has the run name been specified by the user?
+//  this has the bonus effect of catching both -name and --name
+custom_runName = params.name
+if (!(workflow.runName ==~ /[a-z]+_[a-z]+/)) {
+  custom_runName = workflow.runName
+}
+
+if ( workflow.profile == 'awsbatch') {
+  // AWSBatch sanity checking
+  if (!params.awsqueue || !params.awsregion) exit 1, "Specify correct --awsqueue and --awsregion parameters on AWSBatch!"
+  // Check outdir paths to be S3 buckets if running on AWSBatch
+  // related: https://github.com/nextflow-io/nextflow/issues/813
+  if (!params.outdir.startsWith('s3:')) exit 1, "Outdir not on S3 - specify S3 Bucket to run on AWSBatch!"
+  // Prevent trace files to be stored on S3 since S3 does not support rolling files.
+  if (workflow.tracedir.startsWith('s3:')) exit 1, "Specify a local tracedir or run without trace! S3 cannot be used for tracefiles."
+}
 
 if ( params.fasta ){
-    fasta = file(params.fasta)
+    fasta = file(params.fasta, checkIfExists: true)
     if( !fasta.exists() ) exit 1, LikeletUtils.print_red("Fasta file not found: ${params.fasta}")
 }else {
     exit 1, LikeletUtils.print_red("No reference genome specified!")
 }
 if( params.gtf ){
-    gtf = file ( params.gtf )
+    gtf = file ( params.gtf, checkIfExists: true)
     if( !gtf.exists() ) exit 1, LikeletUtils.print_red("gtf not found: ${params.gtf}")
 } else {
     exit 1, LikeletUtils.print_red("No GTF annotation specified!")
 }
+if ( params.rRNA_fasta ){
+    rRNA_fasta = file(params.rRNA_fasta, checkIfExists: true)
+    if( !rRNA_fasta.exists() ) exit 1, LikeletUtils.print_red("Fasta file not found: ${params.rRNA_fasta}")
+}else{
+    rRNA_fasta = Channel.from("")
+}
 if( params.designfile ) {
-    designfile = file(params.designfile)
+    designfile = file(params.designfile, checkIfExists: true)
     if( !designfile.exists() ) exit 1, LikeletUtils.print_red("Design file not found: ${params.designfile}")
 }else{
     exit 1, LikeletUtils.print_red("No Design file specified!")
@@ -160,38 +185,10 @@ compareLines.into{
     compareLines_for_diffm6A; compareLines_for_arranged_result
 }
 // Validate the params of skipping Aligners Tools Setting
-if( params.aligners == "none" ){
-    skip_aligners = true
-    skip_bwa = true
-    skip_tophat2 = true
-    skip_hisat2 = true
-    skip_star = true
-}else if( params.aligners == "star" ){
-    skip_aligners = false
-    skip_bwa = true
-    skip_tophat2 = true
-    skip_hisat2 = true
-    skip_star = false
-}else if( params.aligners == "hisat2" ){
-    skip_aligners = false
-    skip_bwa = true
-    skip_tophat2 = true
-    skip_hisat2 = false
-    skip_star = true
-}else if( params.aligners == "tophat2" ){
-    skip_aligners = false
-    skip_bwa = true
-    skip_tophat2 = false
-    skip_hisat2 = true
-    skip_star = true
-}else if( params.aligners == "bwa" ){
-    skip_aligners = false
-    skip_bwa = false
-    skip_tophat2 = true
-    skip_hisat2 = true
-    skip_star = true
+if( params.aligners == "none" || params.aligners == "star" || params.aligners == "hisat2" || params.aligners == "tophat2" || params.aligners == "bwa" ){
+    aligner = params.aligners
 }else{
-    exit 1, LikeletUtils.print_red("Invalid aligner option: ${params.aligner}. Valid options: 'star', 'hisat2', 'tophat2', 'bwa'")
+    exit 1, LikeletUtils.print_red("Invalid aligner option: ${params.aligner}. Valid options: 'star', 'hisat2', 'tophat2', 'bwa', 'none'")
 }
 if( params.expression_analysis_mode == "edgeR" ){
     params.skip_edger = false
@@ -218,72 +215,108 @@ if( params.expression_analysis_mode == "edgeR" ){
 }
 /*
  * Create a channel for input read files
- */
-if( params.readPaths && !skip_aligners ){
-    if( params.singleEnd ){
+*/
+if ( params.readPaths ){
+    if (aligner == 'none') {
         Channel
-            .fromFilePairs( "${params.readPaths}/*.{fastq,fastq.gz}", size: 1 ) 
-            .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.readPaths}")}
+            .fromPath( params.readPaths )
+            .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
+            .into{ raw_data; raw_bam }
+    } else if ( params.singleEnd ) {
+        Channel
+            .from( params.readPaths )
+            .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
+            .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
+            .into{ raw_data; raw_bam }
+    } else {
+        Channel
+            .from( params.readPaths )
+            .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
+            .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     }
-    else if ( !params.singleEnd ){
-        Channel
-            .fromFilePairs( "${params.readPaths}/*{1,2}.{fastq,fastq.gz}", size: 2 ) 
-            .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.readPaths}") }
-            .into{ raw_data; raw_bam }
-    }
-    else {
-        exit 1, println LikeletUtils.print_red("The param 'singleEnd' was not defined!")
-    }
-}else if( params.readPaths && skip_aligners ){
+}else if( params.reads &&  aligner != "none" ){
     Channel
-        .fromPath( "${params.readPaths}/*.bam") 
-        .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no bam files supplied: ${params.readPaths}")}
+        .fromFilePairs( "${params.reads}", size: params.singleEnd ? 1 : 2 )
+        .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.reads}")}
+        .into{ raw_data; raw_bam }
+}else if( params.reads &&  aligner == "none" ){
+    Channel
+        .fromPath( params.reads ) 
+        .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no bam files supplied: ${params.reads}")}
         .into{ raw_data; raw_bam }
 } 
 else{
-    println LikeletUtils.print_red("readPaths was empty: ${params.readPaths}")
+    println LikeletUtils.print_red("reads was empty: ${params.reads}")
 }
+
 /*
-========================================================================================
                          showing the process and files
 ========================================================================================
 */
+// Header log info	
 println LikeletUtils.sysucc_ascii()
 println LikeletUtils.print_purple("============You are running m6APipe with the following parameters===============")
 println LikeletUtils.print_purple("Checking parameters ...")
-
+println LikeletUtils.print_yellow("===================================Pipeline summary=============================")
+println (LikeletUtils.print_yellow("Max Resources                  : ") + LikeletUtils.print_green("$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"))
+if (workflow.containerEngine){
+    println (LikeletUtils.print_yellow("Container                       : ") + LikeletUtils.print_green("$workflow.containerEngine - $workflow.container"))
+}
+println (LikeletUtils.print_yellow("Output dir                     : ") + LikeletUtils.print_green(params.outdir))
+println (LikeletUtils.print_yellow("Launch dir                     : ") + LikeletUtils.print_green(workflow.launchDir))
+println (LikeletUtils.print_yellow("Working dir                    : ") + LikeletUtils.print_green(workflow.workDir))
+println (LikeletUtils.print_yellow("Script dir                     : ") + LikeletUtils.print_green(workflow.projectDir))
+println (LikeletUtils.print_yellow("User                           : ") + LikeletUtils.print_green(workflow.userName))
+if (workflow.profile == 'awsbatch') {
+    println (LikeletUtils.print_yellow("AWS Region                      : ") + LikeletUtils.print_green(params.awsregion))
+    println (LikeletUtils.print_yellow("AWS Queue                       : ") + LikeletUtils.print_green(params.awsqueue))
+}
+println (LikeletUtils.print_yellow("Config Profile                 : ") + LikeletUtils.print_green(workflow.profile))
+if (params.config_profile_description){
+    println (LikeletUtils.print_yellow("Config Description              : ") + LikeletUtils.print_green(params.config_profile_description))
+}
+if (params.config_profile_contact){
+    println (LikeletUtils.print_yellow("Config Contact                  : ") + LikeletUtils.print_green(params.config_profile_contact))
+}
+if (params.config_profile_url){
+    println (LikeletUtils.print_yellow("Config URL                      : ") + LikeletUtils.print_green(params.config_profile_url))
+}
+if (params.email || params.email_on_fail) {
+    println (LikeletUtils.print_yellow("E-mail Address                  : ") + LikeletUtils.print_green(params.email))
+    println (LikeletUtils.print_yellow("E-mail on failure               : ") + LikeletUtils.print_green(params.email_on_fail))
+    println (LikeletUtils.print_yellow("MultiQC maxsize                 : ") + LikeletUtils.print_green(params.maxMultiqcEmailFileSize))
+}
 println LikeletUtils.print_yellow("=====================================Reads types================================")
-println (LikeletUtils.print_yellow("SingleEnd :                     ") + LikeletUtils.print_green(params.singleEnd))
-println (LikeletUtils.print_yellow("Stranded :                      ") + LikeletUtils.print_green(params.stranded))
-println (LikeletUtils.print_yellow("gzip :                          ") + LikeletUtils.print_green(params.gzip))
+println (LikeletUtils.print_yellow("SingleEnd                      : ") + LikeletUtils.print_green(params.singleEnd ? 'Single-End' : 'Paired-End'))
+println (LikeletUtils.print_yellow("Stranded                       : ") + LikeletUtils.print_green(params.stranded))
+println (LikeletUtils.print_yellow("gzip                           : ") + LikeletUtils.print_green(params.gzip))
 
 println LikeletUtils.print_yellow("====================================Mode selected==============================")
-println (LikeletUtils.print_yellow("aligners :                      ") + LikeletUtils.print_green(params.aligners))
-println (LikeletUtils.print_yellow("peakCalling_mode :              ") + LikeletUtils.print_green(params.peakCalling_mode))
-println (LikeletUtils.print_yellow("peakMerged_mode :               ") + LikeletUtils.print_green(params.peakMerged_mode))
-println (LikeletUtils.print_yellow("expression_analysis_mode :      ") + LikeletUtils.print_green(params.expression_analysis_mode))
-println (LikeletUtils.print_yellow("methylation_analysis_mode :     ") + LikeletUtils.print_green(params.methylation_analysis_mode))
+println (LikeletUtils.print_yellow("aligners                       : ") + LikeletUtils.print_green(params.aligners))
+println (LikeletUtils.print_yellow("peakCalling_mode               : ") + LikeletUtils.print_green(params.peakCalling_mode))
+println (LikeletUtils.print_yellow("peakMerged_mode                : ") + LikeletUtils.print_green(params.peakMerged_mode))
+println (LikeletUtils.print_yellow("expression_analysis_mode       : ") + LikeletUtils.print_green(params.expression_analysis_mode))
+println (LikeletUtils.print_yellow("methylation_analysis_mode      : ") + LikeletUtils.print_green(params.methylation_analysis_mode))
 
 println LikeletUtils.print_yellow("==================================Input files selected==========================")
-println (LikeletUtils.print_yellow("Reads Path :                    ") + LikeletUtils.print_green(params.readPaths))
-println (LikeletUtils.print_yellow("fasta file :                    ") + LikeletUtils.print_green(params.fasta))
-println (LikeletUtils.print_yellow("Gtf file :                      ") + LikeletUtils.print_green(params.gtf))
-println (LikeletUtils.print_yellow("Design file :                   ") + LikeletUtils.print_green(params.designfile))
-println (LikeletUtils.print_yellow("Compare file :                  ") + LikeletUtils.print_green(params.comparefile))
+println (LikeletUtils.print_yellow("Reads Path                     : ") + LikeletUtils.print_green(params.reads ? "github" : params.reads))
+println (LikeletUtils.print_yellow("fasta file                     : ") + LikeletUtils.print_green(params.fasta))
+println (LikeletUtils.print_yellow("Gtf file                       : ") + LikeletUtils.print_green(params.gtf))
+println (LikeletUtils.print_yellow("Design file                    : ") + LikeletUtils.print_green(params.designfile))
+println (LikeletUtils.print_yellow("Compare file                   : ") + LikeletUtils.print_green(params.comparefile))
 
 println LikeletUtils.print_yellow("==================================Skip model selected==========================")
-println (LikeletUtils.print_yellow("Skip samtools sort :            ") + LikeletUtils.print_green(params.skip_sort))
-println (LikeletUtils.print_yellow("Skip expression analysis :      ") + LikeletUtils.print_green(params.skip_expression))
-println (LikeletUtils.print_yellow("Skip peakCalling :              ") + LikeletUtils.print_green(params.skip_peakCalling))
-println (LikeletUtils.print_yellow("Skip diffpeakCalling :          ") + LikeletUtils.print_green(params.skip_diffpeakCalling))
-println (LikeletUtils.print_yellow("Skip annotation :               ") + LikeletUtils.print_green(params.skip_annotation))
-println (LikeletUtils.print_yellow("Skip qc :                       ") + LikeletUtils.print_green(params.skip_qc))
+println (LikeletUtils.print_yellow("Skip samtools sort             : ") + LikeletUtils.print_green(params.skip_sort))
+println (LikeletUtils.print_yellow("Skip expression analysis       : ") + LikeletUtils.print_green(params.skip_expression))
+println (LikeletUtils.print_yellow("Skip peakCalling               : ") + LikeletUtils.print_green(params.skip_peakCalling))
+println (LikeletUtils.print_yellow("Skip diffpeakCalling           : ") + LikeletUtils.print_green(params.skip_diffpeakCalling))
+println (LikeletUtils.print_yellow("Skip annotation                : ") + LikeletUtils.print_green(params.skip_annotation))
+println (LikeletUtils.print_yellow("Skip qc                        : ") + LikeletUtils.print_green(params.skip_qc))
 
-println LikeletUtils.print_yellow("==================================Output files directory========================")
-println (LikeletUtils.print_yellow("Output directory :              ") + LikeletUtils.print_green(params.outdir))
-
-
+// log.info summary.collect { k,v -> "${k.padRight(18)}: $v" }.join("\n")
+// // Check the hostnames against configured profiles
+// checkHostname()
 /*
 ========================================================================================
                              check or build the index
@@ -320,7 +353,7 @@ process makeBED12 {
  * PREPROCESSING - Build TOPHAT2 index
  * NEED genome.fa
  */
-if( params.tophat2_index && !skip_tophat2 ){
+if( params.tophat2_index &&  aligner == "tophat2" ){
     tophat2_index = Channel
         .fromPath( params.tophat2_index )
         .ifEmpty { exit 1, "Tophat2 index not found: ${params.tophat2_index}" }
@@ -337,13 +370,14 @@ if( params.tophat2_index && !skip_tophat2 ){
         file "Tophat2Index/*" into tophat2_index
 
         when:
-        !skip_tophat2 && !skip_aligners
+        aligner == "tophat2"
 
         script:
         tophat2_index = "Tophat2Index/" + fasta.baseName.toString()
         """
         mkdir Tophat2Index
-        bowtie2-build -f $params.fasta $tophat2_index
+        ln $fasta Tophat2Index
+        bowtie2-build -f $fasta $tophat2_index
         """
     }
 }else {
@@ -354,7 +388,7 @@ if( params.tophat2_index && !skip_tophat2 ){
  * PREPROCESSING - Build HISAT2 index
  * NEED genome.fa genes.gtf snp.txt/vcf
  */
-if( params.hisat2_index && !skip_hisat2 ){
+if( params.hisat2_index &&  aligner == "hisat2" ){
     hisat2_index = Channel
         .fromPath(params.hisat2_index)
         .ifEmpty { exit 1, "hisat2 index not found: ${params.hisat2_index}" }
@@ -367,20 +401,18 @@ if( params.hisat2_index && !skip_hisat2 ){
         input:
         file fasta
         file gtf
-        //file params.snp
 
         output:
         file "Hisat2Index/*" into hisat2_index
 
         when:
-        !skip_hisat2 && !skip_aligners
+        aligner == "hisat2"
         
         script:
         """
         mkdir Hisat2Index
         hisat2_extract_exons.py $gtf > Hisat2Index/${fasta.baseName}.exon
         hisat2_extract_splice_sites.py $gtf > Hisat2Index/${fasta.baseName}.ss
-        #hisat2_extract_splice_sites.py ${params.snp} > Hisat2Index/${fasta.baseName}.snp
         hisat2-build -p ${task.cpus} -f $fasta --exon Hisat2Index/${fasta.baseName}.exon --ss Hisat2Index/${fasta.baseName}.ss Hisat2Index/${fasta.baseName}
         """
     }
@@ -392,7 +424,7 @@ if( params.hisat2_index && !skip_hisat2 ){
  * PREPROCESSING - Build BWA index
  * NEED genome.fa
  */
-if( params.bwa_index && !skip_bwa ){
+if( params.bwa_index &&  aligner == "bwa" ){
     bwa_index = Channel
         .fromPath( params.bwa_index )
         .ifEmpty { exit 1, "bwa index not found: ${params.bwa_index}" }
@@ -410,7 +442,7 @@ if( params.bwa_index && !skip_bwa ){
         file "BWAIndex/*" into bwa_index
 
         when:
-        !skip_bwa && !skip_aligners
+         aligner == "bwa"
      
         script:
         """
@@ -428,7 +460,7 @@ if( params.bwa_index && !skip_bwa ){
  * PREPROCESSING - Build STAR index
  * NEED genome.fa genes.gtf
  */
-if( params.star_index && !skip_star){
+if( params.star_index &&  aligner == "star"){
     star_index = Channel
         .fromPath(params.star_index)
         .ifEmpty { exit 1, "STAR index not found: ${params.star_index}" }
@@ -446,7 +478,7 @@ if( params.star_index && !skip_star){
         file "StarIndex" into star_index
 
         when:
-        !skip_star && !skip_aligners 
+         aligner == "star"
 
         script:
         readLength = 50
@@ -464,6 +496,32 @@ if( params.star_index && !skip_star){
 }else {
    exit 1, println LikeletUtils.print_red("There is no STAR Index")
 }
+
+/*
+ * PREPROCESSING - Build rRNA index
+ * NEED rRNA.fa 
+ */
+process MakerRNAindex {
+    label 'build_index'
+    tag "rRNA_index"
+    publishDir path: { params.saveReference ? "${params.outdir}/Genome/" : params.outdir },
+                saveAs: { params.saveReference ? it : null }, mode: 'copy'
+    input:
+    file rRNA_fasta from rRNA_fasta
+
+    output:
+    file "rRNAindex/*" into rRNA_index
+
+    when:
+    params.rRNA_fasta && !params.skip_filterrRNA
+
+    script:
+    """
+    mkdir rRNAindex
+    hisat2-build -p ${task.cpus} -f $rRNA_fasta rRNAindex/${rRNA_fasta.baseName}
+    """
+}
+
 /*
 ========================================================================================
                                 Step 1. QC------FastQC
@@ -471,7 +529,7 @@ if( params.star_index && !skip_star){
 */ 
 process Fastp{
     tag "$sample_name"
-    errorStrategy 'ignore'
+    //errorStrategy 'ignore'
     publishDir path: { params.skip_fastp ? params.outdir : "${params.outdir}/QC/fastp" },
              saveAs: { params.skip_fastp ? null : it }, mode: 'link'
         
@@ -479,12 +537,12 @@ process Fastp{
     set sample_name, file(reads) from raw_data
 
     output:
-    val sample_name into pair_id_fastqc, pair_id_tophat2, pair_id_hisat2, pair_id_bwa, pair_id_star 
-    file "*_aligners.fastq" into fastqc_reads ,tophat2_reads, hisat2_reads, bwa_reads, star_reads
-    file "*" into fastp_results
+    val sample_name into pair_id_fastqc, pair_id_tophat2, pair_id_hisat2, pair_id_bwa, pair_id_star, pair_id_rRNA
+    file "*_aligners.fastq" into fastqc_reads ,tophat2_reads, hisat2_reads, bwa_reads, star_reads, rRNA_reads
+    file "*.{html,json}" into fastp_results
 
     when:
-    !skip_aligners
+    aligner != "none"
 
     shell:
     skip_fastp = params.skip_fastp
@@ -497,6 +555,7 @@ process Fastp{
         if [ $gzip == "true" ]; then
             zcat ${reads} > ${sample_name}.fastq
         fi
+        if [ -f "${sample_name}.fastq" ]; then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; exit 1; fi 
         if [ $skip_fastp == "false" ]; then
             fastp -i ${sample_name}.fastq -o ${add_aligners} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
         else
@@ -513,6 +572,7 @@ process Fastp{
             zcat ${reads[0]} > ${sample_name}_1.fastq
             zcat ${reads[1]} > ${sample_name}_2.fastq
         fi
+        if [ -f "${sample_name}*1.fastq" ]; then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; exit 1; fi 
         if [ $skip_fastp == "false" ]; then  
             fastp -i ${sample_name}*1.fastq -o ${add_aligners_1} -I ${sample_name}*2.fastq -O ${add_aligners_2} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
         else
@@ -535,7 +595,7 @@ process Fastqc{
     file "fastqc/*" into fastqc_results
 
     when:
-    !skip_aligners && !params.skip_fastqc
+     aligner != "none" && !params.skip_fastqc
 
     shell:
     skip_fastqc = params.skip_fastqc
@@ -573,7 +633,7 @@ process Tophat2Align {
     file "*_log.txt" into tophat2_log
     
     when:
-    !skip_tophat2 && !skip_aligners
+     aligner == "tophat2"
 
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.fa)?(\.bt2)?$/
@@ -618,7 +678,7 @@ process Hisat2Align {
     file "*_summary.txt" into hisat2_log
 
     when:
-    !skip_hisat2 && !skip_aligners
+     aligner == "hisat2"
 
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
@@ -656,7 +716,7 @@ process BWAAlign{
     file "*" into bwa_result
 
     when:
-    !skip_bwa && !skip_aligners
+     aligner == "bwa"
 
     script:
     index_base = index[0].toString() - ~/(\.pac)?(\.bwt)?(\.ann)?(\.amb)?(\.sa)?(\.fa)?$/
@@ -708,7 +768,7 @@ process StarAlign {
     file "*.final.out" into star_log
 
     when:
-    !skip_star && !skip_aligners
+     aligner == "star"
 
     script:
     if (params.singleEnd) {
@@ -722,7 +782,7 @@ process StarAlign {
             --outFilterIntronMotifs RemoveNoncanonical \
             --outFilterMultimapNmax 20 \
             --alignIntronMin 20 \
-            --alignIntronMax 1000000 \
+            --alignIntronMax 100000 \
             --alignMatesGapMax 1000000 \
             --outFileNamePrefix ${sample_name}  &> ${sample_name}_log.txt
         mv ${sample_name}Aligned.out.bam ${sample_name}_star.bam
@@ -745,24 +805,72 @@ process StarAlign {
         """
     }
 }
+process FilterrRNA {
+    label 'aligners'
+    tag "$sample_name"
+    publishDir "${params.outdir}/alignment/rRNA_dup", mode: 'link', overwrite: true
+    
+    input:
+    val sample_name from pair_id_rRNA
+    file(reads) from rRNA_reads
+    file index from rRNA_index.collect()
+
+    output:
+    file "*_rRNA_sort.bam" into rRNA_bam
+    file "*_summary.txt" into rRNA_log
+
+    when:
+    params.rRNA_fasta && !params.skip_filterrRNA
+
+    script:
+    index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
+    if (params.singleEnd) {
+        """
+        hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
+            --no-spliced-alignment --no-softclip --norc --no-unal \
+            -p ${task.cpus} --dta \
+            -x $index_base \
+            -U $reads | \
+            samtools view -@ ${task.cpus} -Shub - | \
+            samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
+        picard MarkDuplicates I=${sample_name}_rRNA_sort.bam \
+	        O=${sample_name}_mDuprRNA_sort.bam \
+            M=${sample_name}_mDuprRNA_sort.dupmark.log \
+	        VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
+        """
+    } else {
+        """
+        hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
+            --no-spliced-alignment --no-softclip --norc --no-unal \
+            -p ${task.cpus} --dta \
+            -x $index_base \
+            -1 ${reads[0]} -2 ${reads[1]} | \
+            samtools view -@ ${task.cpus} -Shub - | \
+            samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
+        picard MarkDuplicates I=${sample_name}_rRNA_sort.bam \
+	        O=${sample_name}_mDuprRNA_sort.bam \
+            M=${sample_name}_mDuprRNA_sort.dupmark.log \
+	        VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
+        """
+    }
+}
 /*
 ========================================================================================
                         Step 3 Sort BAM file AND QC
 ========================================================================================
 */ 
-if( params.aligners != "none"){
+
+if(  aligner != "none"){
     Channel
         .from()
         .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam)
-        .into {merge_bam_file; test_channel1}
+        .set{ merge_bam_file }
 }else{
     Channel
         .from()
-        .concat(raw_bam)
-        .into {merge_bam_file; test_channel1}
+        .concat( raw_bam )
+        .set{ merge_bam_file }
 }
-
-//test_channel1.subscribe{ println it }
 /*
  * STEP 3-1 - Sort BAM file
 */
@@ -779,11 +887,11 @@ process Sort {
     script:
     sample_name = bam_file.toString() - ~/(\.bam)?$/
     output = sample_name + "_sort.bam"
-    keep_unique = (params.mapq_cutoff).toInteger() 
+    mapq_cutoff = (params.mapq_cutoff).toInteger() 
     if (!params.skip_sort){
         """
-        if [ "$keep_unique" -gt "0" ]; then
-            samtools view -hubq $keep_unique $bam_file | samtools sort -@ ${task.cpus} -O BAM -o $output -
+        if [ "$mapq_cutoff" -gt "0" ]; then
+            samtools view -hubq $mapq_cutoff $bam_file | samtools sort -@ ${task.cpus} -O BAM -o $output -
         else
             samtools sort -@ ${task.cpus} -O BAM -o $output $bam_file
         fi
@@ -794,8 +902,8 @@ process Sort {
         for bam_file in *.bam
         do
         {
-            if [ "$keep_unique" -gt "0" ]; then
-                samtools view -hubq $keep_unique $bam_file > $output
+            if [ "$mapq_cutoff" -gt "0" ]; then
+                samtools view -hubq $mapq_cutoff $bam_file > $output
             else
                 mv $bam_file $output
             fi
@@ -812,6 +920,7 @@ process RenameByDesignfile{
     input:
     file (reads) from rename_bam_file.collect()
     file designfile  // designfile:filename,control_treated,input_ip
+    file comparefile
 
     output:
     file "*.{input,ip}_*.{bam,bai}" into sort_bam
@@ -820,10 +929,10 @@ process RenameByDesignfile{
 
     script:
     println LikeletUtils.print_purple("Rename the files for downstream analysis")
-    aligners_name = params.aligners
+    aligners_name =  aligner
     """
     # Windows and linux newline ^M conversion
-    cat $designfile | dos2unix |sed '1s/.*/Sample_ID,input_FileName,ip_FileName,Group/g' > formatted_designfile.txt
+    cat $designfile | dos2unix |sed '1s/.*/Sample_ID,input_FileName,ip_FileName,Group/g' |awk NF > formatted_designfile.txt
     # Check the consistency of designfile and comparefile
     if [ "$comparefile" != "false" ]; then 
         ## get groups' name in comparefile
@@ -950,7 +1059,6 @@ process multiqc{
     file "multiqc*" into multiqc_results
 
     script:
-    aligner = params.aligners
     """
     multiqc -n multiqc_$aligner .
     """
@@ -1075,7 +1183,7 @@ if( params.fasta ){
 
         shell:
         '''
-        cat !{fasta} | awk 'BEGIN{len=""}{if($0~">"){split($0,ID,"[> ]");printf len"ABC"ID[2]"\\t";len=0}else{len=len+length($0)}}END{print len}' |sed 's/ABC/\\n/g' |awk NF > chromsizes.file
+        #cat !{fasta} | awk 'BEGIN{len=""}{if($0~">"){split($0,ID,"[> ]");printf len"ABC"ID[2]"\\t";len=0}else{len=len+length($0)}}END{print len}' |sed 's/ABC/\\n/g' |awk NF > chromsizes.file
         samtools faidx !{fasta}
         cut -f1,2 !{fasta}.fai > chromsizes.file
         awk '{print $1}' chromsizes.file > chrName.txt
@@ -1272,8 +1380,8 @@ process PeakMerge {
     fi
     whether_nopeaks=\$(wc -l *merged*.bed | awk '\$1==0{print "error"}' | uniq)
     if [[ \$whether_nopeaks == "error" ]] ;then 
-        echo "There is no peaks in one of the merged peaks files"
-        echo "Merge Peaks by "${peakMerged_mode}" may not be suitable for your data."
+        echo "There is no peaks in one of the merged peaks files" 1>&2
+        echo "Merge Peaks by "${peakMerged_mode}" may not be suitable for your data." 1>&2
         exit 1
     fi
     """
@@ -1545,9 +1653,9 @@ process DiffReport {
     file "*.m6APipe" into m6APipe_result
     file "*.{html,pdf}" into diffReport_result
 
-    // when:
-    // !params.skip_annotation && !params.skip_expression && !skip_diffpeakCalling
-
+    when:
+    !params.skip_annotation && !params.skip_expression && !params.skip_diffpeakCalling && !params.skip_peakCalling
+    
     script:
     methylation_analysis_mode = params.methylation_analysis_mode
     expression_analysis_mode = params.expression_analysis_mode
@@ -1592,11 +1700,11 @@ process CreateIGVjs {
     igv_gtf = gtf.baseName.toString() + ".igv.gtf"
     merged_allpeaks_igvfile = all_bed.baseName.toString() + ".igv.bed"
     """
-    ls -l $fasta | awk -F "> " '{print "ln "\$2" ./'$igv_fasta'"}' | bash
-    ls -l $gtf | awk -F "> " '{print "ln "\$2" ./'$igv_gtf'"}' | bash
-    ls -l $m6APipe_result | awk '{print "ln "\$11" initial.m6APipe"}' | bash
-    ls -l $group_bed $all_bed | awk '{sub(".bed\$",".igv.bed",\$9);print "ln "\$11,\$9}' | bash
-    ls -l $bedgraph | awk '{sub(".bedgraph\$",".igv.bedgraph",\$9);print "ln "\$11,\$9}' | bash
+    ls -l $fasta | awk -F "> " '{print "ln -s "\$2" ./'$igv_fasta'"}' | bash
+    ls -l $gtf | awk -F "> " '{print "ln -s "\$2" ./'$igv_gtf'"}' | bash
+    ls -l $m6APipe_result | awk '{print "ln -s "\$11" initial.m6APipe"}' | bash
+    ls -l $group_bed $all_bed | awk '{sub(".bed\$",".igv.bed",\$9);print "ln -s "\$11,\$9}' | bash
+    ls -l $bedgraph | awk '{sub(".bedgraph\$",".igv.bedgraph",\$9);print "ln -s "\$11,\$9}' | bash
     samtools faidx $igv_fasta
     bash $baseDir/bin/create_IGV_js.sh $igv_fasta $igv_gtf $merged_allpeaks_igvfile $formatted_designfile
     """
@@ -1604,7 +1712,7 @@ process CreateIGVjs {
 
 /*
 Working completed message
- */
+
 workflow.onComplete {
     println LikeletUtils.print_green("=================================================")
     println LikeletUtils.print_green("Cheers! m6APipe from SYSUCC run Complete!")
@@ -1632,4 +1740,230 @@ workflow.onComplete {
 }
 workflow.onError {
    println LikeletUtils.print_yellow("Oops... Pipeline execution stopped with the following message: ")+LikeletUtils.print_red(workflow.errorMessage)
+}
+*/
+
+
+def create_workflow_summary(summary) {
+    def yaml_file = workDir.resolve('workflow_summary_mqc.yaml')
+    yaml_file.text  = """
+    id: 'nf-core-meripseqpipe-summary'
+    description: " - this information is collected when the pipeline is started."
+    section_name: 'nf-core/meripseqpipe Workflow Summary'
+    section_href: 'https://github.com/nf-core/meripseqpipe'
+    plot_type: 'html'
+    data: |
+        <dl class=\"dl-horizontal\">
+${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }.join("\n")}
+        </dl>
+    """.stripIndent()
+
+   return yaml_file
+}
+
+/*
+ * Parse software version numbers
+ */
+process get_software_versions {
+    publishDir "${params.outdir}/pipeline_info", mode: 'copy',
+        saveAs: { filename ->
+            if (filename.indexOf(".csv") > 0) filename
+            else null
+        }
+
+    output:
+    file 'software_versions_mqc.yaml' into software_versions_yaml
+    file "software_versions.csv"
+
+    script:
+    // TODO nf-core: Get all tools to print their version number here
+    """
+    echo $workflow.manifest.version > v_pipeline.txt
+    echo $workflow.nextflow.version > v_nextflow.txt
+    fastqc --version > v_fastqc.txt
+    multiqc --version > v_multiqc.txt
+    scrape_software_versions.py &> software_versions_mqc.yaml
+    """
+}
+
+/*
+ * Completion e-mail notification
+ */
+def summary = [:]
+if (workflow.revision) summary['Pipeline Release'] = workflow.revision
+summary['Run Name']         = custom_runName ?: workflow.runName
+// TODO nf-core: Report custom parameters here
+summary['Reads']            = params.reads
+summary['Fasta Ref']        = params.fasta
+summary['Data Type']        = params.singleEnd ? 'Single-End' : 'Paired-End'
+summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
+if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
+summary['Output dir']       = params.outdir
+summary['Launch dir']       = workflow.launchDir
+summary['Working dir']      = workflow.workDir
+summary['Script dir']       = workflow.projectDir
+summary['User']             = workflow.userName
+if (params.config_profile_description) summary['Config Description'] = params.config_profile_description
+if (params.config_profile_contact)     summary['Config Contact']     = params.config_profile_contact
+if (params.config_profile_url)         summary['Config URL']         = params.config_profile_url
+if (params.email || params.email_on_fail) {
+  summary['E-mail Address']    = params.email
+  summary['E-mail on failure'] = params.email_on_fail
+  summary['MultiQC maxsize']   = params.maxMultiqcEmailFileSize
+}
+workflow.onComplete {
+
+    // Set up the e-mail variables
+    def subject = "[nf-core/meripseqpipe] Successful: $workflow.runName"
+    if (!workflow.success) {
+      subject = "[nf-core/meripseqpipe] FAILED: $workflow.runName"
+    }
+    def email_fields = [:]
+    email_fields['version'] = workflow.manifest.version
+    email_fields['runName'] = custom_runName ?: workflow.runName
+    email_fields['success'] = workflow.success
+    email_fields['dateComplete'] = workflow.complete
+    email_fields['duration'] = workflow.duration
+    email_fields['exitStatus'] = workflow.exitStatus
+    email_fields['errorMessage'] = (workflow.errorMessage ?: 'None')
+    email_fields['errorReport'] = (workflow.errorReport ?: 'None')
+    email_fields['commandLine'] = workflow.commandLine
+    email_fields['projectDir'] = workflow.projectDir
+    email_fields['summary'] = summary
+    email_fields['summary']['Date Started'] = workflow.start
+    email_fields['summary']['Date Completed'] = workflow.complete
+    email_fields['summary']['Pipeline script file path'] = workflow.scriptFile
+    email_fields['summary']['Pipeline script hash ID'] = workflow.scriptId
+    if (workflow.repository) email_fields['summary']['Pipeline repository Git URL'] = workflow.repository
+    if (workflow.commitId) email_fields['summary']['Pipeline repository Git Commit'] = workflow.commitId
+    if (workflow.revision) email_fields['summary']['Pipeline Git branch/tag'] = workflow.revision
+    if (workflow.container) email_fields['summary']['Docker image'] = workflow.container
+    email_fields['summary']['Nextflow Version'] = workflow.nextflow.version
+    email_fields['summary']['Nextflow Build'] = workflow.nextflow.build
+    email_fields['summary']['Nextflow Compile Timestamp'] = workflow.nextflow.timestamp
+
+    // TODO nf-core: If not using MultiQC, strip out this code (including params.maxMultiqcEmailFileSize)
+    // On success try attach the multiqc report
+    def mqc_report = null
+    try {
+        if (workflow.success) {
+            mqc_report = multiqc_report.getVal()
+            if (mqc_report.getClass() == ArrayList) {
+                log.warn "[nf-core/meripseqpipe] Found multiple reports from process 'multiqc', will use only one"
+                mqc_report = mqc_report[0]
+            }
+        }
+    } catch (all) {
+        log.warn "[nf-core/meripseqpipe] Could not attach MultiQC report to summary email"
+    }
+
+    // Check if we are only sending emails on failure
+    email_address = params.email
+    if (!params.email && params.email_on_fail && !workflow.success) {
+        email_address = params.email_on_fail
+    }
+
+    // Render the TXT template
+    def engine = new groovy.text.GStringTemplateEngine()
+    def tf = new File("$baseDir/assets/email_template.txt")
+    def txt_template = engine.createTemplate(tf).make(email_fields)
+    def email_txt = txt_template.toString()
+
+    // Render the HTML template
+    def hf = new File("$baseDir/assets/email_template.html")
+    def html_template = engine.createTemplate(hf).make(email_fields)
+    def email_html = html_template.toString()
+
+    // Render the sendmail template
+    def smail_fields = [ email: email_address, subject: subject, email_txt: email_txt, email_html: email_html, baseDir: "$baseDir", mqcFile: mqc_report, mqcMaxSize: params.maxMultiqcEmailFileSize.toBytes() ]
+    def sf = new File("$baseDir/assets/sendmail_template.txt")
+    def sendmail_template = engine.createTemplate(sf).make(smail_fields)
+    def sendmail_html = sendmail_template.toString()
+
+    // Send the HTML e-mail
+    if (email_address) {
+        try {
+          if ( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
+          // Try to send HTML e-mail using sendmail
+          [ 'sendmail', '-t' ].execute() << sendmail_html
+          log.info "[nf-core/meripseqpipe] Sent summary e-mail to $email_address (sendmail)"
+        } catch (all) {
+          // Catch failures and try with plaintext
+          [ 'mail', '-s', subject, email_address ].execute() << email_txt
+          log.info "[nf-core/meripseqpipe] Sent summary e-mail to $email_address (mail)"
+        }
+    }
+
+    // Write summary e-mail HTML to a file
+    def output_d = new File( "${params.outdir}/pipeline_info/" )
+    if (!output_d.exists()) {
+      output_d.mkdirs()
+    }
+    def output_hf = new File( output_d, "pipeline_report.html" )
+    output_hf.withWriter { w -> w << email_html }
+    def output_tf = new File( output_d, "pipeline_report.txt" )
+    output_tf.withWriter { w -> w << email_txt }
+
+    c_reset = params.monochrome_logs ? '' : "\033[0m";
+    c_purple = params.monochrome_logs ? '' : "\033[0;35m";
+    c_green = params.monochrome_logs ? '' : "\033[0;32m";
+    c_red = params.monochrome_logs ? '' : "\033[0;31m";
+
+    if (workflow.stats.ignoredCount > 0 && workflow.success) {
+      log.info "${c_purple}Warning, pipeline completed, but with errored process(es) ${c_reset}"
+      log.info "${c_red}Number of ignored errored process(es) : ${workflow.stats.ignoredCount} ${c_reset}"
+      log.info "${c_green}Number of successfully ran process(es) : ${workflow.stats.succeedCount} ${c_reset}"
+    }
+
+    if (workflow.success) {
+        log.info "${c_purple}[nf-core/meripseqpipe]${c_green} Pipeline completed successfully${c_reset}"
+    } else {
+        checkHostname()
+        log.info "${c_purple}[nf-core/meripseqpipe]${c_red} Pipeline completed with errors${c_reset}"
+    }
+
+}
+
+def nfcoreHeader(){
+    // Log colors ANSI codes
+    c_reset = params.monochrome_logs ? '' : "\033[0m";
+    c_dim = params.monochrome_logs ? '' : "\033[2m";
+    c_black = params.monochrome_logs ? '' : "\033[0;30m";
+    c_green = params.monochrome_logs ? '' : "\033[0;32m";
+    c_yellow = params.monochrome_logs ? '' : "\033[0;33m";
+    c_blue = params.monochrome_logs ? '' : "\033[0;34m";
+    c_purple = params.monochrome_logs ? '' : "\033[0;35m";
+    c_cyan = params.monochrome_logs ? '' : "\033[0;36m";
+    c_white = params.monochrome_logs ? '' : "\033[0;37m";
+
+    return """    -${c_dim}--------------------------------------------------${c_reset}-
+                                            ${c_green},--.${c_black}/${c_green},-.${c_reset}
+    ${c_blue}        ___     __   __   __   ___     ${c_green}/,-._.--~\'${c_reset}
+    ${c_blue}  |\\ | |__  __ /  ` /  \\ |__) |__         ${c_yellow}}  {${c_reset}
+    ${c_blue}  | \\| |       \\__, \\__/ |  \\ |___     ${c_green}\\`-._,-`-,${c_reset}
+                                            ${c_green}`._,._,\'${c_reset}
+    ${c_purple}  nf-core/meripseqpipe v${workflow.manifest.version}${c_reset}
+    -${c_dim}--------------------------------------------------${c_reset}-
+    """.stripIndent()
+}
+
+def checkHostname(){
+    def c_reset = params.monochrome_logs ? '' : "\033[0m"
+    def c_white = params.monochrome_logs ? '' : "\033[0;37m"
+    def c_red = params.monochrome_logs ? '' : "\033[1;91m"
+    def c_yellow_bold = params.monochrome_logs ? '' : "\033[1;93m"
+    if (params.hostnames) {
+        def hostname = "hostname".execute().text.trim()
+        params.hostnames.each { prof, hnames ->
+            hnames.each { hname ->
+                if (hostname.contains(hname) && !workflow.profile.contains(prof)) {
+                    log.error "====================================================\n" +
+                            "  ${c_red}WARNING!${c_reset} You are running with `-profile $workflow.profile`\n" +
+                            "  but your machine hostname is ${c_white}'$hostname'${c_reset}\n" +
+                            "  ${c_yellow_bold}It's highly recommended that you use `-profile $prof${c_reset}`\n" +
+                            "============================================================"
+                }
+            }
+        }
+    }
 }
