@@ -1,114 +1,67 @@
+# ![nf-core/meripseqpipe](docs/images/nf-core-meripseqpipe_logo.png)
 
-## m6APipe
-**MeRIP-seq analysis pipeline**
-[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A50.32.0-brightgreen.svg)](https://www.nextflow.io/)
-![Singularity Container available](https://img.shields.io/badge/singularity-available-7E4C74.svg)
-### Introduction
-The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It comes with docker/singularity containers making installation trivial and results highly reproducible. N6-methyladenosine (m6A) is the most prevalent modification in the mRNA of many eukaryotic species, including yeast, plants, flies, and mammals. In order to analyze m6A-seq data, we developed a user-friendly, integrated analysis pipeline called m6APipe based on Nextflow. It integrated ten main functional modules including preprocessing, QC, read mapping, peak calling, merging peaks, differential methylation analysis, differential expression analysis, motif search, annotation, and data visualization. 
-### Documentation   
-A full tutorial of m6APipe can be found at Wiki page of this project. plz go to the https://github.com/kingzhuky/m6APipe/wiki
-#### Quickstart
-##### Install Nextflow
-Install Nextflow by using the following command:
-```
-curl -s https://get.nextflow.io | bash 
-```
-##### Install m6APipe
-```
-git clone https://github.com/kingzhuky/m6APipe.git
-```
-##### Build environment
-Building environment by docker
-```
-docker pull kingzhuky/m6apipe
-```
-Or Building environment by conda. See [details](https://github.com/kingzhuky/m6APipe/wiki/Installation) in Installation.
-##### Launch m6APipe
-Running m6APipe by docker:
-```
-nextflow run path/to/m6APipe/main.nf -c nextflow.config -profile docker
-```
-Running m6APipe by conda:
-```
-nextflow run path/to/m6APipe/main.nf -c nextflow.config
+**MeRIP-seq analysis pipeline arranged multiple alignment tools, peakCalling tools, Merge Peaks' methods and methylation analysis methods.**.
+
+[![Build Status](https://travis-ci.com/nf-core/meripseqpipe.svg?branch=master)](https://travis-ci.com/nf-core/meripseqpipe)
+[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A519.04.0-brightgreen.svg)](https://www.nextflow.io/)
+
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg)](http://bioconda.github.io/)
+[![Docker](https://img.shields.io/docker/automated/kingzhuky/meripseqpipe.svg)](https://hub.docker.com/r/kingzhuky/meripseqpipe)
+
+## Introduction
+
+The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It comes with docker containers making installation trivial and results highly reproducible.N6-methyladenosine (m6A) is the most prevalent modification in the mRNA of many eukaryotic species, including yeast, plants, flies, and mammals. In order to analyze m6A-seq data, we developed a user-friendly, integrated analysis pipeline called m6APipe based on Nextflow. It integrated ten main functional modules including preprocessing, QC, read mapping, peak calling, merging peaks, differential methylation analysis, differential expression analysis, motif search, annotation, and data visualization.
+
+## Quick Start
+
+i. Install [`nextflow`](https://nf-co.re/usage/installation)
+
+ii. Install one of [`docker`](https://docs.docker.com/engine/installation/), [`singularity`](https://www.sylabs.io/guides/3.0/user-guide/) or [`conda`](https://conda.io/miniconda.html)
+
+iii. Download the pipeline and test it on a minimal dataset with a single command
+
+```bash
+nextflow run nf-core/meripseqpipe -profile test,<docker/singularity/conda>
 ```
 
-##### Launch Report builded by R-Shiny
+iv. Start running your own analysis!
+
+<!-- TODO nf-core: Update the default command above used to run the pipeline -->
+```bash
+nextflow run nf-core/meripseqpipe -profile <docker/singularity/conda> --reads '*_R{1,2}.fastq.gz' --gzip --designfile 'designfile.csv' --comparefile 'comparefile.txt'  --genome GRCh37
 ```
-docker pull kingzhuky/m6areport
-m6APipe_result="/path/to/results.m6APipe"              
-m6APipe_igv_js="/path/to/results/Report/Igv_js"         # eg. /data1/m6Apipe/results/Report/Igv_js
-docker run -p 3838:3838 -v $m6APipe_result:/initial.m6APipe -v  $m6APipe_igv_js:/data m6areport
-```
-Then access the report by https://<Your.Server.IP>:3838
 
-### Pipeline Description
-#### Input files
-The m6APipe pipeline needs as the input following files:
-* Paired INPUT and IP samples reads, *.fastq or *.fastq.gz
-* Genome assembly, *.fa
-* Genome annotation, *.gtf
-* Designfile contains grouping and pairing information , *.csv ( comma separated, "," ) 
-* Comparefile for differential analysis, *.txt ( "_vs_" separeted, "," ) 
+See [usage docs](docs/usage.md) for all of the available options when running the pipeline.
 
-##### Designfile
-Edit the nextflow.config and define "readPaths", "designfile", "comparefile", "aligners" and correspondiente alignment index for recommend.
-Designfile is just like the following table with a comma (,) separated, which is .csv suffix file. You also can see in [designfile_test.csv]( https://github.com/kingzhuky/m6APipe/blob/master/test_data/designfile_test.csv).
+## Documentation
 
+The nf-core/meripseqpipe pipeline comes with documentation about the pipeline, found in the `docs/` directory:
 
-| Sample_ID| input_FileName | ip_FileName |  Group |
-| --- | --- | --- | --- |
-| H1A_Endo | A | B | group_Endo |
-| H1A_ES | C | D | group_ES |
-| H1B_Endo | E | F | group_Endo |
-| H1B_ES | G | H | group_ES |
+1. [Installation](https://nf-co.re/usage/installation)
+2. Pipeline configuration
+    * [Local installation](https://nf-co.re/usage/local_installation)
+    * [Adding your own system config](https://nf-co.re/usage/adding_own_config)
+    * [Reference genomes](https://nf-co.re/usage/reference_genomes)
+3. [Running the pipeline](docs/usage.md)
+4. [Output and how to interpret the results](docs/output.md)
+5. [Troubleshooting](https://nf-co.re/usage/troubleshooting)
 
->Tips
->1. A, B, C... mean the filenames of data, just like A.fastq.gz.
->2. If your data is .fastq.gz suffix file, please add the parameter of gzip, just like "--gzip true".
->3. If your filename of data is "Hela_cell_input.fastq.gz", please write its filename as "Hela_cell_input".
+<!-- TODO nf-core: Add a brief overview of what the pipeline does and how it works -->
 
-##### Comparefile
-Comparefile is just like the following text which is a "\_vs\_" between two groups, just like the file [comparefile.txt](
-https://github.com/kingzhuky/m6APipe/blob/master/test_data/comparefile.txt). 
->group_Endo_vs_group_ES
-#### Pipeline Steps
-m6APipe allows you to run pipelines skip the tools by your params.
-You can skip the tools by using `--skip_ToolsName` or not(default), just like `--skip_metpeak`.
-And you can change the mode parameter by using `--Parameter  Selection`, just like `--peakMerged_mode mspc`
+## Credits
 
-| Step  | Pipeline |  Mode Parameter | Selection|
-| :-: | :-: | :-: | :-: |
-| Raw Data QC  | Fastp, FastQC  |-|-|
-| Reads Mapping      | star, bwa, tophat, hisat2  |aligners|"star" OR "bwa" OR "tophat2" OR "hisat2" OR "none"|
-| Sort BAM file AND Post-alignment QC  | samtools, RSeQC     |-|-|
-| Peak Calling | MeTPeak, MACS2, MATK, meyer|peakCalling_mode |"group" OR "independence"|
-| Combines Peaks information   | RobustRankAggreg, BEDtools, MSPC  |peakMerged_mode |"rank" OR "macs2" OR "MATK" OR "metpeak" OR "mspc"|
-| Methylation analysis  | MeTDiff, QNB, MATK, Wilcox-test, DESeq2, edgeR |methylation_analysis_mode|"MATK" OR "QNB" OR "Wilcox-test" OR "MeTDiff" OR "edgeR" OR "DESeq2"|
-| Expression analysis    | htseq, DESeq2, edgeR |expression_analysis_mode |"DESeq2" OR "edgeR" OR "none"|
+nf-core/meripseqpipe was originally written by Kaiyu Zhu, Yu Sun.
 
-### Dependencies
-* Softwares
-    * [Fastqc](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
-    * [Fastp](https://github.com/OpenGene/fastp)
-    * [RSeQC](http://rseqc.sourceforge.net/)
-    * [MultiQC](https://multiqc.info/)
-    * [STAR](https://github.com/alexdobin/STAR)
-    * [BWA](https://github.com/lh3/bwa)
-    * [TopHat](https://ccb.jhu.edu/software/tophat/)
-    * [HISAT2](https://ccb.jhu.edu/software/hisat2/)
-    * [Bowtie2](https://github.com/BenLangmead/bowtie2)
-    * [samtools](http://www.htslib.org/)
-    * [MeTPeak](https://github.com/compgenomics/MeTPeak)
-    * [MATK](http://matk.renlab.org)
-    * [Meyer]()
-    * [MACS2](https://github.com/taoliu/MACS)
-    * [BEDtools](https://bedtools.readthedocs.io/en/latest/index.html)
-    * [RobustRankAggreg](https://cran.r-project.org/web/packages/RobustRankAggreg/index.html)
-    * [MeTDiff](https://github.com/compgenomics/MeTDiff)
-    * [QNB](https://cran.r-project.org/src/contrib/Archive/QNB/)
-    * [htseq](https://github.com/simon-anders/htseq)
-    * [deseq2](http://bioconductor.org/packages/DESeq2/)
-    * [edgeR](http://bioconductor.org/packages/edgeR/)
-    * Several R packages for downstream analysis.
+## Contributions and Support
 
+If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md).
+
+For further information or help, don't hesitate to get in touch on [Slack](https://nfcore.slack.com/channels/nf-core/meripseqpipe) (you can join with [this invite](https://nf-co.re/join/slack)).
+
+## Citation
+
+<!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi. -->
+<!-- If you use  nf-core/meripseqpipe for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
+
+You can cite the `nf-core` pre-print as follows:  
+Ewels PA, Peltzer A, Fillinger S, Alneberg JA, Patel H, Wilm A, Garcia MU, Di Tommaso P, Nahnsen S. **nf-core: Community curated bioinformatics pipelines**. *bioRxiv*. 2019. p. 610741. [doi: 10.1101/610741](https://www.biorxiv.org/content/10.1101/610741v1).

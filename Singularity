@@ -1,36 +1,48 @@
-From:nfcore/base
-Bootstrap:docker
-
-%labels
-    DESCRIPTION Singularity image containing all requirements for the nf-core/m6APipe pipeline
-    VERSION 1.0dev
-
-%environment
-    PATH=/opt/conda/envs/nf-core-m6APipe-1.0dev/bin:$PATH
-    export PATH
-    export PATH=$PATH:/home/wqj/miniconda3/bin
-    export PATH=$PATH:/home/wqj/miniconda3/envs/tools_in_python3/bin
-    export PATH=$PATH:/home/wqj/miniconda3/envs/tools_in_python2/bin
-
+Bootstrap: docker
+From: nfcore/base:1.7
 %files
-    environment.yml /
-
+environment.yml /
+%labels
+authors="Kaiyu Zhu, Yu Sun" 
+description="Docker image containing all requirements for nf-core/meripseqpipe pipeline"
 %post
-    /opt/conda/bin/conda env create -f /environment.yml
-    /opt/conda/bin/conda clean -a
-    conda install --yes nextflow fastqc bedtools ucsc-gtftogenepred hiast bowtie2 bwa samtools star tophat
-    conda install --yes bioconductor-edger bioconductor-deseq2 htseq bioconductor-exomepeak macs2 python=2.7.13
-    conda install --yes -c bioconda rseqc=2.6.4
-    conda install --yes -c bioconda meme=5.0.2
-    conda install -c bioconda homer=4.9.1
-    conda install -c bioconda ucsc-bedtobigbed
-    conda install cufflinks=2.2.1
-    conda install -c bioconda bioconductor-genogam=1.8.0
-    conda install -c bioconda pepr=1.1.24
-    conda install -c r r-stringr=1.3.1
-    conda install -c bioconda bioconductor-exomepeak=2.14.0
-    conda install -c bioconda bioconductor-genomeinfodb=1.10.3
-  - QNB=1.1.11
-  - MetPeak=1.0.0
-  - MetDIff=1.0.0
 
+conda env create -f /environment.yml && conda clean -a
+PATH=/opt/conda/bin:$PATH
+PATH=/opt/conda/envs/nf-core-meripseqpipe-1.0dev/bin:$PATH
+PATH=/mspc:$PATH
+
+# install MATK
+wget http://matk.renlab.org/download/MATK-1.0.jar
+
+# install QNB
+wget https://cran.r-project.org/src/contrib/Archive/QNB/QNB_1.1.11.tar.gz && \
+R CMD INSTALL QNB_1.1.11.tar.gz && \
+rm QNB_1.1.11.tar.gz
+
+# install MeTDiff
+git clone https://github.com/compgenomics/MeTDiff.git && \
+R CMD build MeTDiff/ && \
+R CMD INSTALL MeTDiff_1.0.tar.gz && \
+rm -rf MeTDiff*
+
+# install MeTPeak
+git clone https://github.com/compgenomics/MeTPeak.git && \
+R CMD build MeTPeak/ && \
+R CMD INSTALL MeTPeak_1.0.0.tar.gz && \
+rm -rf MeTPeak*
+
+# install MSPC
+conda install -y unzip
+wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/download/v4.0.0/linux-x64.zip" && \
+unzip mspc.zip -d mspc && \
+chmod 775 mspc/mspc && \
+rm mspc.zip
+%environment
+export PATH=/opt/conda/bin:$PATH
+export PATH=/opt/conda/envs/nf-core-meripseqpipe-1.0dev/bin:$PATH
+export PATH=/mspc:$PATH
+%runscript
+exec /bin/bash "$@"
+%startscript
+exec /bin/bash "$@"

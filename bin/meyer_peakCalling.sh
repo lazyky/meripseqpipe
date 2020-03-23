@@ -9,8 +9,20 @@ designfile=$1
 chrName_file=$2
 genomebin_dir=$3
 peak_windows_number=$4
-THREAD_NUM=$5
+task_cpus=$5
 flag_peakCallingbygroup=$6
+
+## define the multi thread of this script
+chr_num=$(cat $chrName_file | wc -l)
+shell_THREAD_NUM=$((${task_cpus}/${chr_num}))
+echo -e "task cpus: ${task_cpus}\nscripts cpus: ${shell_THREAD_NUM}\nmeyer cpus: ${chr_num}"
+
+mkfifo tmp
+exec 9<>tmp
+for ((i=1;i<=${shell_THREAD_NUM};i++))
+do
+    echo >&9  
+done
 
 function meyer_peakCalling()
 {
@@ -47,6 +59,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
     group_list=$(awk 'BEGIN{FS=","}NR>1{print $4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for group_id in $group_list
     do
+    read -u 9
     {
         count=$(ls *input_${group_id}*.bam| wc -w)
         if [ $count -gt 1 ]; then
@@ -58,16 +71,19 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
         fi
         samtools index ${group_id}_input.bam
         samtools index ${group_id}_ip.bam
-        meyer_peakCalling ${group_id}_input.bam ${group_id}_ip.bam group_${group_id} $chrName_file $genomebin_dir $peak_windows_number $THREAD_NUM
-    }
+        meyer_peakCalling ${group_id}_input.bam ${group_id}_ip.bam group_${group_id} $chrName_file $genomebin_dir $peak_windows_number $chr_num
+        echo >&9
+    }&
     done
 else
     sample_list=$(awk 'BEGIN{FS=","}NR>1{print $1}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for sample_id in $sample_list
     do
+    read -u 9
     {
-        meyer_peakCalling ${sample_id}.input*.bam ${sample_id}.ip*.bam $sample_id $chrName_file $genomebin_dir $peak_windows_number $THREAD_NUM
-    }
+        meyer_peakCalling ${sample_id}.input*.bam ${sample_id}.ip*.bam $sample_id $chrName_file $genomebin_dir $peak_windows_number $chr_num
+        echo >&9
+    }&
     done
 fi
 wait
