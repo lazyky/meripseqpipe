@@ -70,7 +70,7 @@ NXF_OPTS='-Xms1g -Xmx4g'
 The typical command for running the pipeline is as follows:
 
 ```bash
-nextflow run nf-core/meripseqpipe --readPaths 'path/to/data' --designfile 'path/to/designfile/design.csv' --comparefile 'path/to/designfile/compare.txt' -profile docker
+nextflow run nf-core/meripseqpipe --reads '*_R{1,2}.fastq.gz' --designfile 'path/to/designfile/design.csv' --comparefile 'path/to/designfile/compare.txt' -profile docker
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
