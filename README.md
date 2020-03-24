@@ -21,14 +21,14 @@ ii. Install one of [`docker`](https://docs.docker.com/engine/installation/), [`s
 iii. Download the pipeline and test it on a minimal dataset with a single command
 
 ```bash
-nextflow run nf-core/meripseqpipe -profile test,<docker/singularity/conda>
+nextflow run path/to/meripseqpipe -profile test,<docker/singularity/conda>
 ```
 
 iv. Start running your own analysis!
 
 <!-- TODO nf-core: Update the default command above used to run the pipeline -->
 ```bash
-nextflow run nf-core/meripseqpipe -profile <docker/singularity/conda> --reads '*_R{1,2}.fastq.gz' --gzip --designfile 'designfile.csv' --comparefile 'comparefile.txt'  --genome GRCh37
+nextflow run path/to/meripseqpipe -profile <docker/singularity/conda> --reads '*_R{1,2}.fastq.gz' --gzip --designfile 'designfile.csv' --comparefile 'comparefile.txt'  --genome GRCh37
 ```
 
 See [usage docs](docs/usage.md) for all of the available options when running the pipeline.
