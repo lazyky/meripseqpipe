@@ -12,7 +12,7 @@
     - [Reproducibility](#reproducibility)
   - [Main arguments](#main-arguments)
     - [`-profile`](#profile)
-    - [`--readPaths`](#readpaths)
+    - [`--reads`](#reads)
     - [`--singleEnd`](#singleend)
     - [`--gzip`](#gzip)
     - [`--stranded`](#stranded)
@@ -123,13 +123,21 @@ If `-profile` is not specified at all the pipeline will be run locally and expec
 
 <!-- TODO nf-core: Document required command line parameters -->
 
-### `--readPaths`
+### `--reads`
 
-Use this to specify the location of your input data files. For example:
+Use this to specify the location of your input FastQ files. For example:
 
 ```bash
---readPaths 'path/to/data/'
+--reads 'path/to/data/sample_*_{1,2}.fastq'
 ```
+
+Please note the following requirements:
+
+1. The path must be enclosed in quotes
+2. The path must have at least one `*` wildcard character
+3. When using the pipeline with paired end data, the path must use `{1,2}` notation to specify read pairs.
+
+If left unspecified, a default pattern is used: `data/*{1,2}.fastq.gz`
 
 ### `--singleEnd`
 
