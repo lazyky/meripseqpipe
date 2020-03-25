@@ -1059,7 +1059,7 @@ Channel
     .into{ arranged_qc; qc_results_for_report }
 
 process multiqc{
-    label 'report'
+    label 'reporter'
     publishDir "${params.outdir}/Report/QCReadsReport" , mode: 'link', overwrite: true
     
     when:
@@ -1460,7 +1460,7 @@ process MotifSearching {
 }
 
 process QCPeaksReport {
-    label 'report'
+    label 'reporter'
     publishDir "${params.outdir}/Report/QCPeaksReport", mode: 'link', overwrite: true
     
     input:
@@ -1650,7 +1650,7 @@ Channel
     .set{ results_arrange }
 
 process DiffReport {
-    label 'report'
+    label 'reporter'
     publishDir "${params.outdir}/Report" , mode: 'link', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf(".html") > 0)  "diffReport/$filename"
@@ -1689,7 +1689,7 @@ process DiffReport {
 }
 
 process CreateIGVjs {
-    label 'report'
+    label 'reporter'
     publishDir "${params.outdir}/Report" , mode: 'link', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf(".html") > 0)  "Igv_js/$filename"

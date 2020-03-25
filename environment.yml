@@ -1,12 +1,12 @@
 name: nf-core-meripseqpipe-1.0dev
 channels:
   - r
-  - anaconda
   - conda-forge
   - bioconda
+  - anaconda
   - defaults
 dependencies:
-  - openjdk=8.0.152
+  - openjdk=8.0.192
   - r-base=3.5
   - python=2.7.15
   - fastqc=0.11.8
