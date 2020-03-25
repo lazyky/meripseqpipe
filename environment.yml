@@ -27,7 +27,7 @@ dependencies:
   - macs2=2.1.2
   - meme=5.0.2
   - homer=4.9.1
-  - dos2unix=6.0.3
+  - dos2unix=7.4.1
   - bioconductor-edger=3.24.1
   - bioconductor-deseq2=1.22.1
   - igvtools=2.3.93
