@@ -7,8 +7,8 @@ channels:
   - defaults
 dependencies:
   - openjdk=8.0.192
-  - r-base=3.5
   - python=2.7.15
+  - picard=2.21.6
   - fastqc=0.11.8
   - fastp=0.19.7
   - bedtools=2.27.1
@@ -23,12 +23,12 @@ dependencies:
   - samtools=1.9
   - rseqc=2.6.4
   - htseq=0.11.2
-  - cufflinks=2.2.1
   - macs2=2.1.2
   - meme=5.0.2
   - homer=4.9.1
   - dos2unix=7.4.1
-  - bioconductor-edger=3.24.1
+  - r-base=3.5.1
+  - bioconductor-edger=3.26.0
   - bioconductor-deseq2=1.22.1
   - igvtools=2.3.93
   - bioconductor-exomepeak=2.16.0
@@ -43,9 +43,7 @@ dependencies:
   - r-ggrepel=0.8.1
   - r-ggsci=2.9
   - r-pheatmap=1.0.12
-  - r-dplyr=0.8.3
-  - r-knitr=1.24
-  - r-stringr=1.4.0
+  - r-dplyr=0.8.0.1
+  - r-knitr=1.22
   - r-ggseqlogo=0.1
-  - pandoc=2.7.3
   - r-rmarkdown=1.10
