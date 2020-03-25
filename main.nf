@@ -117,13 +117,7 @@ params.help = false
 if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
     exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
 }
-// Reference index path configuration
-// Define these here - after the profiles are loaded with the iGenomes paths
-params.star_index = params.genome ? params.genomes[ params.genome ].star ?: false : false
-params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
-params.gtf = params.genome ? params.genomes[ params.genome ].gtf ?: false : false
-params.bed12 = params.genome ? params.genomes[ params.genome ].bed12 ?: false : false
-params.hisat2_index = params.genome ? params.genomes[ params.genome ].hisat2 ?: false : false
+
 
 // TODO nf-core: Add any reference files that are needed
 // Configurable reference genomes
@@ -133,7 +127,13 @@ params.hisat2_index = params.genome ? params.genomes[ params.genome ].hisat2 ?: 
 //   input:
 //   file fasta from ch_fasta
 //
+// Reference index path configuration
+// Define these here - after the profiles are loaded with the iGenomes paths
+params.star_index = params.genome ? params.genomes[ params.genome ].star ?: false : false
 params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
+params.gtf = params.genome ? params.genomes[ params.genome ].gtf ?: false : false
+params.bed12 = params.genome ? params.genomes[ params.genome ].bed12 ?: false : false
+params.hisat2_index = params.genome ? params.genomes[ params.genome ].hisat2 ?: false : false
 
 // Has the run name been specified by the user?
 //  this has the bonus effect of catching both -name and --name
@@ -659,7 +659,7 @@ process Tophat2Align {
                 --no-novel-juncs \
                 --library-type $strand_info \
                 $index_base \
-                $reads &> ${sample_name}_log.txt
+                $reads > ${sample_name}_log.txt
         mv $sample_name/accepted_hits.bam ${sample_name}_tophat2.bam
         """
     } else {
@@ -670,7 +670,7 @@ process Tophat2Align {
                 --no-novel-juncs \
                 --library-type $strand_info \
                 $index_base \
-                ${reads[0]} ${reads[1]} &> ${sample_name}_log.txt
+                ${reads[0]} ${reads[1]} > ${sample_name}_log.txt
         mv $sample_name/accepted_hits.bam ${sample_name}_tophat2.bam
         """
     }
@@ -742,7 +742,7 @@ process BWAAlign{
         bwa samse -f ${sample_name}_bwa.sam \
                 $index_base \
                 ${reads.baseName}.sai \
-                $reads &> ${sample_name}_log.txt
+                $reads > ${sample_name}_log.txt
         samtools view -@ ${task.cpus} -h -bS ${sample_name}_bwa.sam > ${sample_name}_bwa.bam
         rm *.sam
         """
@@ -759,7 +759,7 @@ process BWAAlign{
         bwa sampe -f ${sample_name}_bwa.sam \
                 $index_base \
                 ${reads[0].baseName}.sai ${reads[1].baseName}.sai \
-                ${reads[0]} ${reads[1]} &> ${sample_name}_log.txt
+                ${reads[0]} ${reads[1]} > ${sample_name}_log.txt
         samtools view -@ ${task.cpus} -h -bS ${sample_name}_bwa.sam > ${sample_name}_bwa.bam
         rm *.sam
         """
@@ -797,7 +797,7 @@ process StarAlign {
             --alignIntronMin 20 \
             --alignIntronMax 100000 \
             --alignMatesGapMax 1000000 \
-            --outFileNamePrefix ${sample_name}  &> ${sample_name}_log.txt
+            --outFileNamePrefix ${sample_name}  > ${sample_name}_log.txt
         mv ${sample_name}Aligned.out.bam ${sample_name}_star.bam
         """
     } else {
@@ -813,7 +813,7 @@ process StarAlign {
             --alignIntronMin 20 \
             --alignIntronMax 1000000 \
             --alignMatesGapMax 1000000 \
-            --outFileNamePrefix ${sample_name} &> ${sample_name}_log.txt
+            --outFileNamePrefix ${sample_name} > ${sample_name}_log.txt
         mv ${sample_name}Aligned.out.bam ${sample_name}_star.bam
         """
     }
@@ -1795,7 +1795,7 @@ process get_software_versions {
     echo $workflow.nextflow.version > v_nextflow.txt
     fastqc --version > v_fastqc.txt
     multiqc --version > v_multiqc.txt
-    scrape_software_versions.py &> software_versions_mqc.yaml
+    python ${baseDir}/bin/scrape_software_versions.py &> software_versions_mqc.yaml
     """
 }
 
