@@ -117,6 +117,13 @@ params.help = false
 if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
     exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
 }
+// Reference index path configuration
+// Define these here - after the profiles are loaded with the iGenomes paths
+params.star_index = params.genome ? params.genomes[ params.genome ].star ?: false : false
+params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
+params.gtf = params.genome ? params.genomes[ params.genome ].gtf ?: false : false
+params.bed12 = params.genome ? params.genomes[ params.genome ].bed12 ?: false : false
+params.hisat2_index = params.genome ? params.genomes[ params.genome ].hisat2 ?: false : false
 
 // TODO nf-core: Add any reference files that are needed
 // Configurable reference genomes
@@ -552,10 +559,13 @@ process Fastp{
         sample_name = filename
         add_aligners = sample_name + "_aligners.fastq"
         """
+        if [ \$(ls ${sample_name}*.gz | wc -w) -gt 0 && $gzip == "false" ]; 
+            then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; 
+            exit 1;
+        fi 
         if [ $gzip == "true" ]; then
             zcat ${reads} > ${sample_name}.fastq
         fi
-        if [ -f "${sample_name}.fastq" ]; then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; exit 1; fi 
         if [ $skip_fastp == "false" ]; then
             fastp -i ${sample_name}.fastq -o ${add_aligners} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
         else
@@ -568,11 +578,14 @@ process Fastp{
         add_aligners_1 = sample_name + "_1_aligners.fastq"
         add_aligners_2 = sample_name + "_2_aligners.fastq"
         """
+        if [ \$(ls ${sample_name}*.gz | wc -w) -gt 0 && $gzip == "false" ];
+            then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; 
+            exit 1;
+        fi 
         if [ $gzip == "true" ]; then
             zcat ${reads[0]} > ${sample_name}_1.fastq
             zcat ${reads[1]} > ${sample_name}_2.fastq
         fi
-        if [ -f "${sample_name}*1.fastq" ]; then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; exit 1; fi 
         if [ $skip_fastp == "false" ]; then  
             fastp -i ${sample_name}*1.fastq -o ${add_aligners_1} -I ${sample_name}*2.fastq -O ${add_aligners_2} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
         else
