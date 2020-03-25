@@ -53,7 +53,7 @@ def helpMessage() {
 
     Options:
       --inputformat                 fastq.gz;fastq default = fastq
-      --singleEnd                   Specifies that the input is single end reads
+      --single_end                   Specifies that the input is single end reads
       --tophat2_index               Path to tophat2 index, eg. "path/to/Tophat2Index/*"
       --hisat2_index                Path to hisat2 index, eg. "path/to/Hisat2Index/*"
       --bwa_index                   Path to bwa index, eg. "path/to/BwaIndex/*"
@@ -229,7 +229,7 @@ if ( params.readPaths ){
             .fromPath( params.readPaths )
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
-    } else if ( params.singleEnd ) {
+    } else if ( params.single_end ) {
         Channel
             .from( params.readPaths )
             .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
@@ -242,12 +242,12 @@ if ( params.readPaths ){
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     }
-}else if( params.reads &&  aligner != "none" ){
+}else if( params.reads && aligner != "none" ){
     Channel
-        .fromFilePairs( "${params.reads}", size: params.singleEnd ? 1 : 2 )
+        .fromFilePairs( "${params.reads}", size: params.single_end ? 1 : 2 )
         .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.reads}")}
         .into{ raw_data; raw_bam }
-}else if( params.reads &&  aligner == "none" ){
+}else if( params.reads && aligner == "none" ){
     Channel
         .fromPath( params.reads ) 
         .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no bam files supplied: ${params.reads}")}
@@ -295,7 +295,7 @@ if (params.email || params.email_on_fail) {
     println (LikeletUtils.print_yellow("MultiQC maxsize                 : ") + LikeletUtils.print_green(params.maxMultiqcEmailFileSize))
 }
 println LikeletUtils.print_yellow("=====================================Reads types================================")
-println (LikeletUtils.print_yellow("SingleEnd                      : ") + LikeletUtils.print_green(params.singleEnd ? 'Single-End' : 'Paired-End'))
+println (LikeletUtils.print_yellow("SingleEnd                      : ") + LikeletUtils.print_green(params.single_end ? 'Single-End' : 'Paired-End'))
 println (LikeletUtils.print_yellow("Stranded                       : ") + LikeletUtils.print_green(params.stranded))
 println (LikeletUtils.print_yellow("gzip                           : ") + LikeletUtils.print_green(params.gzip))
 
@@ -360,7 +360,7 @@ process makeBED12 {
  * PREPROCESSING - Build TOPHAT2 index
  * NEED genome.fa
  */
-if( params.tophat2_index &&  aligner == "tophat2" ){
+if( params.tophat2_index && aligner == "tophat2" ){
     tophat2_index = Channel
         .fromPath( params.tophat2_index )
         .ifEmpty { exit 1, "Tophat2 index not found: ${params.tophat2_index}" }
@@ -395,7 +395,7 @@ if( params.tophat2_index &&  aligner == "tophat2" ){
  * PREPROCESSING - Build HISAT2 index
  * NEED genome.fa genes.gtf snp.txt/vcf
  */
-if( params.hisat2_index &&  aligner == "hisat2" ){
+if( params.hisat2_index && aligner == "hisat2" ){
     hisat2_index = Channel
         .fromPath(params.hisat2_index)
         .ifEmpty { exit 1, "hisat2 index not found: ${params.hisat2_index}" }
@@ -431,7 +431,7 @@ if( params.hisat2_index &&  aligner == "hisat2" ){
  * PREPROCESSING - Build BWA index
  * NEED genome.fa
  */
-if( params.bwa_index &&  aligner == "bwa" ){
+if( params.bwa_index && aligner == "bwa" ){
     bwa_index = Channel
         .fromPath( params.bwa_index )
         .ifEmpty { exit 1, "bwa index not found: ${params.bwa_index}" }
@@ -449,7 +449,7 @@ if( params.bwa_index &&  aligner == "bwa" ){
         file "BWAIndex/*" into bwa_index
 
         when:
-         aligner == "bwa"
+        aligner == "bwa"
      
         script:
         """
@@ -467,7 +467,7 @@ if( params.bwa_index &&  aligner == "bwa" ){
  * PREPROCESSING - Build STAR index
  * NEED genome.fa genes.gtf
  */
-if( params.star_index &&  aligner == "star"){
+if( params.star_index && aligner == "star"){
     star_index = Channel
         .fromPath(params.star_index)
         .ifEmpty { exit 1, "STAR index not found: ${params.star_index}" }
@@ -485,7 +485,7 @@ if( params.star_index &&  aligner == "star"){
         file "StarIndex" into star_index
 
         when:
-         aligner == "star"
+        aligner == "star"
 
         script:
         readLength = 50
@@ -554,7 +554,7 @@ process Fastp{
     shell:
     skip_fastp = params.skip_fastp
     gzip = params.gzip
-    if ( params.singleEnd ){
+    if ( params.single_end ){
         filename = reads.toString() - ~/(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners = sample_name + "_aligners.fastq"
@@ -608,11 +608,11 @@ process Fastqc{
     file "fastqc/*" into fastqc_results
 
     when:
-     aligner != "none" && !params.skip_fastqc
+    aligner != "none" && !params.skip_fastqc
 
     shell:
     skip_fastqc = params.skip_fastqc
-    if ( params.singleEnd ){
+    if ( params.single_end ){
         """
         mkdir fastqc
         fastqc -o fastqc --noextract ${reads}
@@ -646,12 +646,12 @@ process Tophat2Align {
     file "*_log.txt" into tophat2_log
     
     when:
-     aligner == "tophat2"
+    aligner == "tophat2"
 
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.fa)?(\.bt2)?$/
     strand_info = params.stranded == "no" ? "fr-unstranded" : params.stranded == "reverse" ? "fr-secondstrand" : "fr-firststrand"
-    if (params.singleEnd) {
+    if (params.single_end) {
         """
         tophat  -p ${task.cpus} \
                 -G $gtf \
@@ -691,11 +691,11 @@ process Hisat2Align {
     file "*_summary.txt" into hisat2_log
 
     when:
-     aligner == "hisat2"
+    aligner == "hisat2"
 
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
-    if (params.singleEnd) {
+    if (params.single_end) {
         """
         hisat2  --summary-file ${sample_name}_hisat2_summary.txt\
                 -p ${task.cpus} --dta \
@@ -729,11 +729,11 @@ process BWAAlign{
     file "*" into bwa_result
 
     when:
-     aligner == "bwa"
+    aligner == "bwa"
 
     script:
     index_base = index[0].toString() - ~/(\.pac)?(\.bwt)?(\.ann)?(\.amb)?(\.sa)?(\.fa)?$/
-    if (params.singleEnd) {
+    if (params.single_end) {
         """
         bwa aln -t ${task.cpus} \
                 -f ${reads.baseName}.sai \
@@ -781,10 +781,10 @@ process StarAlign {
     file "*.final.out" into star_log
 
     when:
-     aligner == "star"
+    aligner == "star"
 
     script:
-    if (params.singleEnd) {
+    if (params.single_end) {
         """
         STAR --runThreadN ${task.cpus} \
             --twopassMode Basic \
@@ -837,7 +837,7 @@ process FilterrRNA {
 
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
-    if (params.singleEnd) {
+    if (params.single_end) {
         """
         hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
             --no-spliced-alignment --no-softclip --norc --no-unal \
@@ -873,7 +873,7 @@ process FilterrRNA {
 ========================================================================================
 */ 
 
-if(  aligner != "none"){
+if( aligner != "none"){
     Channel
         .from()
         .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam)
@@ -1263,7 +1263,7 @@ process HtseqCount{
     script:
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
     strand_info = params.stranded == "no" ? "no" : params.stranded == "reverse" ? "reverse" : "yes"
-   // strand_info = params.singleEnd ? " " : " -p"
+   // strand_info = params.single_end ? " " : " -p"
     """
     bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus}
     Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile ${task.cpus} 
@@ -1808,7 +1808,7 @@ summary['Run Name']         = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
 summary['Reads']            = params.reads
 summary['Fasta Ref']        = params.fasta
-summary['Data Type']        = params.singleEnd ? 'Single-End' : 'Paired-End'
+summary['Data Type']        = params.single_end ? 'Single-End' : 'Paired-End'
 summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
 if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
 summary['Output dir']       = params.outdir
