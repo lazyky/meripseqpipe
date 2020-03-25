@@ -108,18 +108,18 @@ Use this parameter to choose a configuration profile. Profiles can give configur
 
 If `-profile` is not specified at all the pipeline will be run locally and expects all software to be installed and available on the `PATH`.
 
-* `conda`
-  * A generic configuration profile to be used with [conda](https://conda.io/docs/)
-  * Pulls most software from [Bioconda](https://bioconda.github.io/)
-* `docker`
-  * A generic configuration profile to be used with [Docker](http://docker.com/)
-  * Pulls software from dockerhub: [`nfcore/meripseqpipe`](http://hub.docker.com/r/nfcore/meripseqpipe/)
-* `singularity`
-  * A generic configuration profile to be used with [Singularity](http://singularity.lbl.gov/)
-  * Pulls software from DockerHub: [`nfcore/meripseqpipe`](http://hub.docker.com/r/nfcore/meripseqpipe/)
-* `test`
-  * A profile with a complete configuration for automated testing
-  * Includes links to test data so needs no other parameters
+- `conda`
+  - A generic configuration profile to be used with [conda](https://conda.io/docs/)
+  - Pulls most software from [Bioconda](https://bioconda.github.io/)
+- `docker`
+  - A generic configuration profile to be used with [Docker](http://docker.com/)
+  - Pulls software from dockerhub: [`nfcore/meripseqpipe`](http://hub.docker.com/r/nfcore/meripseqpipe/)
+- `singularity`
+  - A generic configuration profile to be used with [Singularity](http://singularity.lbl.gov/)
+  - Pulls software from DockerHub: [`nfcore/meripseqpipe`](http://hub.docker.com/r/nfcore/meripseqpipe/)
+- `test`
+  - A profile with a complete configuration for automated testing
+  - Includes links to test data so needs no other parameters
 
 <!-- TODO nf-core: Document required command line parameters -->
 
@@ -233,18 +233,19 @@ If you prefer, you can specify the mode of meripseqpipe when you run the pipelin
 The pipeline config files come bundled with paths to the illumina iGenomes reference index files. If running with docker or AWS, the configuration is set up to use the [AWS-iGenomes](https://ewels.github.io/AWS-iGenomes/) resource.
 
 ### `--genome` (using iGenomes)
+
 There are 31 different species supported in the iGenomes references. To run the pipeline, you must specify which to use with the `--genome` flag.
 
 You can find the keys to specify the genomes in the [iGenomes config file](../conf/igenomes.config). Common genomes that are supported are:
 
-* Human
-  * `--genome GRCh37`
-* Mouse
-  * `--genome GRCm38`
-* _Drosophila_
-  * `--genome BDGP6`
-* _S. cerevisiae_
-  * `--genome 'R64-1-1'`
+- Human
+  - `--genome GRCh37`
+- Mouse
+  - `--genome GRCm38`
+- _Drosophila_
+  - `--genome BDGP6`
+- _S. cerevisiae_
+  - `--genome 'R64-1-1'`
 
 > There are numerous others - check the config file for more.
 
@@ -312,21 +313,20 @@ Do not load `igenomes.config` when running the pipeline. You may choose this opt
 The pipeline contains four tools for PeakCalling. Sometimes, it may not be desirable to run all of them.
 The following options make this easy:
 
-* `--skip_metpeak` -          Skip MeTPeak
-* `--skip_macs2` -            Skip MACS2
-* `--skip_matk` -             Skip MATK
-* `--skip_meyer` -            Skip Meyer
+- `--skip_metpeak` -          Skip MeTPeak
+- `--skip_macs2` -            Skip MACS2
+- `--skip_matk` -             Skip MATK
+- `--skip_meyer` -            Skip Meyer
 
 ### `--skip_fastp`, `--skip_fastqc`, `--skip_rseqc`, `--skip_createbedgraph`
 
 The pipeline contains multiple tools for QC. Sometimes, it may not be desirable to run all of them.
 The following options make this easy:
 
-* `--skip_fastp` -             Skip MeTPeak
-* `--skip_fastqc` -            Skip MACS2
-* `--skip_rseqc` -             Skip MATK
-* `--skip_createbedgraph` -    Skip Meyer
-
+- `--skip_fastp` -             Skip MeTPeak
+- `--skip_fastqc` -            Skip MACS2
+- `--skip_rseqc` -             Skip MATK
+- `--skip_createbedgraph` -    Skip Meyer
 
 ## Job resources
 
@@ -381,6 +381,7 @@ This is used in the MultiQC report (if not default) and in the summary HTML / e-
 **NB:** Single hyphen (core Nextflow option)
 
 ### `-resume`
+
 Specify this when restarting a pipeline. Nextflow will used cached results from any pipeline steps where the inputs are the same, continuing from where it got to previously.
 
 You can also supply a run name to resume a specific run: `-resume [run-name]`. Use the `nextflow log` command to show previous run names.
@@ -388,6 +389,7 @@ You can also supply a run name to resume a specific run: `-resume [run-name]`. U
 **NB:** Single hyphen (core Nextflow option)
 
 ### `-c`
+
 Specify the path to a specific config file (this is a core NextFlow command).
 
 **NB:** Single hyphen (core Nextflow option)
@@ -435,6 +437,7 @@ Use to set a top-limit for the default time requirement for each process.
 Should be a string in the format integer-unit. eg. `--max_time '2.h'`
 
 ### `--max_cpus`
+
 Use to set a top-limit for the default CPU requirement for each process.
 Should be a string in the format integer-unit. eg. `--max_cpus 1`
 

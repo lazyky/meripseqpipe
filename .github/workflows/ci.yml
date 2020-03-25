@@ -21,8 +21,8 @@ jobs:
           sudo mv nextflow /usr/local/bin/
       - name: Pull docker image
         run: |
-          docker pull nfcore/meripseqpipe:dev
-          docker tag nfcore/meripseqpipe:dev nfcore/meripseqpipe:dev
+          docker pull kingzhuky/meripseqpipe:dev
+          docker tag kingzhuky/meripseqpipe:dev kingzhuky/meripseqpipe:dev
       - name: Run pipeline with test data
         run: |
           # Run the pipeline with the test profile

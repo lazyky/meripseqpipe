@@ -5,6 +5,7 @@ This document describes the output produced by the pipeline. Most of the plots a
 <!-- TODO nf-core: Write this documentation describing your workflow's output -->
 
 ## Pipeline overview
+
 The pipeline is built using [Nextflow](https://www.nextflow.io/)
 and processes data using the following steps:
 
@@ -34,21 +35,26 @@ and processes data using the following steps:
   - [Differtial Methylation Analysis](#differtial-methylation-analysis)
     - [MeTDiff](#metdiff)
     - [QNB](#qnb)
-    - [DESeq2](#deseq2)
-    - [edgeR](#edger)
+    - [DESeq2_DM](#deseq2dm)
+    - [edgeR_DM](#edgerdm)
   - [Differtial Expression Analysis](#differtial-expression-analysis)
     - [htseq](#htseq)
-    - [DESeq2](#deseq2-1)
-    - [edgeR](#edger-1)
+    - [DESeq2_DE](#deseq2de)
+    - [edgeR_DE](#edgerde)
   - [Reports](#reports)
 
 Several R packages for downstream analysis.
+
 ## Quality Control
+
 **Output directory: `results/QC/`**
+
 ### Fastp
-[Fastp](https://github.com/OpenGene/fastp) 
+
+[Fastp](https://github.com/OpenGene/fastp)
 
 **Output directory: `results/QC/fastp`**
+
 ### FastQC
 
 [FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) gives general quality metrics about your reads. It provides information about the quality score distribution across your reads, the per base sequence content (%T/A/G/C). You get information about adapter contamination and other overrepresented sequences.
@@ -59,79 +65,122 @@ For further reading and documentation see the [FastQC help](http://www.bioinform
 
 **Output directory: `results/QC/fastqc`**
 
-* `sample_fastqc.html`
-  * FastQC report, containing quality metrics for your untrimmed raw fastq files
-* `zips/sample_fastqc.zip`
-  * zip file containing the FastQC report, tab-delimited data file and plot images
+- `sample_fastqc.html`
+  - FastQC report, containing quality metrics for your untrimmed raw fastq files
+- `zips/sample_fastqc.zip`
+  - zip file containing the FastQC report, tab-delimited data file and plot images
 
 ### RSeQC
+
 [RSeQC](http://rseqc.sourceforge.net/)
 
 **Output directory: `results/QC/RSeQC`**
+
 ### MultiQC
+
 [MultiQC](http://multiqc.info) is a visualisation tool that generates a single HTML report summarising all samples in your project. Most of the pipeline QC results are visualised in the report and further statistics are available in within the report data directory.
 
 The pipeline has special steps which allow the software versions used to be reported in the MultiQC output for future traceability.
 
 **Output directory: `results/QC/multiqc`**
 
-* `Project_multiqc_report.html`
-  * MultiQC report - a standalone HTML file that can be viewed in your web browser
-* `Project_multiqc_data/`
-  * Directory containing parsed statistics from the different tools used in the pipeline
+- `Project_multiqc_report.html`
+  - MultiQC report - a standalone HTML file that can be viewed in your web browser
+- `Project_multiqc_data/`
+  - Directory containing parsed statistics from the different tools used in the pipeline
 
 For more information about how to use MultiQC reports, see [http://multiqc.info](http://multiqc.info)
+
 ## Align reasults
+
 **Output directory: `results/QC/multiqc`**
+
 ### STAR
+
 [STAR](https://github.com/alexdobin/STAR)
+
 ### BWA
+
 [BWA](https://github.com/lh3/bwa)
 
 ### TopHat2
+
 [TopHat2](https://ccb.jhu.edu/software/tophat/)
 
 ### HISAT2
+
 [HISAT2](https://ccb.jhu.edu/software/hisat2/)
+
 ## SAMtools
+
 [SAMtools](http://www.htslib.org/)
+
 ## PeakCalling
+
 ### MeTPeak
+
 [MeTPeak](https://github.com/compgenomics/MeTPeak)
+
 ### MATK
+
 [MATK](http://matk.renlab.org)
+
 ### Meyer
-[Meyer]()
+
+[meyer](http://matk.renlab.org)
+
 ### MACS2
+
 [MACS2](https://github.com/taoliu/MACS)
 
-
 ## PeakMerged
+
 ### RobustRankAggreg
+
 [RobustRankAggreg](https://cran.r-project.org/web/packages/RobustRankAggreg/index.html)
+
 ### MSPC
+
 [MSPC]
+
 ### BEDtools
+
 [BEDtools](https://bedtools.readthedocs.io/en/latest/index.html)
 
 ## M6A sites prediction
+
 [MATK](http://matk.renlab.org)
+
 ## Differtial Methylation Analysis
+
 ### MeTDiff
+
 [MeTDiff](https://github.com/compgenomics/MeTDiff)
+
 ### QNB
+
 [QNB](https://cran.r-project.org/src/contrib/Archive/QNB/)
-### DESeq2
+
+### DESeq2_DM
+
 [DESeq2](http://bioconductor.org/packages/DESeq2/)
-### edgeR
+
+### edgeR_DM
+
 [edgeR](http://bioconductor.org/packages/edgeR/)
 
 ## Differtial Expression Analysis
+
 ### htseq
+
 [htseq](https://github.com/simon-anders/htseq)
-### DESeq2
+
+### DESeq2_DE
+
 [DESeq2](http://bioconductor.org/packages/DESeq2/)
-### edgeR
+
+### edgeR_DE
+
 [edgeR](http://bioconductor.org/packages/edgeR/)
 
 ## Reports
