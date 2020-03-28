@@ -47,3 +47,4 @@ dependencies:
   - r-knitr=1.22
   - r-ggseqlogo=0.1
   - r-rmarkdown=1.10
+  - pandoc=2.7.3

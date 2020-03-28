@@ -245,12 +245,12 @@ if ( params.readPaths ){
 }else if( params.reads && aligner != "none" ){
     Channel
         .fromFilePairs( "${params.reads}", size: params.single_end ? 1 : 2 )
-        .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no fastq files supplied: ${params.reads}")}
+        .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no fastq files supplied: ${params.reads}. You may check whether it is quoted")}
         .into{ raw_data; raw_bam }
 }else if( params.reads && aligner == "none" ){
     Channel
         .fromPath( params.reads ) 
-        .ifEmpty { exit 1, LikeletUtils.print_red("readPaths was empty - no bam files supplied: ${params.reads}")}
+        .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no bam files supplied: ${params.reads}")}
         .into{ raw_data; raw_bam }
 } 
 else{
@@ -307,7 +307,7 @@ println (LikeletUtils.print_yellow("expression_analysis_mode       : ") + Likele
 println (LikeletUtils.print_yellow("methylation_analysis_mode      : ") + LikeletUtils.print_green(params.methylation_analysis_mode))
 
 println LikeletUtils.print_yellow("==================================Input files selected==========================")
-println (LikeletUtils.print_yellow("Reads Path                     : ") + LikeletUtils.print_green(params.reads ? "github" : params.reads))
+println (LikeletUtils.print_yellow("Reads Path                     : ") + LikeletUtils.print_green(params.readPaths ? "github" : params.reads))
 println (LikeletUtils.print_yellow("fasta file                     : ") + LikeletUtils.print_green(params.fasta))
 println (LikeletUtils.print_yellow("Gtf file                       : ") + LikeletUtils.print_green(params.gtf))
 println (LikeletUtils.print_yellow("Design file                    : ") + LikeletUtils.print_green(params.designfile))
@@ -1059,7 +1059,6 @@ Channel
     .into{ arranged_qc; qc_results_for_report }
 
 process multiqc{
-    label 'reporter'
     publishDir "${params.outdir}/Report/QCReadsReport" , mode: 'link', overwrite: true
     
     when:
@@ -1460,7 +1459,6 @@ process MotifSearching {
 }
 
 process QCPeaksReport {
-    label 'reporter'
     publishDir "${params.outdir}/Report/QCPeaksReport", mode: 'link', overwrite: true
     
     input:
@@ -1650,7 +1648,6 @@ Channel
     .set{ results_arrange }
 
 process DiffReport {
-    label 'reporter'
     publishDir "${params.outdir}/Report" , mode: 'link', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf(".html") > 0)  "diffReport/$filename"
@@ -1689,7 +1686,6 @@ process DiffReport {
 }
 
 process CreateIGVjs {
-    label 'reporter'
     publishDir "${params.outdir}/Report" , mode: 'link', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf(".html") > 0)  "Igv_js/$filename"
