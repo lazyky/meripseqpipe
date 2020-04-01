@@ -16,7 +16,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
 
 i. Install [`nextflow`](https://nf-co.re/usage/installation)
 
-ii. Install one of [`docker`](https://docs.docker.com/engine/installation/), [`singularity`](https://www.sylabs.io/guides/3.0/user-guide/) or [`conda`](https://conda.io/miniconda.html)
+ii. Install one of [`docker`](https://docs.docker.com/engine/installation/) or [`conda`](https://conda.io/miniconda.html)
 
 iii. Download the pipeline and test it on a minimal dataset with a single command
 
@@ -24,13 +24,13 @@ iii. Download the pipeline and test it on a minimal dataset with a single comman
 nextflow run path/to/meripseqpipe -profile test,<docker/singularity/conda>
 ```
 
-> Please check [nf-core/configs](https://github.com/nf-core/configs#documentation) to see if a custom config file to run nf-core pipelines already exists for your Institute. If so, you can simply use `-profile <institute>` in your command. This will enable either `docker` or `singularity` and set the appropriate execution settings for your local compute environment.
+> Please check [nf-core/configs](https://github.com/nf-core/configs#documentation) to see if a custom config file to run nf-core pipelines already exists for your Institute. If so, you can simply use `-profile <institute>` in your command. This will enable either `docker` or `conda` and set the appropriate execution settings for your local compute environment.
 
 iv. Start running your own analysis!
 
 <!-- TODO nf-core: Update the default command above used to run the pipeline -->
 ```bash
-nextflow run path/to/meripseqpipe -profile <docker/singularity/conda> --reads '*_R{1,2}.fastq.gz' --gzip --designfile 'designfile.csv' --comparefile 'comparefile.txt'  --genome GRCh37
+nextflow run path/to/meripseqpipe -profile <docker/singularity/conda> --reads '*_R{1,2}.fastq.gz' --gzip --designfile 'designfile.csv' --comparefile 'comparefile.txt'  --fasta path/to/genome_fasta.fa --gtf path/to/genome_annotation.gtf
 ```
 
 See [usage docs](docs/usage.md) for all of the available options when running the pipeline.
