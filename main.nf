@@ -170,12 +170,6 @@ if ( params.rRNA_fasta ){
 }else{
     rRNA_fasta = Channel.from("")
 }
-if( params.designfile ) {
-    designfile = file(params.designfile, checkIfExists: true)
-    if( !designfile.exists() ) exit 1, LikeletUtils.print_red("Design file not found: ${params.designfile}")
-}else{
-    exit 1, LikeletUtils.print_red("No Design file specified!")
-}
 if( params.comparefile == "two_group" ){
     comparefile = false
     compareLines = Channel.from("two_group")
@@ -242,7 +236,14 @@ if ( params.readPaths ){
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
             .into{ raw_data; raw_bam }
     }
-}else if( params.reads && aligner != "none" ){
+}else if( params.designfile ) {
+    designfile = file(params.designfile, checkIfExists: true)
+    if( !designfile.exists() ) exit 1, LikeletUtils.print_red("Design file not found: ${params.designfile}")
+    LikeletUtils.extractData(designfile).into{ raw_data ; raw_bam}
+}else{
+    exit 1, LikeletUtils.print_red("No Design file specified!")
+}
+/* else if( params.reads && aligner != "none" ){
     Channel
         .fromFilePairs( "${params.reads}", size: params.single_end ? 1 : 2 )
         .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no fastq files supplied: ${params.reads}. You may check whether it is quoted")}
@@ -255,7 +256,7 @@ if ( params.readPaths ){
 } 
 else{
     println LikeletUtils.print_red("reads was empty: ${params.reads}")
-}
+} */
 
 /*
                          showing the process and files
@@ -541,11 +542,10 @@ process Fastp{
              saveAs: { params.skip_fastp ? null : it }, mode: 'link'
         
     input:
-    set sample_name, file(reads) from raw_data
+    set val(sample_id), file(reads), val(reads_single_end), val(gzip), val(input), val(group)  from raw_data
 
     output:
-    val sample_name into pair_id_fastqc, pair_id_tophat2, pair_id_hisat2, pair_id_bwa, pair_id_star, pair_id_rRNA
-    file "*_aligners.fastq" into fastqc_reads ,tophat2_reads, hisat2_reads, bwa_reads, star_reads, rRNA_reads
+    set val(sample_name), file("*_aligners.fastq"), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) into fastqc_reads ,tophat2_reads, hisat2_reads, bwa_reads, star_reads, rRNA_reads
     file "*.{html,json}" into fastp_results
 
     when:
@@ -553,16 +553,11 @@ process Fastp{
 
     shell:
     skip_fastp = params.skip_fastp
-    gzip = params.gzip
-    if ( params.single_end ){
+    if ( reads_single_end ){
         filename = reads.toString() - ~/(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
         add_aligners = sample_name + "_aligners.fastq"
         """
-        if [ \$(ls ${sample_name}*.gz | wc -w) -gt 0 && $gzip == "false" ]; 
-            then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; 
-            exit 1;
-        fi 
         if [ $gzip == "true" ]; then
             zcat ${reads} > ${sample_name}.fastq
         fi
@@ -578,10 +573,6 @@ process Fastp{
         add_aligners_1 = sample_name + "_1_aligners.fastq"
         add_aligners_2 = sample_name + "_2_aligners.fastq"
         """
-        if [ \$(ls ${sample_name}*.gz | wc -w) -gt 0 && $gzip == "false" ];
-            then echo "Please check whether your data is compressed and add '--gzip' for running pipeline"; 
-            exit 1;
-        fi 
         if [ $gzip == "true" ]; then
             zcat ${reads[0]} > ${sample_name}_1.fastq
             zcat ${reads[1]} > ${sample_name}_2.fastq
@@ -601,8 +592,7 @@ process Fastqc{
              saveAs: { params.skip_fastqc ? null : it }, mode: 'link'
 
     input:
-    val sample_name from pair_id_fastqc
-    file(reads) from fastqc_reads
+    set val(sample_name), file(reads), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) from fastqc_reads
 
     output:
     file "fastqc/*" into fastqc_results
@@ -612,7 +602,7 @@ process Fastqc{
 
     shell:
     skip_fastqc = params.skip_fastqc
-    if ( params.single_end ){
+    if ( reads_single_end){
         """
         mkdir fastqc
         fastqc -o fastqc --noextract ${reads}
@@ -636,13 +626,12 @@ process Tophat2Align {
     publishDir "${params.outdir}/alignment/tophat2", mode: 'link', overwrite: true
 
     input:
-    val sample_name from pair_id_tophat2
-    file(reads) from tophat2_reads
+    set val(sample_name), file(reads), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) from tophat2_reads
     file index from tophat2_index.collect()
     file gtf
 
     output:
-    file "*_tophat2.bam" into tophat2_bam
+    set val(sample_id), file("*_tophat2.bam"), val(reads_single_end), val(gzip), val(input), val(group) into tophat2_bam
     file "*_log.txt" into tophat2_log
     
     when:
@@ -651,7 +640,7 @@ process Tophat2Align {
     script:
     index_base = index[0].toString() - ~/(\.rev)?(\.\d)?(\.fa)?(\.bt2)?$/
     strand_info = params.stranded == "no" ? "fr-unstranded" : params.stranded == "reverse" ? "fr-secondstrand" : "fr-firststrand"
-    if (params.single_end) {
+    if (reads_single_end) {
         """
         tophat  -p ${task.cpus} \
                 -G $gtf \
@@ -682,12 +671,11 @@ process Hisat2Align {
     publishDir "${params.outdir}/alignment/hisat2", mode: 'link', overwrite: true
 
     input:
-    val sample_name from pair_id_hisat2
-    file(reads) from hisat2_reads
+    set val(sample_name), file(reads), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) from hisat2_reads
     file index from hisat2_index.collect()
 
     output:
-    file "*_hisat2.bam" into hisat2_bam
+    set val(sample_id), file("*_hisat2.bam"), val(reads_single_end), val(gzip), val(input), val(group) into hisat2_bam
     file "*_summary.txt" into hisat2_log
 
     when:
@@ -695,7 +683,7 @@ process Hisat2Align {
 
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
-    if (params.single_end) {
+    if (reads_single_end) {
         """
         hisat2  --summary-file ${sample_name}_hisat2_summary.txt\
                 -p ${task.cpus} --dta \
@@ -720,12 +708,11 @@ process BWAAlign{
     publishDir "${params.outdir}/alignment/bwa", mode: 'link', overwrite: true
     
     input:
-    val sample_name from pair_id_bwa
-    file(reads) from bwa_reads
+    set val(sample_name), file(reads), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) from bwa_reads
     file index from bwa_index.collect()
 
     output:
-    file "*_bwa.bam" into bwa_bam
+    set val(sample_id), file("*_bwa.bam"), val(reads_single_end), val(gzip), val(input), val(group) into bwa_bam
     file "*" into bwa_result
 
     when:
@@ -733,7 +720,7 @@ process BWAAlign{
 
     script:
     index_base = index[0].toString() - ~/(\.pac)?(\.bwt)?(\.ann)?(\.amb)?(\.sa)?(\.fa)?$/
-    if (params.single_end) {
+    if (reads_single_end) {
         """
         bwa aln -t ${task.cpus} \
                 -f ${reads.baseName}.sai \
@@ -772,19 +759,18 @@ process StarAlign {
     publishDir "${params.outdir}/alignment/star", mode: 'link', overwrite: true
     
     input:
-    val sample_name from pair_id_star
-    file(reads) from star_reads
+    set val(sample_name), file(reads), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) from star_reads
     file star_index from star_index.collect()
 
     output:
-    file "*_star.bam" into star_bam
+    set val(sample_id), file("*_star.bam"), val(reads_single_end), val(gzip), val(input), val(group) into star_bam
     file "*.final.out" into star_log
 
     when:
     aligner == "star"
 
     script:
-    if (params.single_end) {
+    if (reads_single_end) {
         """
         STAR --runThreadN ${task.cpus} \
             --twopassMode Basic \
@@ -824,12 +810,11 @@ process FilterrRNA {
     publishDir "${params.outdir}/alignment/rRNA_dup", mode: 'link', overwrite: true
     
     input:
-    val sample_name from pair_id_rRNA
-    file(reads) from rRNA_reads
+    set val(sample_name), file(reads), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) from rRNA_reads
     file index from rRNA_index.collect()
 
     output:
-    file "*_rRNA_sort.bam" into rRNA_bam
+    set val(sample_id), file("*_rRNA_sort.bam"), val(reads_single_end), val(gzip), val(input), val(group) into rRNA_bam
     file "*_summary.txt" into rRNA_log
 
     when:
@@ -837,7 +822,7 @@ process FilterrRNA {
 
     script:
     index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
-    if (params.single_end) {
+    if (reads_single_end) {
         """
         hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
             --no-spliced-alignment --no-softclip --norc --no-unal \
@@ -887,19 +872,21 @@ if( aligner != "none"){
 /*
  * STEP 3-1 - Sort BAM file
 */
-process Sort {
+process SortRename {
     tag "$sample_name"
-
+    publishDir "${params.outdir}/alignment/samtoolsSort/", mode: 'link', overwrite: true
+    
     input:
-    file bam_file from merge_bam_file
+    set val(sample_id), file(bam_file), val(reads_single_end), val(gzip), val(input), val(group) from merge_bam_file
 
     output:
-    file "*_sort*.{bam,bai}" into rename_bam_file
+    file "*.{bam,bai}" into rseqc_bam, bedgraph_bam ,test2
+    set val(sample_id), val(group) into format_design
     file "*.bam" into bam_results
 
     script:
-    sample_name = bam_file.toString() - ~/(\.bam)?$/
-    output = sample_name + "_sort.bam"
+    sample_name = sample_id + (input ? ".input_" : ".ip_") + group
+    output = sample_name + ".bam"
     mapq_cutoff = (params.mapq_cutoff).toInteger() 
     if (!params.skip_sort){
         """
@@ -912,46 +899,41 @@ process Sort {
         """
     } else {
         """
-        for bam_file in *.bam
-        do
-        {
-            if [ "$mapq_cutoff" -gt "0" ]; then
-                samtools view -hubq $mapq_cutoff $bam_file > $output
-            else
-                mv $bam_file $output
-            fi
-            samtools index -@ ${task.cpus} $output
-        }
-        done
+        if [ "$mapq_cutoff" -gt "0" ]; then
+            samtools view -hubq $mapq_cutoff $bam_file > $output
+        else
+            mv $bam_file $output
+        fi
+        samtools index -@ ${task.cpus} $output
         """
     }
 }
 
-process RenameByDesignfile{
-    publishDir "${params.outdir}/alignment/samtoolsSort/", mode: 'link', overwrite: true
-
+test2.collect().set{sort_bam}
+process CheckDesignCompare{
     input:
-    file (reads) from rename_bam_file.collect()
-    file designfile  // designfile:filename,control_treated,input_ip
+    val design_info from format_design.collect()
     file comparefile
 
     output:
-    file "*.{input,ip}_*.{bam,bai}" into sort_bam
-    file ("formatted_designfile.txt") into formatted_designfile
-    file "*" into rename_results
+    file (formatted_design) into formatted_designfile
 
     script:
-    println LikeletUtils.print_purple("Rename the files for downstream analysis")
-    aligners_name =  aligner
+    formatted_design = "formatted_designfile.txt"
+    formatted_design_info = ""
+    for(int i = 0; i < design_info.size(); i+=2 ) {
+        sample = design_info[i] + ".input," + design_info[i] + ".ip"
+        formatted_design_info += design_info[i] + "," + sample + "," + design_info[i+1] + "\n"
+    }
     """
-    # Windows and linux newline ^M conversion
-    cat $designfile | dos2unix |sed '1s/.*/Sample_ID,input_FileName,ip_FileName,Group/g' |awk NF > formatted_designfile.txt
+    echo "Sample_ID,input_FileName,ip_FileName,Group" > $formatted_design
+    echo "$formatted_design_info" |awk NF |sort | uniq >> $formatted_design
     # Check the consistency of designfile and comparefile
     if [ "$comparefile" != "false" ]; then 
         ## get groups' name in comparefile
         cat $comparefile | dos2unix | awk -F "_vs_" '{print \$1"\\n"\$2}' | sort | uniq > tmp.compare.group
         ## get groups' name in designfile
-        awk -F, 'NR>1{print \$4}' formatted_designfile.txt | sort | uniq > tmp.design.group
+        awk -F, 'NR>1{print \$4}' $formatted_design | sort | uniq > tmp.design.group
         intersection_num=\$(join tmp.compare.group tmp.design.group | wc -l)
         if [[ \$intersection_num  != \$(cat tmp.compare.group| wc -l) ]] ;then 
             echo "The groups' name of comparefile and designfile are inconsistent."
@@ -961,14 +943,13 @@ process RenameByDesignfile{
         fi
         rm tmp.compare.group tmp.design.group
     fi
-    bash $baseDir/bin/rename.sh $aligners_name formatted_designfile.txt
-    bash $baseDir/bin/rename_for_resume.sh formatted_designfile.txt
     """
 }
 /*
  * STEP 3-2 - RSeQC analysis
 */
 process RSeQC {
+    tag "$output"
     publishDir "${params.outdir}/QC/rseqc" , mode: 'copy', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf("bam_stat.txt") > 0)                      "bam_stat/$filename"
@@ -994,37 +975,46 @@ process RSeQC {
     !params.skip_qc && !params.skip_rseqc
 
     input:
-    file bam_rseqc from sort_bam.collect()
+    file bam_file from rseqc_bam
     file bed12 from bed12file.collect()
 
     output:
     file "*" into rseqc_results
     file "*.bam_stat.txt" into bam_stat_for_normlization
-    script:
 
+    script:
+    output = bam_file[0].toString() - ~/(\.bam)?$/
     """    
-    bash $baseDir/bin/rseqc.sh $bed12 ${task.cpus}
+    infer_experiment.py -i ${bam_file[0]} -r ${bed12} > ${output}.infer_experiment.txt
+    junction_annotation.py -i ${bam_file[0]}  -o ${output}.rseqc -r ${bed12}
+    bam_stat.py -i ${bam_file[0]}  > ${output}.bam_stat.txt
+    junction_saturation.py -i ${bam_file[0]}  -o ${output}.rseqc -r ${bed12} 2> ${output}.junction_annotation_log.txt
+    inner_distance.py -i ${bam_file[0]}  -o ${output}.rseqc -r ${bed12}
+    read_distribution.py -i ${bam_file[0]}  -r ${bed12} > ${output}.read_distribution.txt
+    read_duplication.py -i ${bam_file[0]}  -o ${output}.read_duplication
     """
 }
 
 process CreateBedgraph{
+    tag "$output"
     publishDir "${params.outdir}/QC/rseqc/", mode: 'link', overwrite: true ,
         saveAs: {filename ->
             if (filename.indexOf("bedgraph") > 0) "bedgraph/$filename"
         }
 
     input:
-    file bam from sort_bam.collect()
+    file bam_file from bedgraph_bam
 
     output:
-    file "*.bedgraph" into bedgraph_for_genebody
+    file "*.bedgraph" into bedgraph_for_genebody, bedgraph_for_igv
 
     when:
     !params.skip_createbedgraph
 
     script:
+    output = bam_file[0].toString() - ~/(\.bam)?$/
     """
-    bash $baseDir/bin/create_bedgraph.sh ${task.cpus}
+    bamCoverage -b ${bam_file[0]} --outFileFormat bedgraph -o ${output}.bedgraph -p ${task.cpus}
     """
 }
 
@@ -1042,7 +1032,7 @@ process GenebodyCoverage {
     !params.skip_rseqc && !params.skip_genebody_coverage
 
     input:
-    file bedgraph from bedgraph_for_genebody
+    file bedgraph from bedgraph_for_genebody.collect()
     file bed12 from bed12file.collect()
 
     output:
@@ -1075,6 +1065,7 @@ process multiqc{
     multiqc -n multiqc_$aligner .
     """
 }
+
 /*
 ========================================================================================
                             Step 4 Peak Calling
@@ -1262,7 +1253,7 @@ process HtseqCount{
     script:
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
     strand_info = params.stranded == "no" ? "no" : params.stranded == "reverse" ? "reverse" : "yes"
-   // strand_info = params.single_end ? " " : " -p"
+   // strand_info = reads_single_end? " " : " -p"
     """
     bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus}
     Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile ${task.cpus} 
@@ -1699,7 +1690,7 @@ process CreateIGVjs {
     file formatted_designfile from formatted_designfile.collect()
     file group_bed from group_merged_bed.collect()
     file all_bed from all_merged_bed.collect()
-    file bedgraph from bedgraph_for_genebody.collect()
+    file bedgraph from bedgraph_for_igv.collect()
     
     output:
     file "*" into igv_js
@@ -1804,7 +1795,7 @@ summary['Run Name']         = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
 summary['Reads']            = params.reads
 summary['Fasta Ref']        = params.fasta
-summary['Data Type']        = params.single_end ? 'Single-End' : 'Paired-End'
+// summary['Data Type']        = params.single_end ? 'Single-End' : 'Paired-End'
 summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
 if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
 summary['Output dir']       = params.outdir

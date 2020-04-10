@@ -43,7 +43,7 @@ class LikeletUtils {
             return file(it)
           }
         // extrct fastq information from tsvFile
-        static def extractFastq1(tsvFile) {
+        static def extractData(tsvFile) {
           // Channeling the TSV file containing FASTQ.
           // Format is: "subject gender status sample lane fastq1 fastq2"
           def inputData = Channel.from(tsvFile)
@@ -53,17 +53,18 @@ class LikeletUtils {
             def idSample  = row[0]
             def fastqFile1 = file(row[1])
             def fastqFile2 = file(row[2])
+            def group = row[5]
+            def input = true
             def gzip = false
             def readsSingle = false
             if (row[1].endsWith(".gz") == true ){
               gzip = true
             } 
-            println (row[2])
             if (row[2].endsWith("false") == true){
               readsSingle = true
-              [idSample, [fastqFile1], readsSingle, gzip]
+              [idSample, [fastqFile1], readsSingle, gzip, input, group]
             } else {
-              [idSample, [fastqFile1, fastqFile2], readsSingle, gzip]
+              [idSample, [fastqFile1, fastqFile2], readsSingle, gzip, input, group]
             }
           }
           def ipData = Channel.from(tsvFile)
@@ -73,6 +74,8 @@ class LikeletUtils {
             def idSample  = row[0]
             def fastqFile1 = file(row[3])
             def fastqFile2 = file(row[4])
+            def group = row[5]
+            def input = false
             def gzip = false
             def readsSingle = false
             if (row[3].endsWith(".gz") == true ){
@@ -80,9 +83,9 @@ class LikeletUtils {
             } 
             if (row[4].endsWith("false") == true){
               readsSingle = true
-              [idSample, [fastqFile1], readsSingle, gzip]
+              [idSample, [fastqFile1], readsSingle, gzip, input, group]
             } else {
-              [idSample, [fastqFile1, fastqFile2], readsSingle, gzip]
+              [idSample, [fastqFile1, fastqFile2], readsSingle, gzip, input, group]
             }          
           }
           return inputData.mix(ipData)
