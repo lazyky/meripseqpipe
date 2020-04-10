@@ -28,14 +28,14 @@ jobs:
           # Run the pipeline with the test profile
           nextflow run ${GITHUB_WORKSPACE} -profile test,docker --skip_peakCalling --skip_expression
           # Run, build reference genome with HISAT2
-          nextflow run ${GITHUB_WORKSPACE} -profile test,docker --aligners hisat2 --skip_peakCalling --skip_expression -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners hisat2 --skip_peakCalling --skip_expression -resume
           # Run, build reference genome with BWA
-          nextflow run ${GITHUB_WORKSPACE} -profile test,docker --aligners bwa --skip_peakCalling --skip_expression -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners bwa --skip_peakCalling --skip_expression -resume
           # Run, input date of the suffix of bam
           nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker -resume
-          # Run, test PeakCalling mode 'group' and Methylation Analysis mode 'QNB'
-          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakCalling_mode group --skip_expression --methylation_analysis_mode QNB -resume
-          # Run, test PeakMerged mode 'rank' and Methylation Analysis mode 'MATK'
-          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakMerged_mode mspc --skip_expression --methylation_analysis_mode MATK -resume
+          # Run, test PeakMerged mode 'metpeak' and Methylation Analysis mode 'MATK'
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakMerged_mode metpeak --skip_expression --methylation_analysis_mode MATK -resume
           # Run, test one of PeakMerged mode 'bedtools' and Methylation Analysis mode 'DESeq2'
           nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakMerged_mode macs2 --skip_expression --methylation_analysis_mode DESeq2 -resume
+          # Run, test PeakCalling mode 'group' and Methylation Analysis mode 'QNB'
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakCalling_mode group --skip_expression --methylation_analysis_mode QNB -resume
