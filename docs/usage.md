@@ -176,36 +176,35 @@ By default, the pipeline will keep multi mapping reads for PeakCalling. If you w
 ### `--designfile`
 
 Edit the nextflow.config and define "readPaths", "aligners", "designfile", "comparefile" and correspondiente alignment index for recommend.
-Designfile is just like the following table with a comma (,) separated, which is .csv suffix file. It's recommended edited by Excel and save as .csv suffix file.
+Designfile is just like the following table splited by tabs ("\t") separated, which is .csv suffix file. It's recommended edited by Excel and save as .tsv suffix file.
 
 ```bash
 --singleEnd --readPaths 'path/to/data/' --designfile 'path/to/designfile/design.csv'
 ```
 
 Example:
-| Sample_ID | input_FileName | ip_FileName | Group |
-| --- | --- | --- | --- |
-| H1A_Endo | A | B | group_Endo |
-| H1A_ES | C | D | group_ES |
-| H1B_Endo | E | F | group_Endo |
-| H1B_ES | G | H | group_ES |
+| Sample_ID | input_R1 |	input_R2 |	ip_R1 | ip_R2 |	Group_ID |
+| --- | --- | --- | --- | --- | --- |
+| AB_sample | path/to/A.fastq.gz | false | path/to/B1.fastq.gz | path/to/B2.fastq.gz | ABEF |
+| CD_sample | path/to/C.fastq.gz | false | path/to/D.fastq.gz | false | CDGH |
+| EF_sample | path/to/E1.fastq | path/to/E2.fastq | path/to/F.fastq.gz | false | ABEF |
+| GH_sample | path/to/G1.fastq | path/to/G2.fastq | path/to/H1.fastq.gz | path/to/H2.fastq.gz | CDGH |
 
 >Tips
 >
->1. A, B, C... mean the filenames of data, just like A.fastq.gz.
->2. If your data is .fastq.gz suffix file, please add the parameter of gzip, just like "--gzip true".
->3. If your filename of data is "Hela_cell_input.fastq.gz", please write its filename as "Hela_cell_input".
+>1. You can use absolute path and relative path of data in designfile, but absolute path is more recommended.
+>2. The designfile is very important for analysis
 
 ### `--comparefile`
 
 Comparefile is just like the following text which is a "\_vs\_" between two groups.
 
 ```bash
---singleEnd --readPaths 'path/to/data/' --designfile 'path/to/designfile/design.csv' --comparefile 'path/to/designfile/compare.txt'
+ --designfile 'path/to/designfile/design.csv' --comparefile 'path/to/designfile/compare.txt'
 ```
 
 Example:
->group_Endo_vs_group_ES
+>Control_vs_Treated
 
 ### `--aligners`, `--peakCalling_mode`, `--peakMerged_mode`, `--expression_analysis_mode`, `--methylation_analysis_mode`
 
