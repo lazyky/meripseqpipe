@@ -183,7 +183,7 @@ Designfile is just like the following table splited by tabs ("\t") separated, wh
 ```
 
 Example:
-| Sample_ID | input_R1 |	input_R2 |	ip_R1 | ip_R2 |	Group_ID |
+| Sample_ID | input_R1 | input_R2 | ip_R1 | ip_R2 | Group_ID |
 | --- | --- | --- | --- | --- | --- |
 | AB_sample | path/to/A.fastq.gz | false | path/to/B1.fastq.gz | path/to/B2.fastq.gz | ABEF |
 | CD_sample | path/to/C.fastq.gz | false | path/to/D.fastq.gz | false | CDGH |
