@@ -9,6 +9,7 @@ designfile=$1
 genome_size=$2
 flag_peakCallingbygroup=$3
 THREAD_NUM=$4
+arguments=`echo ${@:5}`
 # Define a multi-threaded run channel
 mkfifo tmp
 exec 9<>tmp
@@ -34,7 +35,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
             ls *ip_${group_id}*.bam | awk 'BEGIN{ORS=" "}{print "ln "$0," macs2_group_'${group_id}'_ip.bam"}' | bash
             ls *input_${group_id}*.bam | awk 'BEGIN{ORS=" "}{print "ln "$0," macs2_group_'${group_id}'_input.bam"}' | bash
         fi
-        macs2 callpeak -t macs2_group_${group_id}_ip.bam -c macs2_group_${group_id}_input.bam -g $genome_size -n macs2_group_${group_id} -p 1e-6 -f BAM --nomodel
+        macs2 callpeak -t macs2_group_${group_id}_ip.bam -c macs2_group_${group_id}_input.bam -g $genome_size -n macs2_group_${group_id} $arguments -f BAM --nomodel
         awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"10^-$8}' macs2_group_${group_id}_peaks.narrowPeak > macs2_group_${group_id}_normalized.bed
         mv macs2_group_${group_id}_summits.bed macs2_group_${group_id}.summits
         echo >&9
@@ -47,7 +48,7 @@ else
     do
     read -u 9
     {
-        macs2 callpeak -t ${sample_id}.ip*.bam -c ${sample_id}.input*.bam -g $genome_size -n macs2_${sample_id} -p 1e-6 -f BAM --nomodel
+        macs2 callpeak -t ${sample_id}.ip*.bam -c ${sample_id}.input*.bam -g $genome_size -n macs2_${sample_id} $arguments -f BAM --nomodel
         awk '{print $1"\t"$2"\t"$3"\t"$1":"$2"-"$3"\t"10^-$8}' macs2_${sample_id}_peaks.narrowPeak > macs2_${sample_id}_normalized.bed
         mv macs2_${sample_id}_summits.bed macs2_${sample_id}.summits
         echo >&9

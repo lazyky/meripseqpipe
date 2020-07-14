@@ -1092,6 +1092,7 @@ process Metpeak {
 
     script: 
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    arguments = params.peak_threshold == "high" ? 2 : params.peak_threshold == "medium" ? 1 : 0
     if( flag_peakCallingbygroup ){
         println LikeletUtils.print_purple("Peak Calling performed by MeTPeak in group mode")
     }else{
@@ -1120,6 +1121,7 @@ process Macs2{
 
     script:
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    arguments = params.peak_threshold == "high" ? "-p 1e-6 --keep-dup 5" : params.peak_threshold == "medium" ? "-q 0.01 --keep-dup 5" : "-q 0.05 --keep-dup 3"
     if( flag_peakCallingbygroup ){
         println LikeletUtils.print_purple("Peak Calling performed by Macs2 in group mode")
     }else{
@@ -1127,7 +1129,7 @@ process Macs2{
     }
     """
     genome_size=\$(faCount $fasta | tail -1 | awk '{print \$2-\$7}')
-    bash $baseDir/bin/macs2.sh $formatted_designfile \$genome_size $flag_peakCallingbygroup ${task.cpus};
+    bash $baseDir/bin/macs2.sh $formatted_designfile \$genome_size $flag_peakCallingbygroup ${task.cpus} $arguments;
     """ 
 }
 
@@ -1150,6 +1152,7 @@ process MATKpeakCalling {
     script:
     matk_jar = params.matk_jar
     flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    arguments = params.peak_threshold == "high" ? "-q 0.01" : params.peak_threshold == "medium" ? "-q 0.05" : "-q 0.1"
     if( flag_peakCallingbygroup ){
         println LikeletUtils.print_purple("Peak Calling performed by MATK in group mode")
     }else{
@@ -1157,7 +1160,7 @@ process MATKpeakCalling {
     }
     """
     export OMP_NUM_THREADS=${task.cpus}
-    bash $baseDir/bin/MATK_peakCalling.sh $matk_jar $formatted_designfile $flag_peakCallingbygroup
+    bash $baseDir/bin/MATK_peakCalling.sh $matk_jar $formatted_designfile $flag_peakCallingbygroup $arguments
     """    
 }
 
