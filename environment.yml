@@ -23,7 +23,6 @@ dependencies:
   - samtools=1.9
   - rseqc=2.6.4
   - subread=2.0.1
-  - r-data.table
   - macs2=2.1.2
   - meme=5.0.2
   - homer=4.9.1
