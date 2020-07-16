@@ -534,6 +534,7 @@ process MakerRNAindex {
 ========================================================================================
 */ 
 process Fastp{
+    label 'fastp'
     tag "$sample_name"
     //errorStrategy 'ignore'
     publishDir path: { params.skip_fastp ? params.outdir : "${params.outdir}/QC/fastp" },
@@ -871,6 +872,7 @@ if( aligner != "none"){
  * STEP 3-1 - Sort BAM file
 */
 process SortRename {
+    label 'sort'
     tag "$sample_name"
     publishDir "${params.outdir}/alignment/samtoolsSort/", mode: 'link', overwrite: true
     
@@ -1235,7 +1237,7 @@ process Meyer{
                         Step 5 Differential expression analysis
 ========================================================================================
 */
-process HtseqCount{
+process FeatureCount{
     label 'analysis'
     publishDir "${params.outdir}/expressionAnalysis/htseq-count", mode: 'link', overwrite: true
 
@@ -1252,10 +1254,13 @@ process HtseqCount{
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
     strand_info = params.stranded == "no" ? "no" : params.stranded == "reverse" ? "reverse" : "yes"
    // strand_info = reads_single_end? " " : " -p"
+    // """
+    // bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus}
+    // Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile ${task.cpus} 
+    // """
     """
-    bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus}
-    Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile ${task.cpus} 
-    # Rscript $baseDir/bin/feature_count.R $formatted_designfile $gtf $strand_info ${task.cpus}
+    bash $baseDir/bin/featurecount.sh $gtf $strand_info ${task.cpus}
+    Rscript $baseDir/bin/generate_featurecount_mat.R $formatted_designfile ${task.cpus} 
     """ 
 }
 
