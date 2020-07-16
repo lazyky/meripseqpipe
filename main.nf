@@ -59,10 +59,8 @@ def helpMessage() {
       --bwa_index                   Path to bwa index, eg. "path/to/BwaIndex/*"
       --star_index                  Path to star index, eg. "path/to/StarIndex/"
       --skip_qc                     Skip all QC steps                        
-      --skip_expression             Skip all differential expression analysis steps
       --skip_peakCalling            Skip all Peak Calling steps
       --skip_diffpeakCalling        Skip all Differential methylation analysis
-
     
     Other options:
       --outdir                      The output directory where the results will be saved, defalut = $baseDir/results
@@ -1249,9 +1247,6 @@ process HtseqCount{
     output:
     file "*input*.count" into htseq_count_input, htseq_count_input_to_arrange
     file "expression.matrix" into htseq_results
-
-    when:
-    !params.skip_expression
 
     script:
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")

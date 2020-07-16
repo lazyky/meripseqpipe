@@ -18,7 +18,7 @@ for bam_file in *.input*.bam
 do
 read -u 9
 {
-    htseq-count -f bam --stranded=$strand_info ${bam_file} ${gtf_file} > ${bam_file/%_sort*/}.txt
+    htseq-count -r pos -f bam --stranded=$strand_info ${bam_file} ${gtf_file} > ${bam_file/%_sort*/}.txt
     echo >&9
 }& 
 done
