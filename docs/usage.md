@@ -11,46 +11,43 @@
     - [Updating the pipeline](#updating-the-pipeline)
     - [Reproducibility](#reproducibility)
   - [Main arguments](#main-arguments)
-    - [`-profile`](#profile)
-    - [`--reads`](#reads)
-    - [`--singleEnd`](#singleend)
-    - [`--gzip`](#gzip)
-    - [`--stranded`](#stranded)
-    - [`--mapq_cutoff [int]`](#mapqcutoff-int)
-    - [`--designfile`](#designfile)
-    - [`--comparefile`](#comparefile)
-    - [`--aligners`, `--peakCalling_mode`, `--peakMerged_mode`, `--expression_analysis_mode`, `--methylation_analysis_mode`](#aligners---peakcallingmode---peakmergedmode---expressionanalysismode---methylationanalysismode)
+    - [`-profile`](#-profile)
+    - [`--stranded`](#--stranded)
+    - [`--mapq_cutoff [int]`](#--mapq_cutoff-int)
+    - [`--designfile`](#--designfile)
+    - [`--comparefile`](#--comparefile)
+    - [`--aligners`, `--peakCalling_mode`, `--peakMerged_mode`, `--expression_analysis_mode`, `--methylation_analysis_mode`](#--aligners---peakcalling_mode---peakmerged_mode---expression_analysis_mode---methylation_analysis_mode)
   - [Reference genomes](#reference-genomes)
-    - [`--genome` (using iGenomes)](#genome-using-igenomes)
-    - [`--fasta`](#fasta)
-    - [`--gtf`](#gtf)
-    - [`--tophat2_index`, `hisat2_index`, `--bwa_index`, `--star_index`](#tophat2index-hisat2index---bwaindex---starindex)
-    - [`--rRNA_fasta`](#rrnafasta)
-    - [`--igenomesIgnore`](#igenomesignore)
+    - [`--genome` (using iGenomes)](#--genome-using-igenomes)
+    - [`--fasta`](#--fasta)
+    - [`--gtf`](#--gtf)
+    - [`--tophat2_index`, `hisat2_index`, `--bwa_index`, `--star_index`](#--tophat2_index-hisat2_index---bwa_index---star_index)
+    - [`--rRNA_fasta`](#--rrna_fasta)
+    - [`--igenomesIgnore`](#--igenomesignore)
   - [Skipping steps](#skipping-steps)
-    - [`--skip_metpeak`, `--skip_macs2`, `--skip_matk`, `--skip_meyer`](#skipmetpeak---skipmacs2---skipmatk---skipmeyer)
-    - [`--skip_fastp`, `--skip_fastqc`, `--skip_rseqc`, `--skip_createbedgraph`](#skipfastp---skipfastqc---skiprseqc---skipcreatebedgraph)
+    - [`--skip_metpeak`, `--skip_macs2`, `--skip_matk`, `--skip_meyer`](#--skip_metpeak---skip_macs2---skip_matk---skip_meyer)
+    - [`--skip_fastp`, `--skip_fastqc`, `--skip_rseqc`, `--skip_createbedgraph`](#--skip_fastp---skip_fastqc---skip_rseqc---skip_createbedgraph)
   - [Job resources](#job-resources)
     - [Automatic resubmission](#automatic-resubmission)
     - [Custom resource requests](#custom-resource-requests)
   - [AWS Batch specific parameters](#aws-batch-specific-parameters)
-    - [`--awsqueue`](#awsqueue)
-    - [`--awsregion`](#awsregion)
+    - [`--awsqueue`](#--awsqueue)
+    - [`--awsregion`](#--awsregion)
   - [Other command line parameters](#other-command-line-parameters)
-    - [`--outdir`](#outdir)
-    - [`--email`](#email)
-    - [`--email_on_fail`](#emailonfail)
-    - [`-name`](#name)
-    - [`-resume`](#resume)
-    - [`-c`](#c)
-    - [`--custom_config_version`](#customconfigversion)
-    - [`--custom_config_base`](#customconfigbase)
-    - [`--max_memory`](#maxmemory)
-    - [`--max_time`](#maxtime)
-    - [`--max_cpus`](#maxcpus)
-    - [`--plaintext_email`](#plaintextemail)
-    - [`--monochrome_logs`](#monochromelogs)
-    - [`--multiqc_config`](#multiqcconfig)
+    - [`--outdir`](#--outdir)
+    - [`--email`](#--email)
+    - [`--email_on_fail`](#--email_on_fail)
+    - [`-name`](#-name)
+    - [`-resume`](#-resume)
+    - [`-c`](#-c)
+    - [`--custom_config_version`](#--custom_config_version)
+    - [`--custom_config_base`](#--custom_config_base)
+    - [`--max_memory`](#--max_memory)
+    - [`--max_time`](#--max_time)
+    - [`--max_cpus`](#--max_cpus)
+    - [`--plaintext_email`](#--plaintext_email)
+    - [`--monochrome_logs`](#--monochrome_logs)
+    - [`--multiqc_config`](#--multiqc_config)
 <!-- TOC END -->
 
 ## Introduction
@@ -123,46 +120,12 @@ If `-profile` is not specified at all the pipeline will be run locally and expec
 
 <!-- TODO nf-core: Document required command line parameters -->
 
-### `--reads`
-
-Use this to specify the location of your input FastQ files. For example:
-
-```bash
---reads 'path/to/data/sample_*_{1,2}.fastq'
-```
-
-Please note the following requirements:
-
-1. The path must be enclosed in quotes
-2. The path must have at least one `*` wildcard character
-3. When using the pipeline with paired end data, the path must use `{1,2}` notation to specify read pairs.
-
-If left unspecified, a default pattern is used: `data/*{1,2}.fastq.gz`
-
-### `--singleEnd`
-
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--readPaths`. For example:
-
-```bash
---singleEnd --readPaths 'path/to/data/'
-```
-
-It is not possible to run a mixture of single-end and paired-end files in one run.
-
-### `--gzip`
-
-By default, the pipeline expects uncompressed sequencing data( .fastq ). If you have compressed data( .fastq.gz ), you need to specify `--gzip` on the command line when you launch the pipeline. For example:
-
-```bash
---gzip --readPaths 'path/to/data/'
-```
-
 ### `--stranded`
 
 By default, the pipeline non-strand-specific sequencing data. If you have strand-specific sequencing data data, you need to specify `--stranded [yes/no/reverse]` on the command line when you launch the pipeline. "yes" means foward strand-specific sequencing data while "reverse" means reverse strand-specific sequencing data. "no" means non-strand-specific sequencing data. For example:
 
 ```bash
---stranded yes --readPaths 'path/to/data/'
+--stranded yes
 ```
 
 ### `--mapq_cutoff [int]`
@@ -179,7 +142,7 @@ Edit the nextflow.config and define "readPaths", "aligners", "designfile", "comp
 Designfile is just like the following table splited by tabs ("\t") separated, which is .csv suffix file. It's recommended edited by Excel and save as .tsv suffix file.
 
 ```bash
---singleEnd --readPaths 'path/to/data/' --designfile 'path/to/designfile/design.csv'
+--readPaths 'path/to/data/' --designfile 'path/to/designfile/design.tsv'
 ```
 
 Example:
