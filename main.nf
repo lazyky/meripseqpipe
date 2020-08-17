@@ -220,37 +220,41 @@ if ( params.readPaths ){
         Channel
             .fromPath( params.readPaths )
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-            .into{ raw_data; raw_bam }
+            .into{ raw_fastq; raw_bam }
     } else if ( params.single_end ) {
         Channel
             .from( params.readPaths )
             .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-            .into{ raw_data; raw_bam }
+            .into{ raw_fastq; raw_bam }
     } else {
         Channel
             .from( params.readPaths )
             .map{ row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-            .into{ raw_data; raw_bam }
+            .into{ raw_fastq; raw_bam }
     }
 }else if( params.designfile ) {
     designfile = file(params.designfile, checkIfExists: true)
     if( !designfile.exists() ) exit 1, LikeletUtils.print_red("Design file not found: ${params.designfile}")
-    LikeletUtils.extractData(designfile).into{ raw_data ; raw_bam}
+    LikeletUtils.extractData(designfile).into{ input_data_fastq; input_data_bam; designinfo}
+    input_data_fastq.filter{ it[6] == "fastq" }.map{ it.subList(0,6) }.set{ raw_fastq } //filter filetype & delete filetype
+    input_data_bam.filter{ it[6] == "bam" }.map{ it.subList(0,6) }.set{ raw_bam }
+    designinfo.map{ it.getAt([0,5]) }.set{ format_design }
 }else{
     exit 1, LikeletUtils.print_red("No Design file specified!")
 }
+
 /* else if( params.reads && aligner != "none" ){
     Channel
         .fromFilePairs( "${params.reads}", size: params.single_end ? 1 : 2 )
         .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no fastq files supplied: ${params.reads}. You may check whether it is quoted")}
-        .into{ raw_data; raw_bam }
+        .into{ raw_fastq; raw_bam }
 }else if( params.reads && aligner == "none" ){
     Channel
         .fromPath( params.reads ) 
         .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no bam files supplied: ${params.reads}")}
-        .into{ raw_data; raw_bam }
+        .into{ raw_fastq; raw_bam }
 } 
 else{
     println LikeletUtils.print_red("reads was empty: ${params.reads}")
@@ -332,6 +336,42 @@ println (LikeletUtils.print_yellow("Skip qc                        : ") + Likele
  * PREPROCESSING - Build BED12 file
  * NEED gtf.file
  */
+ process CheckDesignCompare{
+    input:
+    val design_info from format_design.collect()
+    file comparefile
+
+    output:
+    file (formatted_design) into formatted_designfile
+
+    script:
+    formatted_design = "formatted_designfile.txt"
+    formatted_design_info = ""
+    for(int i = 0; i < design_info.size(); i+=2 ) {
+        sample = design_info[i] + ".input," + design_info[i] + ".ip"
+        formatted_design_info += design_info[i] + "," + sample + "," + design_info[i+1] + "\n"
+    }
+    """
+    echo "Sample_ID,input_FileName,ip_FileName,Group" > $formatted_design
+    echo "$formatted_design_info" |awk NF |sort | uniq >> $formatted_design
+    # Check the consistency of designfile and comparefile
+    if [ "$comparefile" != "false" ]; then 
+        ## get groups' name in comparefile
+        cat $comparefile | dos2unix | awk -F "_vs_" '{print \$1"\\n"\$2}' | sort | uniq > tmp.compare.group
+        ## get groups' name in designfile
+        awk -F, 'NR>1{print \$4}' $formatted_design | sort | uniq > tmp.design.group
+        intersection_num=\$(join tmp.compare.group tmp.design.group | wc -l)
+        if [[ \$intersection_num  != \$(cat tmp.compare.group| wc -l) ]] ;then 
+            echo "The groups' name of comparefile and designfile are inconsistent."
+            echo "Please check your comparefile: "$comparefile
+            echo "The groups' name of comparefile in designfile: "\$(join tmp.compare.group tmp.design.group)
+            exit 1
+        fi
+        rm tmp.compare.group tmp.design.group
+    fi
+    """
+}
+
 process makeBED12 {
     label 'build_index'
     tag "gtf2bed12"
@@ -530,7 +570,7 @@ process MakerRNAindex {
 
 /*
 ========================================================================================
-                                Step 1. QC------FastQC
+                                Step 1. QC------Fastp & FastQC
 ========================================================================================
 */ 
 process Fastp{
@@ -541,10 +581,10 @@ process Fastp{
              saveAs: { params.skip_fastp ? null : it }, mode: 'link'
         
     input:
-    set val(sample_id), file(reads), val(reads_single_end), val(gzip), val(input), val(group)  from raw_data
+    set val(sample_id), file(reads), val(reads_single_end), val(gzip), val(input), val(group) from raw_fastq
 
     output:
-    set val(sample_name), file("*_aligners.fastq"), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) into fastqc_reads ,tophat2_reads, hisat2_reads, bwa_reads, star_reads, rRNA_reads
+    set val(sample_name), file("*_aligners.fastq*"), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) into fastqc_reads, fastp_reads
     file "*.{html,json}" into fastp_results
 
     when:
@@ -555,36 +595,30 @@ process Fastp{
     if ( reads_single_end ){
         filename = reads.toString() - ~/(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
-        add_aligners = sample_name + "_aligners.fastq"
+        add_aligners = sample_name + "_aligners.fastq" + gzip ? ".gz" : ""
         """
-        if [ $gzip == "true" ]; then
-            zcat ${reads} > ${sample_name}.fastq
-        fi
         if [ $skip_fastp == "false" ]; then
-            fastp -i ${sample_name}.fastq -o ${add_aligners} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
+            fastp -i ${reads} -o ${add_aligners} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
         else
-            mv ${sample_name}.fastq ${add_aligners}
+            mv ${reads} ${add_aligners}
         fi
         """
     } else {
         filename = reads[0].toString() - ~/(_R[0-9])?(_[0-9])?(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
-        add_aligners_1 = sample_name + "_1_aligners.fastq"
-        add_aligners_2 = sample_name + "_2_aligners.fastq"
+        add_aligners_1 = sample_name + "_1_aligners.fastq" + (gzip ? ".gz" : "")
+        add_aligners_2 = sample_name + "_2_aligners.fastq" + (gzip ? ".gz" : "")
         """
-        if [ $gzip == "true" ]; then
-            zcat ${reads[0]} > ${sample_name}_1.fastq
-            zcat ${reads[1]} > ${sample_name}_2.fastq
-        fi
         if [ $skip_fastp == "false" ]; then  
-            fastp -i ${sample_name}*1.fastq -o ${add_aligners_1} -I ${sample_name}*2.fastq -O ${add_aligners_2} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
+            fastp -i ${reads[0]} -o ${add_aligners_1} -I ${reads[1]} -O ${add_aligners_2} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
         else
-            mv ${sample_name}*1.fastq ${add_aligners_1}
-            mv ${sample_name}*2.fastq ${add_aligners_2}
+            mv ${reads[0]} ${add_aligners_1}
+            mv ${reads[1]} ${add_aligners_2}
         fi
         """
     } 
 }
+
 process Fastqc{
     tag "$sample_name"
     publishDir path: { params.skip_fastqc ? params.outdir : "${params.outdir}/QC" },
@@ -618,7 +652,56 @@ process Fastqc{
 ========================================================================================
                             Step 2. Reads Mapping
 ========================================================================================
-*/ 
+*/
+if(params.rRNA_fasta && !params.skip_filterrRNA){
+    fastp_reads.set{rRNA_reads}
+
+    process FilterrRNA {
+    label 'aligners'
+    tag "$sample_name"
+    publishDir "${params.outdir}/alignment/rRNA_dup", mode: 'link', overwrite: true
+    
+    input:
+    set val(sample_name), file(reads), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) from rRNA_reads
+    file index from rRNA_index.collect()
+
+    output:
+    set val(sample_name), file("*.fastq.gz"), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) into tophat2_reads, hisat2_reads, bwa_reads, star_reads
+    file "*_summary.txt" into rRNA_log
+
+    when:
+    params.rRNA_fasta && !params.skip_filterrRNA
+
+    script:
+    gzip = true
+    index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
+    if (reads_single_end) {
+        """
+        hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
+            --no-spliced-alignment --no-softclip --norc --no-unal \
+            -p ${task.cpus} --dta --un-gz ${sample_id}.fastq.gz \
+            -x $index_base \
+            -U $reads | \
+            samtools view -@ ${task.cpus} -Shub - | \
+            samtools sort -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
+        """
+    } else {
+        """
+        hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
+            --no-spliced-alignment --no-softclip --norc --no-unal \
+            -p ${task.cpus} --dta --un-conc-gz ${sample_id}_fastq.gz \
+            -x $index_base \
+            -1 ${reads[0]} -2 ${reads[1]} | \
+            samtools view -@ ${task.cpus} -Shub - | \
+            samtools sort -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
+        mv ${sample_id}_fastq.1.gz ${sample_id}_1.fastq.gz
+        mv ${sample_id}_fastq.2.gz ${sample_id}_2.fastq.gz
+        """
+    }
+    }
+}else{
+    fastp_reads.into{tophat2_reads; hisat2_reads; bwa_reads; star_reads}
+}
 process Tophat2Align {
     label 'aligners'
     tag "$sample_name"
@@ -725,12 +808,11 @@ process BWAAlign{
                 -f ${reads.baseName}.sai \
                 $index_base \
                 $reads
-        bwa samse -f ${sample_name}_bwa.sam \
+        bwa samse \
                 $index_base \
                 ${reads.baseName}.sai \
-                $reads > ${sample_name}_log.txt
-        samtools view -@ ${task.cpus} -h -bS ${sample_name}_bwa.sam > ${sample_name}_bwa.bam
-        rm *.sam
+                $reads  | \
+            samtools view -@ ${task.cpus} -h -bS - > ${sample_name}_bwa.bam
         """
     } else {
         """
@@ -742,12 +824,11 @@ process BWAAlign{
                 -f ${reads[1].baseName}.sai \
                 $index_base \
                 ${reads[1]}
-        bwa sampe -f ${sample_name}_bwa.sam \
+        bwa sampe \
                 $index_base \
                 ${reads[0].baseName}.sai ${reads[1].baseName}.sai \
-                ${reads[0]} ${reads[1]} > ${sample_name}_log.txt
-        samtools view -@ ${task.cpus} -h -bS ${sample_name}_bwa.sam > ${sample_name}_bwa.bam
-        rm *.sam
+                ${reads[0]} ${reads[1]} | \
+            samtools view -@ ${task.cpus} -h -bS - > ${sample_name}_bwa.bam
         """
     }
 }
@@ -769,9 +850,10 @@ process StarAlign {
     aligner == "star"
 
     script:
+    gzip_cmd = gzip ? "--readFilesCommand zcat" : ""
     if (reads_single_end) {
         """
-        STAR --runThreadN ${task.cpus} \
+        STAR --runThreadN ${task.cpus} $gzip_cmd \
             --twopassMode Basic \
             --genomeDir $star_index \
             --readFilesIn $reads  \
@@ -787,7 +869,7 @@ process StarAlign {
         """
     } else {
         """
-        STAR --runThreadN ${task.cpus} \
+        STAR --runThreadN ${task.cpus} $gzip_cmd \
             --twopassMode Basic \
             --genomeDir $star_index \
             --readFilesIn ${reads[0]} ${reads[1]}  \
@@ -803,71 +885,16 @@ process StarAlign {
         """
     }
 }
-process FilterrRNA {
-    label 'aligners'
-    tag "$sample_name"
-    publishDir "${params.outdir}/alignment/rRNA_dup", mode: 'link', overwrite: true
-    
-    input:
-    set val(sample_name), file(reads), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) from rRNA_reads
-    file index from rRNA_index.collect()
 
-    output:
-    set val(sample_id), file("*_rRNA_sort.bam"), val(reads_single_end), val(gzip), val(input), val(group) into rRNA_bam
-    file "*_summary.txt" into rRNA_log
-
-    when:
-    params.rRNA_fasta && !params.skip_filterrRNA
-
-    script:
-    index_base = index[0].toString() - ~/(\.exon)?(\.\d)?(\.fa)?(\.gtf)?(\.ht2)?$/
-    if (reads_single_end) {
-        """
-        hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
-            --no-spliced-alignment --no-softclip --norc --no-unal \
-            -p ${task.cpus} --dta \
-            -x $index_base \
-            -U $reads | \
-            samtools view -@ ${task.cpus} -Shub - | \
-            samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
-        picard MarkDuplicates I=${sample_name}_rRNA_sort.bam \
-	        O=${sample_name}_mDuprRNA_sort.bam \
-            M=${sample_name}_mDuprRNA_sort.dupmark.log \
-	        VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
-        """
-    } else {
-        """
-        hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
-            --no-spliced-alignment --no-softclip --norc --no-unal \
-            -p ${task.cpus} --dta \
-            -x $index_base \
-            -1 ${reads[0]} -2 ${reads[1]} | \
-            samtools view -@ ${task.cpus} -Shub - | \
-            samtools sort  -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
-        picard MarkDuplicates I=${sample_name}_rRNA_sort.bam \
-	        O=${sample_name}_mDuprRNA_sort.bam \
-            M=${sample_name}_mDuprRNA_sort.dupmark.log \
-	        VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
-        """
-    }
-}
 /*
 ========================================================================================
                         Step 3 Sort BAM file AND QC
 ========================================================================================
 */ 
-
-if( aligner != "none"){
-    Channel
-        .from()
-        .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam)
-        .set{ merge_bam_file }
-}else{
-    Channel
-        .from()
-        .concat( raw_bam )
-        .set{ merge_bam_file }
-}
+Channel
+    .from()
+    .concat(tophat2_bam, hisat2_bam, bwa_bam, star_bam, raw_bam)
+    .set{ merge_bam_file }
 /*
  * STEP 3-1 - Sort BAM file
 */
@@ -880,8 +907,8 @@ process SortRename {
     set val(sample_id), file(bam_file), val(reads_single_end), val(gzip), val(input), val(group) from merge_bam_file
 
     output:
-    file "*.{bam,bai}" into rseqc_bam, bedgraph_bam ,test2
-    set val(sample_id), val(group) into format_design
+    set val(group), val(sample_id), file("*.bam"), file("*.bai") into sorted_bam
+    file "*.{bam,bai}" into rseqc_bam, bedgraph_bam, feacount_bam, cuffbam, peakquan_bam, diffpeak_bam, sng_bam
     file "*.bam" into bam_results
 
     script:
@@ -909,48 +936,12 @@ process SortRename {
     }
 }
 
-test2.collect().set{sort_bam}
-process CheckDesignCompare{
-    input:
-    val design_info from format_design.collect()
-    file comparefile
-
-    output:
-    file (formatted_design) into formatted_designfile
-
-    script:
-    formatted_design = "formatted_designfile.txt"
-    formatted_design_info = ""
-    for(int i = 0; i < design_info.size(); i+=2 ) {
-        sample = design_info[i] + ".input," + design_info[i] + ".ip"
-        formatted_design_info += design_info[i] + "," + sample + "," + design_info[i+1] + "\n"
-    }
-    """
-    echo "Sample_ID,input_FileName,ip_FileName,Group" > $formatted_design
-    echo "$formatted_design_info" |awk NF |sort | uniq >> $formatted_design
-    # Check the consistency of designfile and comparefile
-    if [ "$comparefile" != "false" ]; then 
-        ## get groups' name in comparefile
-        cat $comparefile | dos2unix | awk -F "_vs_" '{print \$1"\\n"\$2}' | sort | uniq > tmp.compare.group
-        ## get groups' name in designfile
-        awk -F, 'NR>1{print \$4}' $formatted_design | sort | uniq > tmp.design.group
-        intersection_num=\$(join tmp.compare.group tmp.design.group | wc -l)
-        if [[ \$intersection_num  != \$(cat tmp.compare.group| wc -l) ]] ;then 
-            echo "The groups' name of comparefile and designfile are inconsistent."
-            echo "Please check your comparefile: "$comparefile
-            echo "The groups' name of comparefile in designfile: "\$(join tmp.compare.group tmp.design.group)
-            exit 1
-        fi
-        rm tmp.compare.group tmp.design.group
-    fi
-    """
-}
 /*
  * STEP 3-2 - RSeQC analysis
 */
 process RSeQC {
     tag "$output"
-    publishDir "${params.outdir}/QC/rseqc" , mode: 'copy', overwrite: true,
+    publishDir "${params.outdir}/QC/rseqc" , mode: 'link', overwrite: true,
         saveAs: {filename ->
                  if (filename.indexOf("bam_stat.txt") > 0)                      "bam_stat/$filename"
             else if (filename.indexOf("infer_experiment.txt") > 0)              "infer_experiment/$filename"
@@ -1066,6 +1057,18 @@ process multiqc{
     """
 }
 
+index_peakCallingbygroup = params.peakCalling_mode == "group" ? 0 : 1
+sorted_bam.groupTuple(by: [0,1]).groupTuple(by: index_peakCallingbygroup)
+.map{group,sample,bam,bai -> [group,sample, bam.flatten().sort{
+    o1, o2 -> 
+    sub_o1 = o1.toString();sub_o1 = sub_o1.substring(sub_o1.lastIndexOf('/') + 1);
+    sub_o2 = o2.toString();sub_o2 = sub_o2.substring(sub_o2.lastIndexOf('/') + 1);
+    return sub_o1.compareTo(sub_o2);
+}, bai.flatten()]}
+.into{ macs2_bam; metpeak_bam; matk_bam; meyer_bam; test_bam}
+
+// test_bam.view()
+
 /*
 ========================================================================================
                             Step 4 Peak Calling
@@ -1075,13 +1078,13 @@ process multiqc{
  * STEP 4 - 1  Peak Calling------MetPeak, MACS2, MATK
 */
 process Metpeak {
-    label 'peak_calling'
+    tag "$peakcalling_tag"
+    label 'metpeak'
     publishDir "${params.outdir}/peakCalling/metpeak", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from sort_bam.collect()
+    set val(group), val(sample_id), file(bam_vector), file(bai_vector) from metpeak_bam
     file gtf
-    file formatted_designfile from formatted_designfile.collect()
 
     output:
     file "*" into metpeak_results
@@ -1090,27 +1093,24 @@ process Metpeak {
     when:
     !params.skip_metpeak && !params.skip_peakCalling
 
-    script: 
-    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
-    arguments = params.peak_threshold == "high" ? 2 : params.peak_threshold == "medium" ? 1 : 0
-    if( flag_peakCallingbygroup ){
-        println LikeletUtils.print_purple("Peak Calling performed by MeTPeak in group mode")
-    }else{
-        println LikeletUtils.print_purple("Peak Calling performed by MeTPeak in independent mode")
-    }
+    script:
+    input = []; ip = []
+    bam_vector.eachWithIndex{val, ix -> (ix & 1 ? ip : input) << val}
+    input_bam = input.join(','); ip_bam = ip.join(',')
+    peakcalling_tag = params.peakCalling_mode == "group" ? "group_" + group : sample_id
     """
-    Rscript $baseDir/bin/MeTPeak.R $formatted_designfile $gtf ${task.cpus} $flag_peakCallingbygroup;
+    echo $input_bam
+    Rscript $baseDir/bin/MeTPeak.R $input_bam $ip_bam $peakcalling_tag $gtf
     """
 }
-
 process Macs2{
+    tag "$peakcalling_tag"
     label 'peak_calling'
     publishDir "${params.outdir}/peakCalling/macs2", mode: 'link', overwrite: true
 
     input:
     file fasta
-    file bam_bai_file from sort_bam.collect()
-    file formatted_designfile from formatted_designfile.collect()
+    set val(group), val(sample_id), file(bam_vector), file(bai_vector) from macs2_bam
 
     output:
     file "macs2*.{xls,narrowPeak,summits}" into macs2_results
@@ -1120,27 +1120,30 @@ process Macs2{
     !params.skip_macs2 && !params.skip_peakCalling
 
     script:
-    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    input = []; ip = []
+    bam_vector.eachWithIndex{val, ix -> (ix & 1 ? ip : input) << val}
+    input_bam = input.join(' '); ip_bam = ip.join(' ')
+    input_file_count = input.size()
+    ip_file_count = ip.size()
+    peakcalling_tag = params.peakCalling_mode == "group" ? "group_" + group : sample_id
     arguments = params.peak_threshold == "high" ? "-p 1e-6 --keep-dup 5" : params.peak_threshold == "medium" ? "-q 0.01 --keep-dup 5" : "-q 0.05 --keep-dup 3"
-    if( flag_peakCallingbygroup ){
-        println LikeletUtils.print_purple("Peak Calling performed by Macs2 in group mode")
-    }else{
-        println LikeletUtils.print_purple("Peak Calling performed by Macs2 in independent mode")
-    }
     """
     genome_size=\$(faCount $fasta | tail -1 | awk '{print \$2-\$7}')
-    bash $baseDir/bin/macs2.sh $formatted_designfile \$genome_size $flag_peakCallingbygroup ${task.cpus} $arguments;
+    if [ $ip_file_count -gt 1 ]; then samtools merge -f macs2_${peakcalling_tag}_ip.bam $ip_bam; fi
+    if [ $input_file_count -gt 1 ]; then samtools merge -f macs2_${peakcalling_tag}_input.bam $input_bam; fi
+    macs2 callpeak -t *${peakcalling_tag}*ip*.bam -c *${peakcalling_tag}*input*.bam -g \$genome_size -n macs2_${peakcalling_tag} $arguments -f BAM --nomodel
+    awk -v OFS="\\t" '{print \$1,\$2,\$3,\$1":"\$2"-"\$3,10^-\$8}' macs2_${peakcalling_tag}_peaks.narrowPeak > macs2_${peakcalling_tag}_normalized.bed
+    mv macs2_${peakcalling_tag}_summits.bed macs2_${peakcalling_tag}.summits
     """ 
 }
-
 process MATKpeakCalling {
+    tag "$peakcalling_tag"
     label 'peak_calling'
     publishDir "${params.outdir}/peakCalling/MATK", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from sort_bam.collect()
+    set val(group), val(sample_id), file(bam_vector), file(bai_vector) from matk_bam
     file gtf
-    file formatted_designfile from formatted_designfile.collect()
 
     output:
     file "*" into matk_results
@@ -1151,16 +1154,16 @@ process MATKpeakCalling {
 
     script:
     matk_jar = params.matk_jar
-    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
+    input = []; ip = []
+    bam_vector.eachWithIndex{val, ix -> (ix & 1 ? ip : input) << val}
+    input_bam = input.join(';'); ip_bam = ip.join(';')
+    input_file_count = input.size()
+    peakcalling_tag = params.peakCalling_mode == "group" ? "group_" + group : sample_id
     arguments = params.peak_threshold == "high" ? "-q 0.01" : params.peak_threshold == "medium" ? "-q 0.05" : "-q 0.1"
-    if( flag_peakCallingbygroup ){
-        println LikeletUtils.print_purple("Peak Calling performed by MATK in group mode")
-    }else{
-        println LikeletUtils.print_purple("Peak Calling performed by MATK in independent mode")
-    }
     """
     export OMP_NUM_THREADS=${task.cpus}
-    bash $baseDir/bin/MATK_peakCalling.sh $matk_jar $formatted_designfile $flag_peakCallingbygroup $arguments
+    java -jar $matk_jar -peakCalling $arguments -c $input_file_count -ip "$input_bam" -input "$ip_bam" -out MATK_${peakcalling_tag}.bed
+    awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$1,\$2,\$3,\$1":"\$2"-"\$3,\$5}' MATK_${peakcalling_tag}.bed > MATK_${peakcalling_tag}_normalized.bed
     """    
 }
 
@@ -1202,12 +1205,12 @@ if( params.fasta ){
     exit 1, println LikeletUtils.print_red("Chromsizes file cannot build due to lack of " + params.fasta)
 }
 process Meyer{
+    tag "$peakcalling_tag"
     label 'peak_calling'
     publishDir "${params.outdir}/peakCalling/meyer", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from sort_bam.collect()
-    file formatted_designfile from formatted_designfile.collect()
+    set val(group), val(sample_id), file(bam_vector), file(bai_vector) from meyer_bam
     file chrNamefile from chrNamefile
     file bin25file from bin25file
     file genomebin from genomebin
@@ -1220,18 +1223,51 @@ process Meyer{
     !params.skip_meyer && !params.skip_peakCalling
 
     shell:
-    flag_peakCallingbygroup = params.peakCalling_mode == "group" ? 1 : 0
-    if( flag_peakCallingbygroup ){
-        println LikeletUtils.print_purple("Peak Calling performed by Meyer in group mode")
-    }else{
-        println LikeletUtils.print_purple("Peak Calling performed by Meyer in independent mode")
-    }
+    
+    // if( flag_peakCallingbygroup ){
+    //     println LikeletUtils.print_purple("Peak Calling performed by Meyer in group mode")
+    // }else{
+    //     println LikeletUtils.print_purple("Peak Calling performed by Meyer in independent mode")
+    // }
+    input = []; ip = []
+    bam_vector.eachWithIndex{val, ix -> (ix & 1 ? ip : input) << val}
+    input_bam = input.join(' '); ip_bam = ip.join(' ')
+    input_file_count = input.size()
+    ip_file_count = ip.size()
+    peakcalling_tag = params.peakCalling_mode == "group" ? "group_" + group : sample_id
+    arguments = params.peak_threshold == "high" ? "-q 0.01" : params.peak_threshold == "medium" ? "-q 0.05" : "-q 0.1"
     '''
     cp !{baseDir}/bin/meyer.py ./
+    if [ !{ip_file_count} -gt 1 ]; then samtools merge -f meyer_!{peakcalling_tag}_ip.bam !{ip_bam}; fi
+    if [ !{input_file_count} -gt 1 ]; then samtools merge -f meyer_!{peakcalling_tag}_input.bam !{input_bam}; fi    
+    input_bam=*!{peakcalling_tag}*input*.bam
+    ip_bam=*!{peakcalling_tag}*ip*.bam
+    prefix=meyer_!{peakcalling_tag}
+    genomebin_dir="genomebin/"
     peak_windows_number=$(wc -l !{bin25file}| cut -d " " -f 1)
-    bash !{baseDir}/bin/meyer_peakCalling.sh !{formatted_designfile} !{chrNamefile} genomebin/ ${peak_windows_number} !{task.cpus} !{flag_peakCallingbygroup}
+    input_total_reads_count=$(samtools view -c $input_bam)
+    ip_total_reads_count=$(samtools view -c $ip_bam)
+    mkdir $prefix.tmp "$prefix.tmp/input" "$prefix.tmp/ip"
+    awk -v bam="$input_bam" -v pre="$prefix" '
+        {print "samtools view -b "bam" "$1 ">./"pre".tmp/input/"$1".bam; \
+        bamToBed -split -i < ./"pre".tmp/input/"$1".bam>./"pre".tmp/input/"$1".bed; \
+        sortBed -i ./"pre".tmp/input/"$1".bed | intersectBed  -a '${genomebin_dir}'"$1".bin25.bed -b - -sorted -c > ./"pre".tmp/input/"$1".bin25.txt"}' !{chrNamefile} \
+        | xargs -iCMD -P!{task.cpus} bash -c CMD
+    awk -v bam="$ip_bam" -v pre="$prefix"  '
+        {print "samtools view -b "bam" "$1 ">./"pre".tmp/ip/"$1".bam; \
+        bamToBed -split -i < ./"pre".tmp/ip/"$1".bam>./"pre".tmp/ip/"$1".bed; \
+        sortBed -i ./"pre".tmp/ip/"$1".bed | intersectBed  -a '${genomebin_dir}'"$1".bin25.bed -b - -sorted -c > ./"pre".tmp/ip/"$1".bin25.txt"}' !{chrNamefile} \
+        | xargs -iCMD -P!{task.cpus} bash -c CMD
+    echo "cal pval for each 25bp bin"
+    awk -v pre="$prefix" '
+    {print "python meyer.py ./"pre".tmp/input/"$1".bin25.txt ./"pre".tmp/ip/"$1".bin25.txt '$input_total_reads_count' '$ip_total_reads_count' '$peak_windows_number' ./"pre".tmp/ip/"$1".m6A.meyer.pval.txt"}' !{chrNamefile} \
+    |xargs -iCMD -P!{task.cpus} bash -c CMD
+    cat $prefix.tmp/ip/*.m6A.meyer.pval.txt > meyer_${prefix}.bed
+    awk 'BEGIN{FS="\t";OFS="\t"}{print $1,$2,$3,$1":"$2"-"$3,$4}' meyer_${prefix}.bed > meyer_${prefix}_normalized.bed
+    rm -rf $prefix.tmp
     ''' 
 }
+
 /*
 ========================================================================================
                         Step 5 Differential expression analysis
@@ -1242,7 +1278,7 @@ process FeatureCount{
     publishDir "${params.outdir}/expressionAnalysis/htseq-count", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from sort_bam.collect()
+    file bam_bai_file from feacount_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
     file gtf
 
@@ -1252,7 +1288,7 @@ process FeatureCount{
 
     script:
     println LikeletUtils.print_purple("Generate gene expression matrix by htseq-count and Rscript")
-    strand_info = params.stranded == "no" ? "no" : params.stranded == "reverse" ? "reverse" : "yes"
+    strand_info = params.stranded == "no" ? "0" : params.stranded == "reverse" ? "2" : "1"
    // strand_info = reads_single_end? " " : " -p"
     // """
     // bash $baseDir/bin/htseq_count.sh $gtf $strand_info ${task.cpus}
@@ -1316,7 +1352,7 @@ process Cufflinks{
     publishDir "${params.outdir}/expressionAnalysis/cufflinks", mode: 'link', overwrite: true
 
     input:
-    file bam_bai_file from sort_bam.collect()
+    file bam_bai_file from cuffbam.collect()
     file gtf
     file formatted_designfile from formatted_designfile.collect()
 
@@ -1481,7 +1517,7 @@ process PeaksQuantification{
     input:
     file merged_bed from all_merged_bed.collect()
     file htseq_count_file from htseq_count_input.collect()
-    file bam_bai_file from sort_bam.collect()
+    file bam_bai_file from peakquan_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
     file annotation_file from methylation_annotaion_file.collect()
     file gtf
@@ -1549,7 +1585,7 @@ process diffm6APeak{
     input:
     //file peak_bed from group_merged_bed.collect()
     file merged_bed from all_merged_bed.collect()
-    file bam_bai_file from sort_bam.collect()
+    file bam_bai_file from diffpeak_bam.collect()
     file formatted_designfile from formatted_designfile.collect()
     file count_matrix from quantification_matrix.collect()
     file exp_matrix from htseq_results.collect()
@@ -1612,7 +1648,7 @@ process SingleNucleotidePrediction{
     file peak_bed from group_merged_bed.collect()
     file group_bed from all_merged_bed.collect()
     file formatted_designfile from formatted_designfile.collect()
-    file bam_bai_file from sort_bam.collect()
+    file bam_bai_file from sng_bam.collect()
     file fasta
     file gtf
 
@@ -1712,6 +1748,7 @@ process CreateIGVjs {
     bash $baseDir/bin/create_IGV_js.sh $igv_fasta $igv_gtf $merged_allpeaks_igvfile $formatted_designfile
     """
 }
+
 
 /*
 Working completed message
