@@ -45,5 +45,5 @@ dependencies:
   - r-knitr=1.22
   - r-ggseqlogo=0.1
   - r-rmarkdown=1.10
-  - multiqc=1.7
+  - subread=2.0.0 
   - pandoc=2.7.3

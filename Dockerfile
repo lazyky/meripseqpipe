@@ -38,4 +38,5 @@ RUN wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/download/v4.0.
     rm mspc.zip
 
 # install subread
-RUN conda install -c bioconda -y subread=2.0.0
+RUN conda create -n multiqc python=3.6 multiqc=1.9
+ENV PAHT /opt/conda/envs/multiqc/bin/:$PATH

@@ -1,4 +1,5 @@
 #!/bin/Rscript
+# setwd("/home/zky/repo/meripseqpipe/work/5b/45dbcd2faab8f78b9c29a9b56c9d99")
 ## Rscript arranged_result.R <designfile> <comparefile> <diffm6A_mode> <expression_mode> <mergePeaks_mode>
 ### designfile: Sample_id, Input_filename, IP_filename, group_id
 ### compare_str: Compairision design (eg: A_vs_B)
