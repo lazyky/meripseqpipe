@@ -245,19 +245,19 @@ if ( params.readPaths ){
     exit 1, LikeletUtils.print_red("No Design file specified!")
 }
 
-/* else if( params.reads && aligner != "none" ){
+/* else if( params.input && aligner != "none" ){
     Channel
-        .fromFilePairs( "${params.reads}", size: params.single_end ? 1 : 2 )
-        .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no fastq files supplied: ${params.reads}. You may check whether it is quoted")}
+        .fromFilePairs( "${params.input}", size: params.single_end ? 1 : 2 )
+        .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no fastq files supplied: ${params.input}. You may check whether it is quoted")}
         .into{ raw_fastq; raw_bam }
-}else if( params.reads && aligner == "none" ){
+}else if( params.input && aligner == "none" ){
     Channel
-        .fromPath( params.reads ) 
-        .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no bam files supplied: ${params.reads}")}
+        .fromPath( params.input ) 
+        .ifEmpty { exit 1, LikeletUtils.print_red("reads was empty - no bam files supplied: ${params.input}")}
         .into{ raw_fastq; raw_bam }
 } 
 else{
-    println LikeletUtils.print_red("reads was empty: ${params.reads}")
+    println LikeletUtils.print_red("reads was empty: ${params.input}")
 } */
 
 /*
@@ -310,7 +310,7 @@ println (LikeletUtils.print_yellow("expression_analysis_mode       : ") + Likele
 println (LikeletUtils.print_yellow("methylation_analysis_mode      : ") + LikeletUtils.print_green(params.methylation_analysis_mode))
 
 println LikeletUtils.print_yellow("==================================Input files selected==========================")
-println (LikeletUtils.print_yellow("Reads Path                     : ") + LikeletUtils.print_green(params.readPaths ? "github" : params.reads))
+println (LikeletUtils.print_yellow("Reads Path                     : ") + LikeletUtils.print_green(params.readPaths ? "github" : params.input))
 println (LikeletUtils.print_yellow("fasta file                     : ") + LikeletUtils.print_green(params.fasta))
 println (LikeletUtils.print_yellow("Gtf file                       : ") + LikeletUtils.print_green(params.gtf))
 println (LikeletUtils.print_yellow("Design file                    : ") + LikeletUtils.print_green(params.designfile))
@@ -379,7 +379,7 @@ process makeBED12 {
                 saveAs: { params.saveReference ? it : null }, mode: 'copy'
 
     when:
-    !params.skip_qc && !params.skip_rseqc
+    !params.skip_qc && !params.skip_rseqc || !params.skip_motif
 
     input:
     file gtf
@@ -393,6 +393,28 @@ process makeBED12 {
     gtfToGenePred -genePredExt -geneNameAsName2 $gtf_file ${gtf_file/.gtf/.tmp}
     genePredToBed ${gtf_file/.gtf/.tmp} ${gtf_file/.gtf/.bed}
     '''
+}
+
+process makechromesize {
+    label 'build_index'
+    tag "gtf2bed12"
+    publishDir path: { params.saveReference ? "${params.outdir}/Genome/reference_genome" : params.outdir },
+                saveAs: { params.saveReference ? it : null }, mode: 'copy'
+
+    when:
+    true
+
+    input:
+    file fasta
+    
+    output:
+    file "chromsizes.file" into chromsizesfile
+
+    shell:      
+    """
+    samtools faidx ${fasta}
+    cut -f1,2 ${fasta}.fai > chromsizes.file
+    """
 }
 
 /*
@@ -585,7 +607,7 @@ process Fastp{
 
     output:
     set val(sample_name), file("*_aligners.fastq*"), val(reads_single_end), val(sample_id), val(gzip), val(input), val(group) into fastqc_reads, fastp_reads
-    file "*.{html,json}" into fastp_results
+    file "*" into fastp_results
 
     when:
     aligner != "none"
@@ -1180,9 +1202,9 @@ if( params.fasta ){
 
         input:
         file fasta
+        file chromsizesfile from chromsizesfile.collect()
 
         output:
-        file "chromsizes.file" into chromsizesfile
         file "chrName.txt" into chrNamefile
         file "genome.bin25.bed" into bin25file
         file "genomebin" into genomebin
@@ -1192,12 +1214,9 @@ if( params.fasta ){
 
         shell:
         '''
-        #cat !{fasta} | awk 'BEGIN{len=""}{if($0~">"){split($0,ID,"[> ]");printf len"ABC"ID[2]"\\t";len=0}else{len=len+length($0)}}END{print len}' |sed 's/ABC/\\n/g' |awk NF > chromsizes.file
-        samtools faidx !{fasta}
-        cut -f1,2 !{fasta}.fai > chromsizes.file
-        awk '{print $1}' chromsizes.file > chrName.txt
+        awk '{print $1}' !{chromsizesfile} > chrName.txt
         mkdir genomebin
-        bedtools makewindows -g chromsizes.file -w 25 > genome.bin25.bed
+        bedtools makewindows -g !{chromsizesfile} -w 25 > genome.bin25.bed
         awk '{print "cat genome.bin25.bed | grep "$1" > genomebin/"$1".bin25.bed"}' chrName.txt | xargs -iCMD -P!{task.cpus} bash -c CMD
         '''
     }
@@ -1275,7 +1294,7 @@ process Meyer{
 */
 process FeatureCount{
     label 'analysis'
-    publishDir "${params.outdir}/expressionAnalysis/htseq-count", mode: 'link', overwrite: true
+    publishDir "${params.outdir}/expressionAnalysis/featurecount", mode: 'link', overwrite: true
 
     input:
     file bam_bai_file from feacount_bam.collect()
@@ -1431,60 +1450,79 @@ process PeakMerge {
 
 Channel
     .from()
-    .concat( group_merged_bed, all_merged_bed )
-    .into { annotate_collection; motif_collection; bed_collect_for_arrange_results}
-
+    .mix( group_merged_bed, all_merged_bed )
+    .flatten()
+    .into{ annotate_collection; motif_collection; bed_collect_for_arrange_results}
+annotate_collection.mix(bed_for_annotation).toList().flatten().into{beds_anno; test_bed}
+// test_bed.view{test -> "sample: $test"}
+// // beds_anno.view()
+// println("motif:")
+// bed_collect_for_arrange_results.view{test -> "sample: $test"}
 process BedAnnotated{
+    tag "${all_bed.baseName}"
     label 'analysis'
     publishDir "${params.outdir}/m6AAnalysis/AnnotatedPeaks", mode: 'link', overwrite: true
     
     input:
-    file all_bed from bed_for_annotation.collect()
-    file annotate_file from annotate_collection.collect()
-    file formatted_designfile from formatted_designfile.collect()
+    file all_bed from beds_anno
     file fasta
     file gtf
 
     output:
-    file "annotatedby{xy,homer}/*" into annotation_results,annotation_results_2
-    file "annotatedbyxy/*merged_allpeaks.anno.txt" into methylation_annotaion_file
+    file "annotatedbyxy/*" into annotation_results_xy, anno_for_quantification, anno_for_diffreport
+    file "*_annotatedbyhomer.bed" into annotation_results_homer
     
     when:
     !params.skip_annotation
 
     script:
     annotated_script_dir = baseDir + "/bin"
+    bed_prefix = all_bed.toString() - ~/(\.bed)?$/
     //Skip Peak Calling Tools Setting
     """
     # Annotation Peaks
     cp ${annotated_script_dir}/intersec.pl ./
     cp ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
-    bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}  
+    mkdir annotatedbyxy
+    # bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}
+    perl m6A_annotate_forGTF_xingyang2.pl ${gtf} ${all_bed} annotatedbyxy/${bed_prefix} 
+    annotatePeaks.pl ${all_bed} ${fasta} -gtf ${gtf} > ${bed_prefix}_annotatedbyhomer.bed
     """
 }
+
 process MotifSearching {
     label 'analysis'
+    tag "${bed_file.baseName}"
     publishDir "${params.outdir}/m6AAnalysis/motif", mode: 'link', overwrite: true
     
     input:
-    file group_bed from motif_collection.collect()
-    file formatted_designfile from formatted_designfile.collect()
+    file bed_file from motif_collection
+    file chromsizesfile from chromsizesfile.collect()
     file bed12 from bed12file.collect()
     file fasta
     file gtf
 
     output:
-    file "*_{dreme,homer}" into motif_results,motif_results_2
+    file "*_{dreme,homer}" into motif_results, motif_results_for_report
 
     when:
     !params.skip_motif
 
     script:
     motif_file_dir = baseDir + "/bin"
+    bed_prefix = bed_file.baseName
     println LikeletUtils.print_purple("Motif analysis is going on by DREME and Homer")
     """
     cp ${motif_file_dir}/m6A_motif.meme ./
-    bash $baseDir/bin/motif_searching.sh $fasta $gtf $bed12 m6A_motif.meme ${task.cpus}
+    # bash $baseDir/bin/motif_searching.sh $fasta $gtf $bed12 m6A_motif.meme ${task.cpus}
+    sort -k5,5 -g ${bed_file} | head -2000 | awk '{ print \$1"\\t"\$2"\\t"\$3}' > ${bed_prefix}.location
+    intersectBed -wo -a ${bed_prefix}.location -b $gtf | awk -v OFS="\t" '{print \$1,\$2,\$3,"*","*",\$10}' | sort -k1,2 | uniq > ${bed_prefix}_bestpeaks.bed
+    fastaFromBed -name+ -split -s -fi $fasta -bed ${bed_prefix}_bestpeaks.bed > ${bed_prefix}_bestpeaks.fa
+    ame -oc ${bed_prefix}_ame ${bed_prefix}_bestpeaks.fa m6A_motif.meme
+    shuffleBed -incl ${bed12} -seed 12345 -noOverlapping -i ${bed_prefix}_bestpeaks.bed -g ${chromsizesfile} > ${bed_prefix}_random_peak.bed
+    fastaFromBed -name+ -split -s -fi $fasta -bed ${bed_prefix}_random_peak.bed > ${bed_prefix}_random_peak.fa
+    findMotifs.pl ${bed_prefix}_bestpeaks.fa fasta ${bed_prefix}_homer -fasta ${bed_prefix}_random_peak.fa -p ${task.cpus} \
+        -len 5,6,7,8 -S 10 -rna -dumpFasta > ${bed_prefix}_homer_run.log 2>&1
     """
 }
 
@@ -1493,7 +1531,7 @@ process QCPeaksReport {
     
     input:
     file motif from motif_results.collect()
-    file annotation_files from annotation_results.collect()
+    file annotation_files from annotation_results_xy.collect()
     file formatted_designfile from formatted_designfile.collect()
 
     output:
@@ -1510,6 +1548,8 @@ process QCPeaksReport {
     """
 }
 
+// anno_for_quantification.filter( ~/.*merged_allpeaks.anno.txt$/).set{methylation_annotaion_file}
+anno_for_quantification.flatten().filter( ~/.*merged_allpeaks.anno.txt$/).set{methylation_annotaion_file}
 process PeaksQuantification{
     label 'analysis'
     publishDir "${params.outdir}/m6AAnalysis/m6AQuantification", mode: 'link', overwrite: true
@@ -1546,10 +1586,6 @@ process PeaksQuantification{
         # PeaksQuantification by LRT
         bash $baseDir/bin/bed_count.sh ${formatted_designfile} ${task.cpus} ${merged_bed} bam_stat_summary.txt
         Rscript $baseDir/bin/bedtools_quantification.R $formatted_designfile bam_stat_summary.txt
-        head -1 *_quantification.matrix |sed 's/^\\t//'  |awk -F "\\t" '{print "ID\\tGene_symbol\\t"\$0}' > tmp.header.file
-        sed '1d' *_quantification.matrix | sort > tmp.quantification.file
-        awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}' ${annotation_file} | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
-        join -t \$'\t' tmp.annotation.file tmp.quantification.file | cat tmp.header.file - > *_quantification.matrix 
     else
         case ${methylation_analysis_mode} in 
         Wilcox-test)
@@ -1569,11 +1605,11 @@ process PeaksQuantification{
             exit 1
             ;;
         esac
-        head -1 *_quantification.matrix |sed 's/^\\t//'  |awk -F "\\t" '{print "ID\\tGene_symbol\\t"\$0}' > tmp.header.file
-        sed '1d' *_quantification.matrix | sort > tmp.quantification.file
-        awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}' ${annotation_file} | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
-        join -t \$'\t' tmp.annotation.file tmp.quantification.file | cat tmp.header.file - > *_quantification.matrix 
     fi
+    head -1 *_quantification.matrix |sed 's/^\\t//'  |awk -F "\\t" '{print "ID\\tGene_symbol\\t"\$0}' > tmp.header.file
+    sed '1d' *_quantification.matrix | sort > tmp.quantification.file
+    awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$4,\$15,\$11}' ${annotation_file} | sort | join -t \$'\t' -e 'NA' -a1 -o 1.1 -o 2.2 -o 2.3 tmp.quantification.file - >  tmp.annotation.file
+    join -t \$'\t' tmp.annotation.file tmp.quantification.file | cat tmp.header.file - > *_quantification.matrix 
     """
 }
 
@@ -1670,9 +1706,9 @@ process SingleNucleotidePrediction{
 
 Channel
     .from()
-    .concat( quantification_results, motif_results_2, diffm6A_results, 
+    .concat( quantification_results, motif_results_for_report, diffm6A_results, 
         htseq_count_input_to_arrange, 
-        annotation_results_2, prediction_results, bed_collect_for_arrange_results,
+        anno_for_diffreport, prediction_results, bed_collect_for_arrange_results,
         multiqc_results, deseq2_results, edgeR_results, cufflinks_results
     )
     .set{ results_arrange }
@@ -1833,7 +1869,7 @@ def summary = [:]
 if (workflow.revision) summary['Pipeline Release'] = workflow.revision
 summary['Run Name']         = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
-summary['Reads']            = params.reads
+summary['Reads']            = params.input
 summary['Fasta Ref']        = params.fasta
 // summary['Data Type']        = params.single_end ? 'Single-End' : 'Paired-End'
 summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
