@@ -12,7 +12,7 @@ dependencies:
   - fastqc=0.11.8
   - fastp=0.19.7
   - bedtools=2.27.1
-  - ucsc-gtftogenepred=357
+  - ucsc-gtftogenepred=377
   - ucsc-fatotwobit=377
   - ucsc-facount=377
   - hisat2=2.1.0
@@ -23,7 +23,7 @@ dependencies:
   - samtools=1.9
   - rseqc=2.6.4
   - macs2=2.1.2
-  - meme=5.0.2
+  - meme=5.1.1
   - homer=4.9.1
   - dos2unix=7.4.1
   - r-base=3.5.1

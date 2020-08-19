@@ -1087,9 +1087,7 @@ sorted_bam.groupTuple(by: [0,1]).groupTuple(by: index_peakCallingbygroup)
     sub_o2 = o2.toString();sub_o2 = sub_o2.substring(sub_o2.lastIndexOf('/') + 1);
     return sub_o1.compareTo(sub_o2);
 }, bai.flatten()]}
-.into{ macs2_bam; metpeak_bam; matk_bam; meyer_bam; test_bam}
-
-// test_bam.view()
+.into{ macs2_bam; metpeak_bam; matk_bam; meyer_bam}
 
 /*
 ========================================================================================
@@ -1314,7 +1312,10 @@ process FeatureCount{
     // Rscript $baseDir/bin/get_htseq_matrix.R $formatted_designfile ${task.cpus} 
     // """
     """
-    bash $baseDir/bin/featurecount.sh $gtf $strand_info ${task.cpus}
+    for bam_file in *.input*.bam
+    do
+        featureCounts -p -T ${task.cpus} -s $strand_info -a ${gtf} -o \${bam_file/%_sort*/}.txt \${bam_file};
+    done
     Rscript $baseDir/bin/generate_featurecount_mat.R $formatted_designfile ${task.cpus} 
     """ 
 }
@@ -1453,11 +1454,8 @@ Channel
     .mix( group_merged_bed, all_merged_bed )
     .flatten()
     .into{ annotate_collection; motif_collection; bed_collect_for_arrange_results}
-annotate_collection.mix(bed_for_annotation).toList().flatten().into{beds_anno; test_bed}
-// test_bed.view{test -> "sample: $test"}
-// // beds_anno.view()
-// println("motif:")
-// bed_collect_for_arrange_results.view{test -> "sample: $test"}
+annotate_collection.mix(bed_for_annotation).toList().flatten().set{beds_anno}
+
 process BedAnnotated{
     tag "${all_bed.baseName}"
     label 'analysis'
@@ -1484,7 +1482,6 @@ process BedAnnotated{
     cp ${annotated_script_dir}/intersec.pl ./
     cp ${annotated_script_dir}/m6A_annotate_forGTF_xingyang2.pl ./
     mkdir annotatedbyxy
-    # bash ${baseDir}/bin/annotation.sh ${fasta} ${gtf} ${task.cpus}
     perl m6A_annotate_forGTF_xingyang2.pl ${gtf} ${all_bed} annotatedbyxy/${bed_prefix} 
     annotatePeaks.pl ${all_bed} ${fasta} -gtf ${gtf} > ${bed_prefix}_annotatedbyhomer.bed
     """
@@ -1514,7 +1511,6 @@ process MotifSearching {
     println LikeletUtils.print_purple("Motif analysis is going on by DREME and Homer")
     """
     cp ${motif_file_dir}/m6A_motif.meme ./
-    # bash $baseDir/bin/motif_searching.sh $fasta $gtf $bed12 m6A_motif.meme ${task.cpus}
     sort -k5,5 -g ${bed_file} | head -2000 | awk '{ print \$1"\\t"\$2"\\t"\$3}' > ${bed_prefix}.location
     intersectBed -wo -a ${bed_prefix}.location -b $gtf | awk -v OFS="\t" '{print \$1,\$2,\$3,"*","*",\$10}' | sort -k1,2 | uniq > ${bed_prefix}_bestpeaks.bed
     fastaFromBed -name+ -split -s -fi $fasta -bed ${bed_prefix}_bestpeaks.bed > ${bed_prefix}_bestpeaks.fa
@@ -1548,7 +1544,6 @@ process QCPeaksReport {
     """
 }
 
-// anno_for_quantification.filter( ~/.*merged_allpeaks.anno.txt$/).set{methylation_annotaion_file}
 anno_for_quantification.flatten().filter( ~/.*merged_allpeaks.anno.txt$/).set{methylation_annotaion_file}
 process PeaksQuantification{
     label 'analysis'
