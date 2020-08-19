@@ -30,7 +30,7 @@ iv. Start running your own analysis!
 
 <!-- TODO nf-core: Update the default command above used to run the pipeline -->
 ```bash
-nextflow run path/to/meripseqpipe -profile <docker/singularity/conda>  --designfile 'designfile.csv' --comparefile 'comparefile.txt' 
+nextflow run path/to/meripseqpipe -profile <docker/singularity/conda>  --designfile 'designfile.csv' --comparefile 'comparefile.txt'
 ```
 
 See [usage docs](docs/usage.md) for all of the available options when running the pipeline.

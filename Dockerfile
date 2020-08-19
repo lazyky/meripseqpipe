@@ -36,3 +36,6 @@ RUN wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/download/v4.0.
     unzip mspc.zip -d mspc && \
     chmod 775 mspc/mspc && \ 
     rm mspc.zip
+
+# install subread
+RUN conda install -c bioconda -y subread=2.0.0
