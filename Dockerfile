@@ -5,10 +5,15 @@ LABEL authors="Kaiyu Zhu, Yu Sun" \
 # Install the conda environment
 COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
-ENV PATH /opt/conda/bin:$PATH
-ENV PATH /opt/conda/envs/nf-core-meripseqpipe-1.0dev/bin:$PATH
+# install subread
+RUN conda create -n multiqc -c conda-forge -c bioconda python=3.7.8 multiqc=1.7 && conda clean -a
+
 RUN conda env export --name nf-core-meripseqpipe-1.0dev > nf-core-meripseqpipe-1.0dev.yml
 ENV PATH /mspc:$PATH
+ENV PATH /opt/conda/bin:$PATH
+ENV PATH /opt/conda/envs/multiqc/bin/:$PATH
+ENV PATH /opt/conda/envs/nf-core-meripseqpipe-1.0dev/bin:$PATH
+
 
 # install MATK
 RUN wget https://github.com/kingzhuky/MATK_backup/releases/download/v0.1dev/MATK-1.0.jar
@@ -36,7 +41,3 @@ RUN wget -O mspc.zip "https://github.com/Genometric/MSPC/releases/download/v4.0.
     unzip mspc.zip -d mspc && \
     chmod 775 mspc/mspc && \ 
     rm mspc.zip
-
-# install subread
-RUN conda create -n multiqc -c conda-forge -c bioconda python=3.7.8 multiqc=1.7
-ENV PATH /opt/conda/envs/multiqc/bin/:$PATH
