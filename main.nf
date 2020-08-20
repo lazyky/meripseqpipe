@@ -1514,7 +1514,7 @@ process MotifSearching {
     sort -k5,5 -g ${bed_file} | head -2000 | awk '{ print \$1"\\t"\$2"\\t"\$3}' > ${bed_prefix}.location
     intersectBed -wo -a ${bed_prefix}.location -b $gtf | awk -v OFS="\t" '{print \$1,\$2,\$3,"*","*",\$10}' | sort -k1,2 | uniq > ${bed_prefix}_bestpeaks.bed
     fastaFromBed -name+ -split -s -fi $fasta -bed ${bed_prefix}_bestpeaks.bed > ${bed_prefix}_bestpeaks.fa
-    ame -oc ${bed_prefix}_ame ${bed_prefix}_bestpeaks.fa m6A_motif.meme
+    # ame -oc ${bed_prefix}_ame ${bed_prefix}_bestpeaks.fa m6A_motif.meme
     shuffleBed -incl ${bed12} -seed 12345 -noOverlapping -i ${bed_prefix}_bestpeaks.bed -g ${chromsizesfile} > ${bed_prefix}_random_peak.bed
     fastaFromBed -name+ -split -s -fi $fasta -bed ${bed_prefix}_random_peak.bed > ${bed_prefix}_random_peak.fa
     findMotifs.pl ${bed_prefix}_bestpeaks.fa fasta ${bed_prefix}_homer -fasta ${bed_prefix}_random_peak.fa -p ${task.cpus} \
