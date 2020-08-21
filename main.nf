@@ -1099,7 +1099,7 @@ sorted_bam.groupTuple(by: [0,1]).groupTuple(by: index_peakCallingbygroup)
 */
 process Metpeak {
     tag "$peakcalling_tag"
-    label 'metpeak'
+    label 'onecore_peak'
     publishDir "${params.outdir}/peakCalling/metpeak", mode: 'link', overwrite: true
 
     input:
@@ -1125,7 +1125,7 @@ process Metpeak {
 }
 process Macs2{
     tag "$peakcalling_tag"
-    label 'peak_calling'
+    label 'onecore_peak'
     publishDir "${params.outdir}/peakCalling/macs2", mode: 'link', overwrite: true
 
     input:
@@ -1458,7 +1458,7 @@ annotate_collection.mix(bed_for_annotation).toList().flatten().set{beds_anno}
 
 process BedAnnotated{
     tag "${all_bed.baseName}"
-    label 'analysis'
+    label 'onecore_peak'
     publishDir "${params.outdir}/m6AAnalysis/AnnotatedPeaks", mode: 'link', overwrite: true
     
     input:
@@ -1488,7 +1488,7 @@ process BedAnnotated{
 }
 
 process MotifSearching {
-    label 'analysis'
+    label 'onecore_peak'
     tag "${bed_file.baseName}"
     publishDir "${params.outdir}/m6AAnalysis/motif", mode: 'link', overwrite: true
     
