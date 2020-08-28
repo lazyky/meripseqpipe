@@ -355,7 +355,7 @@ println (LikeletUtils.print_yellow("Skip qc                        : ") + Likele
     echo "Sample_ID,input_FileName,ip_FileName,Group" > $formatted_design
     echo "$formatted_design_info" |awk NF |sort | uniq >> $formatted_design
     # Check the consistency of designfile and comparefile
-    if [ "$comparefile" != "false" ]; then 
+    if [ "$comparefile" != "input.1" ]; then 
         ## get groups' name in comparefile
         cat $comparefile | dos2unix | awk -F "_vs_" '{print \$1"\\n"\$2}' | sort | uniq > tmp.compare.group
         ## get groups' name in designfile
@@ -1158,7 +1158,7 @@ process Macs2{
 }
 process MATKpeakCalling {
     tag "$peakcalling_tag"
-    label 'peak_calling'
+    label 'onecore_peak'
     publishDir "${params.outdir}/peakCalling/MATK", mode: 'link', overwrite: true
 
     input:
@@ -1182,6 +1182,10 @@ process MATKpeakCalling {
     arguments = params.peak_threshold == "high" ? "-q 0.01" : params.peak_threshold == "medium" ? "-q 0.05" : "-q 0.1"
     """
     export OMP_NUM_THREADS=${task.cpus}
+    if [ ! -f "$matk_jar" ]; then
+        echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
+        exit 1
+    fi
     java -jar $matk_jar -peakCalling $arguments -c $input_file_count -ip "$input_bam" -input "$ip_bam" -out MATK_${peakcalling_tag}.bed
     awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$1,\$2,\$3,\$1":"\$2"-"\$3,\$5}' MATK_${peakcalling_tag}.bed > MATK_${peakcalling_tag}_normalized.bed
     """    
@@ -1194,7 +1198,7 @@ process MATKpeakCalling {
 if( params.fasta ){
     process MeyerPrepration{
         label 'build_index'
-        tag "MeyerPrepration"
+        tag "onecore_peak"
         publishDir path: { params.saveReference ? "${params.outdir}/Genome/meyerPrepration" : params.outdir },
                 saveAs: { params.saveReference ? it : null }, mode: 'copy'       
 
@@ -1511,8 +1515,8 @@ process MotifSearching {
     println LikeletUtils.print_purple("Motif analysis is going on by DREME and Homer")
     """
     cp ${motif_file_dir}/m6A_motif.meme ./
-    sort -k5,5 -g ${bed_file} | head -2000 | awk '{ print \$1"\\t"\$2"\\t"\$3}' > ${bed_prefix}.location
-    intersectBed -wo -a ${bed_prefix}.location -b $gtf | awk -v OFS="\t" '{print \$1,\$2,\$3,"*","*",\$10}' | sort -k1,2 | uniq > ${bed_prefix}_bestpeaks.bed
+    sort -k5,5 -g ${bed_file} | awk 'FNR <= 2000{ print \$1"\\t"\$2"\\t"\$3}' > ${bed_prefix}.location
+    intersectBed -wo -a ${bed_prefix}.location -b $gtf | awk -v OFS="\\t" '{print \$1,\$2,\$3,"*","*",\$10}' | sort -k1,2 | uniq > ${bed_prefix}_bestpeaks.bed
     fastaFromBed -name+ -split -s -fi $fasta -bed ${bed_prefix}_bestpeaks.bed > ${bed_prefix}_bestpeaks.fa
     # ame -oc ${bed_prefix}_ame ${bed_prefix}_bestpeaks.fa m6A_motif.meme
     shuffleBed -incl ${bed12} -seed 12345 -noOverlapping -i ${bed_prefix}_bestpeaks.bed -g ${chromsizesfile} > ${bed_prefix}_random_peak.bed
@@ -1593,6 +1597,10 @@ process PeaksQuantification{
             ;;
         MATK)
             export OMP_NUM_THREADS=${task.cpus}
+            if [ ! -f "$matk_jar" ]; then
+                echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
+                exit 1
+            fi
             bash $baseDir/bin/MATK_quantification.sh $matk_jar $gtf $formatted_designfile ${merged_bed} 1
             ;;
         *)
@@ -1655,6 +1663,10 @@ process diffm6APeak{
             ;;
         MATK)
             export OMP_NUM_THREADS=${task.cpus}
+            if [ ! -f "$matk_jar" ]; then
+                echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
+                exit 1
+            fi
             bash $baseDir/bin/MATK_diffm6A.sh $matk_jar $formatted_designfile $gtf $compare_str $merged_bed
             ;;
         edgeR)

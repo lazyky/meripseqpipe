@@ -101,12 +101,14 @@ class LikeletUtils {
       }else if (row[3].endsWith(".bam") == true){
         filetype = "bam"
       }
-      if (row[4].endsWith("false") == true){
+      if (row[3].endsWith("false") == true){
+        
+      }else if (row[4].endsWith("false") == true){
         readsSingle = true
         [idSample, [fastqFile1], readsSingle, gzip, input, group, filetype]
-      } else {
+      }else{
         [idSample, [fastqFile1, fastqFile2], readsSingle, gzip, input, group, filetype]
-      }          
+      }
     }
     return inputData.mix(ipData)
   }

@@ -12,12 +12,6 @@ gtf_file=$3
 compare_str=$4
 merged_bed=$5
 
-### check if the file matk.jar exists
-if [ ! -f "$matk_jar" ]; then
-    echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
-    exit 1
-fi
-
 # setting the function of Running the quantification mode of MATK by two names of groups
 function matk_diffm6a_by_two_id()
 {

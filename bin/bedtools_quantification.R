@@ -21,7 +21,7 @@ for(sample_id in designtable$Sample_ID){
   bam_stat_index = grep(paste0("^",sample_id,"[.]input"),rownames(bam_stat_table))
   ip_rpkm =  apply(ip_count_table,1,function(x) (as.numeric(x[5])/(as.numeric(x[3])-as.numeric(x[2]))*1000/bam_stat_table[bam_stat_index,]*1000000))
   
-  rpkm <- as.matrix((ip_rpkm)/(input_rpkm+ip_rpkm))
+  rpkm <- as.matrix((ip_rpkm +1 )/(input_rpkm + 1))
   colnames(rpkm)[1] <- sample_id
   rpkm_peaks_list <- cbind(rpkm_peaks_list,rpkm)
 }
