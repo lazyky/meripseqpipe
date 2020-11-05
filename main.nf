@@ -355,7 +355,7 @@ println (LikeletUtils.print_yellow("Skip qc                        : ") + Likele
     echo "Sample_ID,input_FileName,ip_FileName,Group" > $formatted_design
     echo "$formatted_design_info" |awk NF |sort | uniq >> $formatted_design
     # Check the consistency of designfile and comparefile
-    if [ "$comparefile" != "input.1" ]; then 
+    if [ "$comparefile" != "false" ]; then 
         ## get groups' name in comparefile
         cat $comparefile | dos2unix | awk -F "_vs_" '{print \$1"\\n"\$2}' | sort | uniq > tmp.compare.group
         ## get groups' name in designfile
@@ -558,7 +558,8 @@ if( params.star_index && aligner == "star"){
         --genomeDir StarIndex \
         --genomeFastaFiles $fasta \
         --sjdbGTFfile $gtf \
-        --sjdbOverhang $overhang 
+        --sjdbOverhang $overhang \
+	--limitGenomeGenerateRAM 36000000000
         """
     }
 }else {
@@ -617,7 +618,7 @@ process Fastp{
     if ( reads_single_end ){
         filename = reads.toString() - ~/(\.fq)?(\.fastq)?(\.gz)?$/
         sample_name = filename
-        add_aligners = sample_name + "_aligners.fastq" + gzip ? ".gz" : ""
+        add_aligners = sample_name + "_aligners.fastq" + (gzip ? ".gz" : "")
         """
         if [ $skip_fastp == "false" ]; then
             fastp -i ${reads} -o ${add_aligners} -j ${sample_name}_fastp.json -h ${sample_name}_fastp.html -w ${task.cpus}
@@ -711,13 +712,13 @@ if(params.rRNA_fasta && !params.skip_filterrRNA){
         """
         hisat2 --summary-file ${sample_name}_rRNA_summary.txt \
             --no-spliced-alignment --no-softclip --norc --no-unal \
-            -p ${task.cpus} --dta --un-conc-gz ${sample_id}_fastq.gz \
+            -p ${task.cpus} --dta --un-conc-gz ${sample_name}_fastq.gz \
             -x $index_base \
             -1 ${reads[0]} -2 ${reads[1]} | \
             samtools view -@ ${task.cpus} -Shub - | \
             samtools sort -@ ${task.cpus} -o ${sample_name}_rRNA_sort.bam -
-        mv ${sample_id}_fastq.1.gz ${sample_id}_1.fastq.gz
-        mv ${sample_id}_fastq.2.gz ${sample_id}_2.fastq.gz
+        mv ${sample_name}_fastq.1.gz ${sample_name}_1.fastq.gz
+        mv ${sample_name}_fastq.2.gz ${sample_name}_2.fastq.gz
         """
     }
     }
