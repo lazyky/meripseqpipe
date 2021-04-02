@@ -13,7 +13,7 @@
   - [Main arguments](#main-arguments)
     - [`-profile`](#profile)
     - [`--reads`](#reads)
-    - [`--singleEnd`](#singleend)
+    - [`--single_end`](#singleend)
     - [`--gzip`](#gzip)
     - [`--stranded`](#stranded)
     - [`--mapq_cutoff [int]`](#mapqcutoff-int)
@@ -139,12 +139,12 @@ Please note the following requirements:
 
 If left unspecified, a default pattern is used: `data/*{1,2}.fastq.gz`
 
-### `--singleEnd`
+### `--single_end`
 
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--readPaths`. For example:
+By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--single_end` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--readPaths`. For example:
 
 ```bash
---singleEnd --readPaths 'path/to/data/'
+--single_end --readPaths 'path/to/data/'
 ```
 
 It is not possible to run a mixture of single-end and paired-end files in one run.
