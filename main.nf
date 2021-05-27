@@ -355,7 +355,7 @@ println (LikeletUtils.print_yellow("Skip qc                        : ") + Likele
     echo "Sample_ID,input_FileName,ip_FileName,Group" > $formatted_design
     echo "$formatted_design_info" |awk NF |sort | uniq >> $formatted_design
     # Check the consistency of designfile and comparefile
-    if [ "$comparefile" != "false" ]; then 
+    if [ "$comparefile" != "input.1" ]; then 
         ## get groups' name in comparefile
         cat $comparefile | dos2unix | awk -F "_vs_" '{print \$1"\\n"\$2}' | sort | uniq > tmp.compare.group
         ## get groups' name in designfile
@@ -941,7 +941,7 @@ process SortRename {
     if (!params.skip_sort){
         """
         if [ "$mapq_cutoff" -gt "0" ]; then
-            samtools view -hubq $mapq_cutoff $bam_file | samtools sort -@ ${task.cpus} -O BAM -o $output -
+            samtools view -hbq $mapq_cutoff $bam_file | samtools sort -@ ${task.cpus} -O BAM -o $output -
         else
             samtools sort -@ ${task.cpus} -O BAM -o $output $bam_file
         fi
@@ -950,7 +950,7 @@ process SortRename {
     } else {
         """
         if [ "$mapq_cutoff" -gt "0" ]; then
-            samtools view -hubq $mapq_cutoff $bam_file > $output
+            samtools view -hbq $mapq_cutoff $bam_file > $output
         else
             mv $bam_file $output
         fi
@@ -1182,12 +1182,12 @@ process MATKpeakCalling {
     peakcalling_tag = params.peakCalling_mode == "group" ? "group_" + group : sample_id
     arguments = params.peak_threshold == "high" ? "-q 0.01" : params.peak_threshold == "medium" ? "-q 0.05" : "-q 0.1"
     """
-    export OMP_NUM_THREADS=${task.cpus}
+    #export OMP_NUM_THREADS=${task.cpus}
     if [ ! -f "$matk_jar" ]; then
         echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
         exit 1
     fi
-    java -jar $matk_jar -peakCalling $arguments -c $input_file_count -ip "$input_bam" -input "$ip_bam" -out MATK_${peakcalling_tag}.bed
+    java -jar $matk_jar -peakCalling $arguments -c $input_file_count -ip "$ip_bam" -input "$input_bam" -out MATK_${peakcalling_tag}.bed
     awk 'BEGIN{FS="\\t";OFS="\\t"}{print \$1,\$2,\$3,\$1":"\$2"-"\$3,\$5}' MATK_${peakcalling_tag}.bed > MATK_${peakcalling_tag}_normalized.bed
     """    
 }

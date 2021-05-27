@@ -1,7 +1,6 @@
 ---
 title: "DiffReport"
-author: "Kaiyu Zhu"
-date: "2019/12/3"
+author: "Meripseqpipe"
 output: html_document
 ---
 
