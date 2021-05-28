@@ -11,7 +11,7 @@ for(sample_id in designtable$Sample_ID){
   input.count <- c()
   input.names <- c()
   input.samples <- c()
-  for(input in grep(sample_id, grep(".input",filelist,value = TRUE), value = T)){
+  for(input in grep(sample_id, grep("[.]input",filelist,value = TRUE), value = T)){
     input.exp <- read.table(input,header=T,sep="\t",row.names= NULL,quote = "")
     input.count <- cbind(input.count,input.exp[,5])
     input.names <- input.exp[,4] #peaks name
@@ -22,7 +22,7 @@ for(sample_id in designtable$Sample_ID){
   ip.count <- c()
   ip.names <- c()
   ip.samples <- c()
-  for(ip in grep(sample_id, grep(".ip",filelist,value = TRUE), value = T)){
+  for(ip in grep(sample_id, grep("[.]ip",filelist,value = TRUE), value = T)){
     ip.exp <- read.table(ip,header=T,sep="\t",row.names= NULL,quote = "")
     ip.count <- cbind(ip.count,ip.exp[,5])
     ip.names <- ip.exp[,4] #peaks name

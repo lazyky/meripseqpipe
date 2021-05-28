@@ -1,7 +1,6 @@
 ---
 title: "QC_Peaks_Report"
-author: "Kaiyu Zhu"
-date: "2019/11/19"
+author: "Meripseqpipe"
 output: html_document
 ---
 

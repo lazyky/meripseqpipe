@@ -10,12 +10,6 @@ designfile=$3
 merge_bed_file=$4
 THREAD_NUM=$5
 
-### check if the file matk.jar exists
-if [ ! -f "$matk_jar" ]; then
-    echo "Cannot find matk.jar. Please check the param of matk_jar" 1>&2
-    exit 1
-fi
-
 #Define a multi-threaded run channel
 mkfifo tmp
 exec 9<>tmp
