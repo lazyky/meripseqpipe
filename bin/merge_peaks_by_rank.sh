@@ -89,7 +89,7 @@ else
         if [ $peakCalling_tools_count -gt 1 ]; then
             mergebedByRank ${sample_id} rank_merged_sample_${group_id}_${sample_id}
         else
-            awk '{OFS="\t";$5=10^-$5;print }' *${sample_id}*.bed |sortBed -i - > rank_merged_sample_${group_id}_${sample_id}
+            awk '{OFS="\t";$5=10^-$5;print }' *${sample_id}*.bed |sortBed -i - > rank_merged_sample_${group_id}_${sample_id}.bed
         fi
         echo >&9
     }&
