@@ -33,6 +33,14 @@ jobs:
           # nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners bwa --skip_peakCalling --skip_expression -resume
           # Run, input date of the suffix of bam
           nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_macs2 --skip_matk -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_meyer --skip_macs2 --skip_matk -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_macs2 --skip_matk -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk --peakCalling_mode group -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk --peakMerged_mode rank -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk --peakMerged_mode mspc -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk --peakMerged_mode macs2 -resume
           # Run, test PeakCalling mode 'group' and Methylation Analysis mode 'QNB'
           # nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakCalling_mode group --skip_expression --methylation_analysis_mode QNB -resume
           # # Run, test PeakMerged mode 'rank' and Methylation Analysis mode 'MATK'
