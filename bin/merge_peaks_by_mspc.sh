@@ -25,7 +25,6 @@ function mergebedForBio()
     out_prefix=$2
     bedfile_array=$(ls *_${prefix_id}_*.bed | awk '{ORS=" "}{print "-i",$0}')
     mspc -i  $bedfile_array -r bio -s 1E-4 -w 1E-2 -o Bio_$prefix_id
-    echo "mspc -i  $bedfile_array -r bio -s 1E-4 -w 1E-2 -o Bio_$prefix_id"
     ln Bio_$prefix_id/ConsensusPeaks.bed ${out_prefix}.bed
     awk 'NR>1{OFS="\t";$5=10^-$5;print $1,$2,$3,$1":"$2"-"$3,$5}' Bio_$prefix_id/ConsensusPeaks.bed |sortBed -i - > ${out_dir}/${out_prefix}.bed
 }
@@ -36,7 +35,6 @@ function mergebedForTec()
     peakCalling_tools_count=$3
     bedfile_array=$(ls *_${prefix_id}_*.bed | awk '{ORS=" "}{print "-i",$0}')
     mspc -i $bedfile_array -r tec -s 1E-2 -w 1E-1 -o Tec_$prefix_id
-    echo "mspc -i  $bedfile_array -r tec -s 1E-4 -w 1E-2 -o Tec_$prefix_id"
     ln Tec_$prefix_id/ConsensusPeaks.bed ${out_prefix}.bed
     awk 'NR>1{OFS="\t";$5=10^-$5;print $1,$2,$3,$1":"$2"-"$3,$5}' Tec_$prefix_id/ConsensusPeaks.bed |sortBed -i - > ${out_dir}/${out_prefix}.bed
 }
