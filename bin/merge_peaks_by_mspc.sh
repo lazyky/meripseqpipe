@@ -64,7 +64,7 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
         if [ $peakCalling_tools_count -gt 1 ]; then
             mergebedForTec ${group_id} mspc_merged_group_${group_id}
         else
-            ln *${group_id}*.bed mspc_merged_group_${group_id}
+            ln *${group_id}*.bed mspc_merged_group_${group_id}.bed
             awk '{OFS="\t";$5=10^-$5;print }' *${group_id}*.bed |sortBed -i - > ${out_dir}/mspc_merged_group_${group_id}.bed
         fi
         echo >&9
@@ -88,6 +88,7 @@ else
         if [ $peakCalling_tools_count -gt 1 ]; then
             mergebedForTec ${sample_id} mspc_merged_sample_${group_id}_${sample_id} $peakCalling_tools_count
         else
+            ln *${sample_id}*.bed mspc_merged_sample_${group_id}_${sample_id}.bed
             awk '{OFS="\t";$5=10^-$5;print }' *_${sample_id}_*normalized.bed |sortBed -i - > ${out_dir}/mspc_merged_sample_${group_id}_${sample_id}.bed
         fi
         echo >&9
