@@ -31,6 +31,4 @@ jobs:
           nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners hisat2 --skip_peakCalling --skip_expression -resume
           # Run, build reference genome with BWA
           nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners bwa --skip_peakCalling --skip_expression -resume
-          # Run, build reference genome with Tophat2
-          nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners tophat2 --skip_peakCalling --skip_expression -resume
           
