@@ -1,4 +1,4 @@
-name: nf-core CI
+name: nf-core CI (methylation_analysis_mode)
 # This workflow is triggered on pushes and PRs to the repository.
 # It runs the pipeline with the minimal test dataset to check that it completes without any syntax errors
 on: [push, pull_request]
@@ -25,12 +25,6 @@ jobs:
           docker tag kingzhuky/meripseqpipe:dev kingzhuky/meripseqpipe:dev
       - name: Run pipeline with test data
         run: |
-          # Run, test PeakCalling mode 'group' of one peakcalling tool
-          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk --peakCalling_mode group -resume
-          # Run, test PeakCalling mode 'mspc' of one peakcalling tool
-          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk --peakMerged_mode mspc -resume
-          # Run, test PeakCalling mode 'macs2' of one peakcalling tool
-          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk --peakMerged_mode macs2 -resume
           # Run, test PeakCalling mode 'group' and Methylation Analysis mode 'QNB'
           nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakCalling_mode group --skip_expression --methylation_analysis_mode QNB -resume
           # Run, test PeakMerged mode 'rank' and Methylation Analysis mode 'MATK'
