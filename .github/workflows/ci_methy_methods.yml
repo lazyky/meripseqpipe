@@ -28,6 +28,6 @@ jobs:
           # Run, test PeakCalling mode 'group' and Methylation Analysis mode 'QNB'
           nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_expression --methylation_analysis_mode QNB -resume
           # Run, test PeakMerged mode 'rank' and Methylation Analysis mode 'MATK'
-          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakMerged_mode mspc --skip_expression --methylation_analysis_mode MATK -resume
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_expression --methylation_analysis_mode MATK -resume
           # Run, test one of PeakMerged mode 'bedtools' and Methylation Analysis mode 'DESeq2'
           nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --peakMerged_mode macs2 --skip_expression --methylation_analysis_mode DESeq2 -resume
