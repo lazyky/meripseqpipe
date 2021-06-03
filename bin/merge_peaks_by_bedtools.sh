@@ -36,13 +36,17 @@ if [ $flag_peakCallingbygroup -gt 0 ]; then
         if [ $peakCalling_tools_count -gt 1 ]; then
             mergebedByBedtools ${group_id} bedtools_merged_group_${group_id} ${peakCalling_tools_main}
         else
-            awk '{OFS="\t";$5=10^-$5;print }' *${group_id}*.bed | sortBed -i - > bedtools_merged_group_${group_id}
+            awk '{OFS="\t";$5=10^-$5;print }' *${group_id}*.bed | sortBed -i - > bedtools_merged_group_${group_id}.bed
         fi
         echo >&9
     }&
     done
     wait
-    mergebedByBedtools "" bedtools_merged_allpeaks ${peakCalling_tools_main}
+    if [ $peakCalling_tools_count -gt 1 ]; then
+        mergebedByBedtools "" bedtools_merged_allpeaks ${peakCalling_tools_main}
+    else
+        cat ${peakCalling_tools_main}_*_normalized.bed | sortBed -i - | mergeBed -i - -c 4,5 -o count,mean | awk 'BEGIN{FS="\t";OFS="\t"}{print $1,$2,$3,$1":"$2"-"$3,$5}' > bedtools_merged_allpeaks.bed
+    fi
 else
     sampleinfo_list=$(awk 'BEGIN{FS=","}NR>1{print $1","$4}' $designfile |sort|uniq|awk 'BEGIN{ORS=" "}{print $0}')
     for sample_group_id in ${sampleinfo_list}
@@ -68,12 +72,16 @@ else
         if [ $peakCalling_tools_count -gt 1 ]; then
             mergebedByBedtools ${group_id} bedtools_merged_group_${group_id} ${peakCalling_tools_main}
         else
-            awk '{OFS="\t";$5=10^-$5;print }' *${group_id}*.bed | sortBed -i - > bedtools_merged_group_${group_id}
+            awk '{OFS="\t";$5=10^-$5;print }' *${group_id}*.bed | sortBed -i - > bedtools_merged_group_${group_id}.bed
         fi
         echo >&9
     }&
     done
     wait
-    mergebedByBedtools "" bedtools_merged_allpeaks ${peakCalling_tools_main}
+    if [ $peakCalling_tools_count -gt 1 ]; then
+        mergebedByBedtools "" bedtools_merged_allpeaks ${peakCalling_tools_main}
+    else
+        cat ${peakCalling_tools_main}_*_normalized.bed | sortBed -i - | mergeBed -i - -c 4,5 -o count,mean | awk 'BEGIN{FS="\t";OFS="\t"}{print $1,$2,$3,$1":"$2"-"$3,$5}' > bedtools_merged_allpeaks.bed
+    fi
 fi
 echo "${peakCalling_tools_main} merged peaks done"
