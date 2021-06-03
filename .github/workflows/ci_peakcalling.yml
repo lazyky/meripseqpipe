@@ -1,0 +1,38 @@
+name: nf-core CI
+# This workflow is triggered on pushes and PRs to the repository.
+# It runs the pipeline with the minimal test dataset to check that it completes without any syntax errors
+on: [push, pull_request]
+
+jobs:
+  test:
+    env:
+      NXF_VER: ${{ matrix.nxf_ver }}
+      NXF_ANSI_LOG: false
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Nextflow versions: check pipeline minimum and current latest
+        nxf_ver: ['19.04.0', '']
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Nextflow
+        run: |
+          wget -qO- get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/
+      - name: Pull docker image
+        run: |
+          docker pull kingzhuky/meripseqpipe:dev
+          docker tag kingzhuky/meripseqpipe:dev kingzhuky/meripseqpipe:dev
+      - name: Run pipeline with test data
+        run: |
+          # Run, test PeakCalling mode 'rank' of one peakcalling tool 'meyer'
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_macs2 --skip_matk -resume
+          # Run, test PeakCalling mode 'rank' of one peakcalling tool 'metpeak'
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_meyer --skip_macs2 --skip_matk -resume
+          # Run, test PeakCalling mode 'rank' of one peakcalling tool 'matk'
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_macs2 --skip_meyer -resume
+          # Run, test PeakCalling mode 'rank' of one peakcalling tool 'macs2'
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker --skip_metpeak --skip_meyer --skip_matk -resume
+          # Run, test PeakCalling mode 'rank' of four peakcalling tools
+          nextflow run ${GITHUB_WORKSPACE} -profile test_bam,docker -resume
+

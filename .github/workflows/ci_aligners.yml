@@ -1,0 +1,36 @@
+name: nf-core CI
+# This workflow is triggered on pushes and PRs to the repository.
+# It runs the pipeline with the minimal test dataset to check that it completes without any syntax errors
+on: [push, pull_request]
+
+jobs:
+  test:
+    env:
+      NXF_VER: ${{ matrix.nxf_ver }}
+      NXF_ANSI_LOG: false
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Nextflow versions: check pipeline minimum and current latest
+        nxf_ver: ['19.04.0', '']
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Nextflow
+        run: |
+          wget -qO- get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/
+      - name: Pull docker image
+        run: |
+          docker pull kingzhuky/meripseqpipe:dev
+          docker tag kingzhuky/meripseqpipe:dev kingzhuky/meripseqpipe:dev
+      - name: Run pipeline with test data
+        run: |
+          # Run the pipeline with the test profile
+          nextflow run ${GITHUB_WORKSPACE} -profile test,docker --skip_peakCalling --skip_expression
+          # Run, build reference genome with HISAT2
+          nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners hisat2 --skip_peakCalling --skip_expression -resume
+          # Run, build reference genome with BWA
+          nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners bwa --skip_peakCalling --skip_expression -resume
+          # Run, build reference genome with Tophat2
+          nextflow run ${GITHUB_WORKSPACE} -profile test_mixed,docker --aligners tophat2 --skip_peakCalling --skip_expression -resume
+          
