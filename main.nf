@@ -1,11 +1,11 @@
 #!/usr/bin/env nextflow
 /*
 ========================================================================================
-                         nf-core/meripseqpipe
+                         MeRIPseqPipe
 ========================================================================================
- nf-core/meripseqpipe Analysis Pipeline.
+MeRIPseqPipe Analysis Pipeline.
  #### Homepage / Documentation
- https://github.com/nf-core/meripseqpipe
+ https://github.com/canceromics/MeRIPseqPipe
 ----------------------------------------------------------------------------------------
 */
 /*
@@ -23,8 +23,8 @@
 // - MeTPeak/Macs2/MATK/meyer
 // - RobustRankAggreg/bedtools
 // - Cufflinks/DESeq2/EdgeR
-// - MeTDiff/QNB/MATK
-// - Homer/DREME
+// - QNB/MATK
+// - Homer
 // - SRAMP/MATK
 // - igvtools
 
