@@ -1,4 +1,4 @@
-# ![nf-core/meripseqpipe](docs/images/nf-core-meripseqpipe_logo.png)
+# MeRIPseqPipe
 
 **MeRIP-seq analysis pipeline arranged multiple alignment tools, peakCalling tools, Merge Peaks\' methods and methylation analysis methods.**.
 
@@ -10,7 +10,7 @@
 
 ## Introduction
 
-The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It comes with docker containers making installation trivial and results highly reproducible.N6-methyladenosine (m6A) is the most prevalent modification in the mRNA of many eukaryotic species, including yeast, plants, flies, and mammals. In order to analyze m6A-seq data, we developed a user-friendly, integrated analysis pipeline called m6APipe based on Nextflow. It integrated ten main functional modules including preprocessing, QC, read mapping, peak calling, merging peaks, differential methylation analysis, differential expression analysis, motif search, annotation, and data visualization.
+The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It comes with docker containers making installation trivial and results highly reproducible.N6-methyladenosine (m6A) is the most prevalent modification in the mRNA of many eukaryotic species, including yeast, plants, flies, and mammals. In order to analyze m6A-seq data, we developed a user-friendly, integrated analysis pipeline called MeRIPseqPipe based on Nextflow. It integrated ten main functional modules including data preprocessing, quality control, read mapping, peak calling, peak merging, motif searching, peak annotation,differential methylation analysis, differential expression analysis, and data visualization. 
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ iv. Start running your own analysis!
 
 <!-- TODO nf-core: Update the default command above used to run the pipeline -->
 ```bash
-nextflow run path/to/meripseqpipe -profile <docker/singularity/conda> --designfile 'designfile.csv' --comparefile 'comparefile.txt'  --fasta path/to/genome_fasta.fa --gtf path/to/genome_annotation.gtf
+nextflow run path/to/meripseqpipe -profile <docker/singularity/conda> --designfile 'designfile.tsv' --comparefile 'comparefile.txt'  --fasta path/to/genome_fasta.fa --gtf path/to/genome_annotation.gtf
 ```
 
 See [usage docs](docs/usage.md) for all of the available options when running the pipeline.
@@ -52,7 +52,7 @@ The nf-core/meripseqpipe pipeline comes with documentation about the pipeline, f
 
 ## Credits
 
-nf-core/meripseqpipe was originally written by Kaiyu Zhu, Yu Sun.
+MeRIPseqPipe was originally written by Kaiyu Zhu, Yu Sun, Xiaoqiong Bao.
 
 ## Contributions and Support
 
