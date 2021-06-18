@@ -34,8 +34,11 @@ PlotPeaksDitr <- function(files.list, suffix = "[.]anno[.]txt"){
     geom_vline(xintercept = c(100,200), linetype = "dashed")+
     theme_bw()+
     theme(panel.grid =element_blank(),#remove grid line
-          axis.title.x = element_text(size = 15, angle = 0, face = "plain", colour = "black"),
-          axis.title.y = element_text(size = 15, angle = 90, face = "plain", colour = "black"),
+          axis.title.x = element_text(size = 20, angle = 0, face = "plain", colour = "black"),
+          axis.title.y = element_text(size = 20, angle = 90, face = "plain", colour = "black"),
+          axis.text.x = element_text(size = 15,colour = "black"),
+          axis.text.y = element_text(size = 15,colour = "black"),
+          aspect.ratio=1,
           axis.ticks.x = element_blank()) #remove ticks
 }
 
@@ -62,6 +65,8 @@ distribute.barplot <- ggplot(distribute.table,aes(group, value, fill = Location)
                         scale_fill_brewer() +
                         theme(panel.grid =element_blank(), #remove grid line
                               title = element_text(size = 15, angle = 0, face = "plain", colour = "black"),
+                              axis.text.x = element_text(size = 12,colour = "black"),
+                              axis.text.y = element_text(size = 12,colour = "black"),
                               panel.background = element_rect(fill = "transparent",colour = NA),
                               axis.title = element_blank(),
                               axis.ticks.x = element_blank()) #remove ticks
@@ -73,6 +78,8 @@ distribute.barplot.count <- ggplot(distribute.table,aes(group, value, fill = Loc
                             scale_fill_brewer() +
                             theme(panel.grid =element_blank(), #remove grid line
                                   title = element_text(size = 15, angle = 0, face = "plain", colour = "black"),
+                                  axis.text.x = element_text(size = 12,colour = "black"),
+                                  axis.text.y = element_text(size = 12,colour = "black"),
                                   panel.background = element_rect(fill = "transparent",colour = NA),
                                   axis.title = element_blank(),
                                   axis.ticks.x = element_blank()) #remove ticks
@@ -118,8 +125,8 @@ ggplot2.multiplot <- function(..., plotlist=NULL, cols=2) {
 }
 motif_plot <- function(motif, pval, rank){
   ggplot()+
-    geom_logo(motif, method = "bits")+
-    annotate("text", x=ncol(motif)-0.5, y=2.4, label=paste0("p = ",pval),size = 6)+
+    geom_logo(motif, method = "probability")+
+    annotate("text", x=ncol(motif)-0.5, y=1.5, label=paste0("p = ",pval),size = 5)+
     ggtitle(rank)+
     theme(plot.title = element_text(hjust = 0, size = 6))+
     theme_logo()
