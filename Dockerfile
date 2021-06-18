@@ -8,11 +8,11 @@ RUN conda env create -f /environment.yml && conda clean -a
 # install subread
 RUN conda create -n multiqc -c conda-forge -c bioconda python=3.7.8 multiqc=1.7 && conda clean -a
 
-RUN conda env export --name nf-core-meripseqpipe-1.0dev > nf-core-meripseqpipe-1.0dev.yml
+RUN conda env export --name meripseqpipe-1.0dev > meripseqpipe-1.0dev.yml
 ENV PATH /mspc:$PATH
 ENV PATH /opt/conda/bin:$PATH
 ENV PATH /opt/conda/envs/multiqc/bin/:$PATH
-ENV PATH /opt/conda/envs/nf-core-meripseqpipe-1.0dev/bin:$PATH
+ENV PATH /opt/conda/envs/meripseqpipe-1.0dev/bin:$PATH
 
 
 # install MATK
