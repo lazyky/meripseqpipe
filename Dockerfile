@@ -1,6 +1,6 @@
 FROM nfcore/base:1.9
-LABEL authors="Kaiyu Zhu, Yu Sun" \
-      description="Docker image containing all software requirements for the nf-core/meripseqpipe pipeline"
+LABEL authors="Kaiyu Zhu, Yu Sun, Xiaoqiong Bao" \
+      description="Docker image containing all software requirements for the MeRIPseqPipe pipeline"
 
 # Install the conda environment
 COPY environment.yml /
