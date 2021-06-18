@@ -1,6 +1,6 @@
 ---
 title: "DiffReport"
-author: "Meripseqpipe"
+author: "MeRIPseqPipe"
 output: html_document
 ---
 
