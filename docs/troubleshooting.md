@@ -1,4 +1,4 @@
-# nf-core/m6APipe: Troubleshooting
+# MeRIPsepPipe: Troubleshooting
 
 ## Input files not found
 
