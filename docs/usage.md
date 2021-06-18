@@ -159,6 +159,7 @@ Comparefile is just like the following text which is a "\_vs\_" between two grou
 
 Example:
 >Control1_vs_Treated1
+>
 >Control2_vs_Treated2
 >
 >Tips
