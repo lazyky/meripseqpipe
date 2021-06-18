@@ -1,6 +1,6 @@
 ---
 title: "QC_Peaks_Report"
-author: "Meripseqpipe"
+author: "MeRIPseqPipe"
 output: html_document
 ---
 
