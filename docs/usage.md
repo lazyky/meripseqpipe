@@ -8,7 +8,6 @@
   - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
   - [Running the pipeline](#running-the-pipeline)
-    - [Updating the pipeline](#updating-the-pipeline)
     - [Reproducibility](#reproducibility)
   - [Main arguments](#main-arguments)
     - [`-profile`](#-profile)
@@ -67,7 +66,7 @@ NXF_OPTS='-Xms1g -Xmx4g'
 The typical command for running the pipeline is as follows:
 
 ```bash
-nextflow run nf-core/meripseqpipe --reads '*_R{1,2}.fastq.gz' --designfile 'path/to/designfile/design.csv' --comparefile 'path/to/designfile/compare.txt' -profile docker
+nextflow run path/to/meripseqpipe --designfile 'path/to/designfile/design.csv' --comparefile 'path/to/designfile/compare.txt' -profile docker
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
@@ -79,14 +78,6 @@ work            # Directory containing the nextflow working files
 results         # Finished results (configurable, see below)
 .nextflow_log   # Log file from Nextflow
 # Other nextflow hidden files, eg. history of pipeline runs and old logs.
-```
-
-### Updating the pipeline
-
-When you run the above command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version. When running the pipeline after this, it will always use the cached version if available - even if the pipeline has been updated since. To make sure that you're running the latest version of the pipeline, make sure that you regularly update the cached version of the pipeline:
-
-```bash
-nextflow pull nf-core/meripseqpipe
 ```
 
 ### Reproducibility

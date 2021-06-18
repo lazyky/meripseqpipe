@@ -30,7 +30,7 @@ iv. Start running your own analysis!
 
 <!-- TODO nf-core: Update the default command above used to run the pipeline -->
 ```bash
-nextflow run path/to/meripseqpipe -profile <docker/singularity/conda> --reads '*_R{1,2}.fastq.gz' --gzip --designfile 'designfile.csv' --comparefile 'comparefile.txt'  --fasta path/to/genome_fasta.fa --gtf path/to/genome_annotation.gtf
+nextflow run path/to/meripseqpipe -profile <docker/singularity/conda> --designfile 'designfile.csv' --comparefile 'comparefile.txt'  --fasta path/to/genome_fasta.fa --gtf path/to/genome_annotation.gtf
 ```
 
 See [usage docs](docs/usage.md) for all of the available options when running the pipeline.
