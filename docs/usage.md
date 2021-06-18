@@ -1,16 +1,16 @@
-# nf-core/meripseqpipe: Usage
+# MeRIPseqPipe
 
 ## Table of contents
 
 <!-- Install Atom plugin markdown-toc-auto for this ToC to auto-update on save -->
 <!-- TOC START min:2 max:3 link:true asterisk:true update:true -->
-- [nf-core/meripseqpipe: Usage](#nf-coremeripseqpipe-usage)
+- [MeRIPseqPipe: Usage](#MeRIPseqPipe-usage)
   - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
   - [Running the pipeline](#running-the-pipeline)
-    - [Reproducibility](#reproducibility)
   - [Main arguments](#main-arguments)
     - [`-profile`](#-profile)
+    - [`-resume`](#-resume)
     - [`--stranded`](#--stranded)
     - [`--mapq_cutoff [int]`](#--mapq_cutoff-int)
     - [`--designfile`](#--designfile)
@@ -26,6 +26,7 @@
   - [Skipping steps](#skipping-steps)
     - [`--skip_metpeak`, `--skip_macs2`, `--skip_matk`, `--skip_meyer`](#--skip_metpeak---skip_macs2---skip_matk---skip_meyer)
     - [`--skip_fastp`, `--skip_fastqc`, `--skip_rseqc`, `--skip_createbedgraph`](#--skip_fastp---skip_fastqc---skip_rseqc---skip_createbedgraph)
+    - [`--skip_deseq2`](#--skip_deseq2)
   - [Job resources](#job-resources)
     - [Automatic resubmission](#automatic-resubmission)
     - [Custom resource requests](#custom-resource-requests)
@@ -66,7 +67,7 @@ NXF_OPTS='-Xms1g -Xmx4g'
 The typical command for running the pipeline is as follows:
 
 ```bash
-nextflow run path/to/meripseqpipe --designfile 'path/to/designfile/design.csv' --comparefile 'path/to/designfile/compare.txt' -profile docker
+nextflow run path/to/meripseqpipe --designfile 'path/to/designfile/designfile.tsv' --comparefile 'path/to/designfile/compare.txt' -profile docker -resume
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
@@ -80,13 +81,6 @@ results         # Finished results (configurable, see below)
 # Other nextflow hidden files, eg. history of pipeline runs and old logs.
 ```
 
-### Reproducibility
-
-It's a good idea to specify a pipeline version when running the pipeline on your data. This ensures that a specific version of the pipeline code and software are used when you run your pipeline. If you keep using the same tag, you'll be running the same version of the pipeline, even if there have been changes to the code since.
-
-First, go to the [nf-core/meripseqpipe releases page](https://github.com/nf-core/meripseqpipe/releases) and find the latest version number - numeric only (eg. `1.3.1`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 1.3.1`.
-
-This version number will be logged in reports when you run the pipeline, so that you'll know what you used when you look back in the future.
 
 ## Main arguments
 
@@ -101,15 +95,19 @@ If `-profile` is not specified at all the pipeline will be run locally and expec
   - Pulls most software from [Bioconda](https://bioconda.github.io/)
 - `docker`
   - A generic configuration profile to be used with [Docker](http://docker.com/)
-  - Pulls software from dockerhub: [`nfcore/meripseqpipe`](http://hub.docker.com/r/nfcore/meripseqpipe/)
+  - Pulls software from dockerhub: [`kingzhuky/meripseqpipe`](https://hub.docker.com/r/kingzhuky/meripseqpipe)
 - `singularity`
   - A generic configuration profile to be used with [Singularity](http://singularity.lbl.gov/)
-  - Pulls software from DockerHub: [`nfcore/meripseqpipe`](http://hub.docker.com/r/nfcore/meripseqpipe/)
+  - Pulls software from DockerHub: [`kingzhuky/meripseqpipe`](https://hub.docker.com/r/kingzhuky/meripseqpipe)
 - `test`
   - A profile with a complete configuration for automated testing
   - Includes links to test data so needs no other parameters
 
 <!-- TODO nf-core: Document required command line parameters -->
+
+### `-resume`
+
+MeRIPseqPipe allows users to cancel pipeline, reset parameters and resume analysis from any continuous checkpoint by secifying `-resume`.
 
 ### `--stranded`
 
@@ -133,7 +131,7 @@ Edit the nextflow.config and define "readPaths", "aligners", "designfile", "comp
 Designfile is just like the following table splited by tabs ("\t") separated, which is .csv suffix file. It's recommended edited by Excel and save as .tsv suffix file.
 
 ```bash
---readPaths 'path/to/data/' --designfile 'path/to/designfile/design.tsv'
+--designfile 'path/to/designfile/designfile.tsv'
 ```
 
 Example:
@@ -143,32 +141,40 @@ Example:
 | CD_sample | path/to/C.fastq.gz | false | path/to/D.fastq.gz | false | CDGH |
 | EF_sample | path/to/E1.fastq | path/to/E2.fastq | path/to/F.fastq.gz | false | ABEF |
 | GH_sample | path/to/G1.fastq | path/to/G2.fastq | path/to/H1.fastq.gz | path/to/H2.fastq.gz | CDGH |
+| bam_sample | path/to/.bam | false | path/to/.bam | false | bam |
 
 >Tips
 >
 >1. You can use absolute path and relative path of data in designfile, but absolute path is more recommended.
->2. The designfile is very important for analysis
+>2. BAM files are supported too.
+>3. The designfile is very important for analysis
 
 ### `--comparefile`
 
 Comparefile is just like the following text which is a "\_vs\_" between two groups.
 
 ```bash
- --designfile 'path/to/designfile/design.csv' --comparefile 'path/to/designfile/compare.txt'
+ --designfile 'path/to/designfile/design.tsv' --comparefile 'path/to/designfile/compare.txt'
 ```
 
 Example:
->Control_vs_Treated
+>Control1_vs_Treated1
+>Control2_vs_Treated2
+>
+>Tips
+>
+>1. Exprimental replicates is required for DESeq2. (Every group should contain two samples.)
+>2. if you don't need comparefile, you can use "--comparefile false --skip_deseq2".
 
 ### `--aligners`, `--peakCalling_mode`, `--peakMerged_mode`, `--expression_analysis_mode`, `--methylation_analysis_mode`
 
 ```config
   // Setting main parameters of analysis mode
-  aligners = "star"   // "star" OR "bwa" OR "tophat2" OR "hisat2" OR "none"
+  aligners = "star"   // "star" OR "bwa" OR "tophat2" OR "hisat2" OR "none","none" for bam files
   peakCalling_mode = "independence" // "group" OR "independence"
-  peakMerged_mode = "rank" // "rank" OR "macs2" OR "MATK" OR "metpeak" OR "mspc"
+  peakMerged_mode = "rank" // "rank" OR "mspc" OR "macs2" OR "MATK" OR "metpeak" 
   expression_analysis_mode = "DESeq2" // "DESeq2" OR "edgeR" OR "none"
-  methylation_analysis_mode = "QNB" // "MATK" OR "QNB" OR "Wilcox-test" OR "MeTDiff" OR "edgeR" OR "DESeq2"
+  methylation_analysis_mode = "QNB" // "MATK" OR "QNB" OR "Wilcox-test" OR "edgeR" OR "DESeq2"
 ```
 
 If you prefer, you can specify the mode of meripseqpipe when you run the pipeline.
