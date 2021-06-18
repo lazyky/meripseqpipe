@@ -1,4 +1,4 @@
-# nf-core/meripseqpipe: Output
+# MeRIPseqPipe: Output
 
 This document describes the output produced by the pipeline. Most of the plots are taken from the MultiQC report, which summarises results at the end of the pipeline.
 
@@ -9,7 +9,7 @@ This document describes the output produced by the pipeline. Most of the plots a
 The pipeline is built using [Nextflow](https://www.nextflow.io/)
 and processes data using the following steps:
 
-- [nf-core/meripseqpipe: Output](#nf-coremeripseqpipe-output)
+- [MeRIPseqPipe: Output](#MeRIPseqPipe-output)
   - [Pipeline overview](#pipeline-overview)
   - [Quality Control](#quality-control)
     - [Fastp](#fastp)
@@ -32,13 +32,14 @@ and processes data using the following steps:
     - [MSPC](#mspc)
     - [BEDtools](#bedtools)
   - [M6A sites prediction](#m6a-sites-prediction)
+    - [MATK](#matk)
   - [Differtial Methylation Analysis](#differtial-methylation-analysis)
-    - [MeTDiff](#metdiff)
     - [QNB](#qnb)
+    - [MATK](#matk)
     - [DESeq2_DM](#deseq2dm)
     - [edgeR_DM](#edgerdm)
   - [Differtial Expression Analysis](#differtial-expression-analysis)
-    - [htseq](#htseq)
+    - [featureCounts](#featureCounts)
     - [DESeq2_DE](#deseq2de)
     - [edgeR_DE](#edgerde)
   - [Reports](#reports)
@@ -153,13 +154,12 @@ For more information about how to use MultiQC reports, see [http://multiqc.info]
 
 ## Differtial Methylation Analysis
 
-### MeTDiff
-
-[MeTDiff](https://github.com/compgenomics/MeTDiff)
-
 ### QNB
 
 [QNB](https://cran.r-project.org/src/contrib/Archive/QNB/)
+
+### MATK
+[MATK](http://matk.renlab.org)
 
 ### DESeq2_DM
 
@@ -171,9 +171,9 @@ For more information about how to use MultiQC reports, see [http://multiqc.info]
 
 ## Differtial Expression Analysis
 
-### htseq
+### featureCounts
 
-[htseq](https://github.com/simon-anders/htseq)
+[featureCounts](http://subread.sourceforge.net)
 
 ### DESeq2_DE
 
