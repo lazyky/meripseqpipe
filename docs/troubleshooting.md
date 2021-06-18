@@ -1,4 +1,4 @@
-# MeRIPsepPipe: Troubleshooting
+# MeRIPseqPipe: Troubleshooting
 
 ## Input files not found
 
